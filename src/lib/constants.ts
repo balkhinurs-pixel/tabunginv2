@@ -31,7 +31,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: FileText,
   },
   {
-    href: '#',
+    href: '/settings',
     title: 'Pengaturan',
     icon: Settings,
   },

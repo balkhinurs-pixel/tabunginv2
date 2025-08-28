@@ -146,15 +146,80 @@ export default function ProfilesPage() {
                     <TableCell>{student.class}</TableCell>
                     <TableCell>
                         <div className='flex items-center gap-2'>
-                            <Button variant="outline" size="icon" className='h-8 w-8 border-blue-500 text-blue-500 hover:bg-blue-50 hover:text-blue-600'>
-                                <KeyRound className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="icon" className='h-8 w-8 border-yellow-500 text-yellow-500 hover:bg-yellow-50 hover:text-yellow-600'>
-                                <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="icon" className='h-8 w-8 border-destructive text-destructive hover:bg-destructive/10'>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline" size="icon" className='h-8 w-8 border-blue-500 text-blue-500 hover:bg-blue-50 hover:text-blue-600'>
+                                        <KeyRound className="h-4 w-4" />
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Reset Kata Sandi</DialogTitle>
+                                        <DialogDescription>
+                                            Masukkan kata sandi baru untuk siswa {student.name}.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="new-password" className="text-right">
+                                            Sandi Baru
+                                            </Label>
+                                            <Input id="new-password" type="password" className="col-span-3" />
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button type="submit">Reset Kata Sandi</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                             <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline" size="icon" className='h-8 w-8 border-yellow-500 text-yellow-500 hover:bg-yellow-50 hover:text-yellow-600'>
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                </DialogTrigger>
+                                 <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Ubah Profil Siswa</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="edit-name" className="text-right">
+                                            Nama
+                                            </Label>
+                                            <Input id="edit-name" defaultValue={student.name} className="col-span-3" />
+                                        </div>
+                                         <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="edit-class" className="text-right">
+                                            Kelas
+                                            </Label>
+                                            <Input id="edit-class" defaultValue={student.class} className="col-span-3" />
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button type="submit">Simpan Perubahan</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                             <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline" size="icon" className='h-8 w-8 border-destructive text-destructive hover:bg-destructive/10'>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Hapus Siswa?</DialogTitle>
+                                        <DialogDescription>
+                                            Tindakan ini tidak dapat dibatalkan. Ini akan menghapus profil dan semua data terkait untuk {student.name}.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <DialogFooter>
+                                        <Button variant="ghost">Batal</Button>
+                                        <Button variant="destructive">Ya, Hapus</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     </TableCell>
                 </TableRow>
