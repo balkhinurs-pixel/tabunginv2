@@ -1,6 +1,6 @@
 
 import Link from 'next/link';
-import { ArrowLeft, PlusCircle, MinusCircle, FileText, MessageCircle } from 'lucide-react';
+import { ArrowLeft, PlusCircle, MinusCircle, FileText, MessageCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -30,21 +30,19 @@ const ActionButton = ({ icon: Icon, label, variant = 'default' }: { icon: React.
     )
 };
 
-const TransactionHistoryItem = ({ date, type, description }: { date: string, type: 'Pemasukan' | 'Pengeluaran', description: string }) => (
-  <div className="flex items-center justify-between border-b py-3 text-sm">
-    <span className="text-muted-foreground">{date}</span>
-    <Badge
-      variant="outline"
-      className={cn(
-        type === 'Pemasukan'
-          ? 'border-green-200 bg-green-50 text-green-700'
-          : 'border-red-200 bg-red-50 text-red-700'
-      )}
-    >
-      {type}
-    </Badge>
-    <span className="text-foreground">{description}</span>
-  </div>
+const TransactionHistoryItem = ({ description, amount, type }: { description: string, amount: number, type: 'Pemasukan' | 'Pengeluaran' }) => (
+    <div className="flex items-center justify-between border-b py-3 text-sm">
+        <span className="flex-1">{description}</span>
+        <span className={cn(
+            "font-medium flex-1",
+            type === 'Pemasukan' ? 'text-green-600' : 'text-red-600'
+        )}>
+            {amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+        </span>
+        <Button variant="destructive" size="icon" className="h-8 w-8 bg-red-500 hover:bg-red-600">
+            <Trash2 className="h-4 w-4" />
+        </Button>
+    </div>
 );
 
 export default function StudentProfilePage({ params }: { params: { id: string } }) {
@@ -59,9 +57,9 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
   };
 
   const transactions = [
-      { date: '10/6/2025', type: 'Pemasukan', description: 'harian' },
-      { date: '10/6/2025', type: 'Pemasukan', description: 'bulanan' },
-      { date: '10/6/2025', type: 'Pengeluaran', description: 'jajan' },
+      { type: 'Pemasukan', description: 'harian', amount: 500000 },
+      { type: 'Pemasukan', description: 'bulanan', amount: 5000000 },
+      { type: 'Pengeluaran', description: 'jajan', amount: 25000 },
   ];
 
   return (
@@ -102,9 +100,9 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="mb-4 grid grid-cols-3 text-xs font-semibold text-muted-foreground">
-                <span>TANGGAL</span>
-                <span>JENIS</span>
-                <span>KETERANGAN</span>
+                <span className="col-span-1">KETERANGAN</span>
+                <span className="col-span-1">JUMLAH</span>
+                <span className="col-span-1">AKSI</span>
             </div>
             <div className="space-y-2">
                 {transactions.map((tx, index) => (
