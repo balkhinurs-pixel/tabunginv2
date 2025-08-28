@@ -1,4 +1,6 @@
 
+'use client';
+
 import Link from 'next/link';
 import { ArrowLeft, PlusCircle, MinusCircle, FileText, MessageCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,19 +18,26 @@ const StatCard = ({ title, value, colorClass }: { title: string, value: string, 
     </Card>
 );
 
-const ActionButton = ({ icon: Icon, label, variant = 'default' }: { icon: React.ElementType, label: string, variant?: 'default' | 'destructive' | 'secondary' | 'ghost' }) => {
+const ActionButton = ({ icon: Icon, label, variant = 'default', href }: { icon: React.ElementType, label: string, variant?: 'default' | 'destructive' | 'secondary' | 'ghost', href?: string }) => {
     const colorClasses = {
         default: 'bg-green-500 hover:bg-green-600 text-white',
         destructive: 'bg-red-600 hover:bg-red-700 text-white',
         secondary: 'bg-white hover:bg-gray-100 text-gray-800 border border-gray-200',
         ghost: 'bg-green-100 hover:bg-green-200 text-green-700'
     };
-    return (
+    
+    const content = (
         <Button className={`w-full justify-start text-left h-12 text-base font-medium ${colorClasses[variant]}`}>
             <Icon className="mr-3 h-5 w-5" />
             {label}
         </Button>
-    )
+    );
+
+    if (href) {
+        return <Link href={href}>{content}</Link>;
+    }
+
+    return content;
 };
 
 export default function StudentProfilePage({ params }: { params: { id: string } }) {
@@ -74,8 +83,8 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
       </div>
 
       <div className="space-y-3 pt-4">
-        <ActionButton icon={PlusCircle} label="Setor Tunai" />
-        <ActionButton icon={MinusCircle} label="Tarik Tunai" variant="destructive" />
+        <ActionButton icon={PlusCircle} label="Setor Tunai" href={`/profiles/${params.id}/deposit`} />
+        <ActionButton icon={MinusCircle} label="Tarik Tunai" variant="destructive" href={`/profiles/${params.id}/withdrawal`} />
         <ActionButton icon={FileText} label="Cetak Laporan" variant="secondary" />
         <ActionButton icon={MessageCircle} label="Kirim WA" variant="ghost" />
       </div>
