@@ -21,11 +21,11 @@ import { Label } from '@/components/ui/label'
 import { PlusCircle } from 'lucide-react';
 
 const students = [
-  { id: 'S001', name: 'John Doe', balance: 125.50, joinDate: '2023-09-01' },
-  { id: 'S002', name: 'Jane Smith', balance: 88.00, joinDate: '2023-09-01' },
-  { id: 'S003', name: 'Peter Jones', balance: 250.00, joinDate: '2023-09-02' },
-  { id: 'S004', name: 'Mary Johnson', balance: 175.25, joinDate: '2023-09-03' },
-  { id: 'S005', name: 'Chris Lee', balance: 45.00, joinDate: '2023-09-05' },
+  { id: 'S001', name: 'John Doe', balance: 125500, joinDate: '2023-09-01' },
+  { id: 'S002', name: 'Jane Smith', balance: 88000, joinDate: '2023-09-01' },
+  { id: 'S003', name: 'Peter Jones', balance: 250000, joinDate: '2023-09-02' },
+  { id: 'S004', name: 'Mary Johnson', balance: 175250, joinDate: '2023-09-03' },
+  { id: 'S005', name: 'Chris Lee', balance: 45000, joinDate: '2023-09-05' },
 ];
 
 export default function ProfilesPage() {
@@ -88,7 +88,7 @@ export default function ProfilesPage() {
                 <TableCell>{student.name}</TableCell>
                 <TableCell>{student.joinDate}</TableCell>
                 <TableCell className="text-right font-medium">
-                  {student.balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                  {student.balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                 </TableCell>
               </TableRow>
             ))}

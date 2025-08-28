@@ -10,18 +10,18 @@ import {
 } from '@/components/ui/card';
 
 const data = [
-  { name: 'Jan', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Feb', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Mar', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Apr', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'May', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Jun', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Jul', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Aug', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Sep', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Oct', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Nov', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Dec', total: Math.floor(Math.random() * 5000) + 1000 },
+  { name: 'Jan', total: Math.floor(Math.random() * 5000000) + 1000000 },
+  { name: 'Feb', total: Math.floor(Math.random() * 5000000) + 1000000 },
+  { name: 'Mar', total: Math.floor(Math.random() * 5000000) + 1000000 },
+  { name: 'Apr', total: Math.floor(Math.random() * 5000000) + 1000000 },
+  { name: 'May', total: Math.floor(Math.random() * 5000000) + 1000000 },
+  { name: 'Jun', total: Math.floor(Math.random() * 5000000) + 1000000 },
+  { name: 'Jul', total: Math.floor(Math.random() * 5000000) + 1000000 },
+  { name: 'Aug', total: Math.floor(Math.random() * 5000000) + 1000000 },
+  { name: 'Sep', total: Math.floor(Math.random() * 5000000) + 1000000 },
+  { name: 'Oct', total: Math.floor(Math.random() * 5000000) + 1000000 },
+  { name: 'Nov', total: Math.floor(Math.random() * 5000000) + 1000000 },
+  { name: 'Dec', total: Math.floor(Math.random() * 5000000) + 1000000 },
 ];
 
 export default function SavingsChart() {
@@ -46,7 +46,7 @@ export default function SavingsChart() {
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => `$${value}`}
+              tickFormatter={(value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value))}
             />
             <Tooltip
               contentStyle={{
@@ -56,6 +56,7 @@ export default function SavingsChart() {
                 borderRadius: 'var(--radius)',
               }}
               cursor={{ fill: 'hsl(var(--muted))' }}
+              formatter={(value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(value))}
             />
             <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
           </BarChart>

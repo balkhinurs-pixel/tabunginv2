@@ -89,7 +89,7 @@ export default function NewTransactionDialog() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="amount">Amount</Label>
-                <Input id="amount" type="number" placeholder="0.00" required />
+                <Input id="amount" type="number" placeholder="0" required />
               </div>
               <DialogFooter>
                 <Button type="submit">Save Transaction</Button>

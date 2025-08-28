@@ -19,13 +19,13 @@ import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 
 const reportData = [
-  { id: 'TRX001', student: 'John Doe', type: 'Deposit', amount: 50.00, date: '2023-10-26' },
-  { id: 'TRX002', student: 'Jane Smith', type: 'Withdrawal', amount: 20.00, date: '2023-10-25' },
-  { id: 'TRX003', student: 'Peter Jones', type: 'Deposit', amount: 100.00, date: '2023-10-25' },
-  { id: 'TRX004', student: 'Mary Johnson', type: 'Deposit', amount: 75.00, date: '2023-10-24' },
-  { id: 'TRX005', student: 'John Doe', type: 'Withdrawal', amount: 15.00, date: '2023-10-23' },
-  { id: 'TRX006', student: 'Jane Smith', type: 'Deposit', amount: 30.00, date: '2023-10-22' },
-  { id: 'TRX007', student: 'Peter Jones', type: 'Withdrawal', amount: 50.00, date: '2023-10-21' },
+  { id: 'TRX001', student: 'John Doe', type: 'Deposit', amount: 50000, date: '2023-10-26' },
+  { id: 'TRX002', student: 'Jane Smith', type: 'Withdrawal', amount: 20000, date: '2023-10-25' },
+  { id: 'TRX003', student: 'Peter Jones', type: 'Deposit', amount: 100000, date: '2023-10-25' },
+  { id: 'TRX004', student: 'Mary Johnson', type: 'Deposit', amount: 75000, date: '2023-10-24' },
+  { id: 'TRX005', student: 'John Doe', type: 'Withdrawal', amount: 15000, date: '2023-10-23' },
+  { id: 'TRX006', student: 'Jane Smith', type: 'Deposit', amount: 30000, date: '2023-10-22' },
+  { id: 'TRX007', student: 'Peter Jones', type: 'Withdrawal', amount: 50000, date: '2023-10-21' },
 ];
 
 export default function ReportsPage() {
@@ -109,7 +109,7 @@ export default function ReportsPage() {
                 </TableCell>
                 <TableCell>{transaction.date}</TableCell>
                 <TableCell className="text-right">
-                  {transaction.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                  {transaction.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                 </TableCell>
               </TableRow>
             ))}
