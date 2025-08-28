@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -29,6 +29,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useStudent } from '@/context/StudentContext';
 import { useToast } from '@/hooks/use-toast';
+import type { Student } from '@/data/students';
 
 const AddStudentDialog = () => {
     const { addStudent } = useStudent();
@@ -215,7 +216,75 @@ const DeleteStudentDialog = ({ studentId, studentName }: { studentId: string; st
 
 
 export default function ProfilesPage() {
-  const { students } = useStudent();
+  const { students, addStudent } = useStudent();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleDownloadTemplate = () => {
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + "nis,name,class\n"
+      + "24003,Contoh Siswa,9c\n";
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "template_siswa.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const text = e.target?.result as string;
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        
+        if (lines.length < 2) {
+            toast({ title: 'File Kosong', description: 'File CSV tidak berisi data.', variant: 'destructive' });
+            return;
+        }
+
+        const header = lines[0].trim().split(',');
+        if (header[0] !== 'nis' || header[1] !== 'name' || header[2] !== 'class') {
+            toast({ title: 'Format Salah', description: 'Pastikan header CSV adalah: nis,name,class', variant: 'destructive' });
+            return;
+        }
+        
+        let addedCount = 0;
+        try {
+            for (let i = 1; i < lines.length; i++) {
+                const data = lines[i].trim().split(',');
+                if (data.length === 3) {
+                    const [nis, name, studentClass] = data;
+                    if (nis && name && studentClass) {
+                        addStudent({ nis, name, class: studentClass });
+                        addedCount++;
+                    }
+                }
+            }
+            if (addedCount > 0) {
+                 toast({ title: 'Import Berhasil', description: `${addedCount} siswa berhasil diimpor.` });
+            } else {
+                 toast({ title: 'Tidak Ada Data Ditambahkan', description: 'Pastikan file CSV memiliki data yang valid.', variant: 'destructive' });
+            }
+        } catch (error) {
+            toast({ title: 'Import Gagal', description: 'Terjadi kesalahan saat memproses file.', variant: 'destructive' });
+        } finally {
+            if(fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className='flex items-center justify-between'>
@@ -224,14 +293,20 @@ export default function ProfilesPage() {
 
       <div className="grid grid-cols-2 gap-2">
         <AddStudentDialog />
-
-        <Button variant="outline">
+        <Button variant="outline" onClick={handleDownloadTemplate}>
             <Download className="mr-2 h-4 w-4" /> Unduh Template
         </Button>
       </div>
-      <Button variant="outline">
-            <Upload className="mr-2 h-4 w-4" /> Import (CSV)
+      <Button variant="outline" onClick={handleImportClick}>
+        <Upload className="mr-2 h-4 w-4" /> Import (CSV)
       </Button>
+      <input 
+        type="file" 
+        ref={fileInputRef}
+        className="hidden"
+        accept=".csv"
+        onChange={handleFileImport}
+      />
 
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="p-3 text-center">
