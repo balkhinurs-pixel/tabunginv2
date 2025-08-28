@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Download, Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 
 const reportData = [
@@ -58,14 +59,14 @@ export default function ReportsPage() {
                   {date?.from ? (
                     date.to ? (
                       <>
-                        {format(date.from, "LLL dd, y")} -{" "}
-                        {format(date.to, "LLL dd, y")}
+                        {format(date.from, "d MMMM yyyy", { locale: id })} -{" "}
+                        {format(date.to, "d MMMM yyyy", { locale: id })}
                       </>
                     ) : (
-                      format(date.from, "LLL dd, y")
+                      format(date.from, "d MMMM yyyy", { locale: id })
                     )
                   ) : (
-                    <span>Pick a date</span>
+                    <span>Pilih tanggal</span>
                   )}
                 </Button>
               </PopoverTrigger>
@@ -77,6 +78,7 @@ export default function ReportsPage() {
                   selected={date}
                   onSelect={setDate}
                   numberOfMonths={2}
+                  locale={id}
                 />
               </PopoverContent>
             </Popover>
@@ -107,7 +109,7 @@ export default function ReportsPage() {
                     {transaction.type}
                   </Badge>
                 </TableCell>
-                <TableCell>{transaction.date}</TableCell>
+                <TableCell>{format(new Date(transaction.date), "d MMMM yyyy", { locale: id })}</TableCell>
                 <TableCell className="text-right">
                   {transaction.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                 </TableCell>

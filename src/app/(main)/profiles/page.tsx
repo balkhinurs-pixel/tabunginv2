@@ -19,6 +19,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PlusCircle } from 'lucide-react';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 const students = [
   { id: 'S001', name: 'John Doe', balance: 125500, joinDate: '2023-09-01' },
@@ -86,7 +88,7 @@ export default function ProfilesPage() {
               <TableRow key={student.id}>
                 <TableCell className="font-medium">{student.id}</TableCell>
                 <TableCell>{student.name}</TableCell>
-                <TableCell>{student.joinDate}</TableCell>
+                <TableCell>{format(new Date(student.joinDate), "d MMMM yyyy", { locale: id })}</TableCell>
                 <TableCell className="text-right font-medium">
                   {student.balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                 </TableCell>
