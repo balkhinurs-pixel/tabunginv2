@@ -1,9 +1,17 @@
+
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Users, QrCode, FileText, ShieldCheck, Search, ArrowRight, EyeOff } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useStudent } from '@/context/StudentContext';
+import { useToast } from '@/hooks/use-toast';
+
 
 const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href?: string }) => {
   const content = (
@@ -36,6 +44,33 @@ const BackpackIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export default function DashboardPage() {
   const totalBalance = 5475000;
+  const [nis, setNis] = useState('');
+  const { students } = useStudent();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const handleSearch = () => {
+    if (!nis) {
+      toast({
+        title: 'NIS Kosong',
+        description: 'Silakan masukkan NIS siswa untuk mencari.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const student = students.find((s) => s.nis === nis);
+
+    if (student) {
+      router.push(`/profiles/${student.id}`);
+    } else {
+      toast({
+        title: 'Siswa Tidak Ditemukan',
+        description: `Tidak ada siswa dengan NIS "${nis}".`,
+        variant: 'destructive',
+      });
+    }
+  };
   
   return (
     <div className="space-y-6">
@@ -64,8 +99,17 @@ export default function DashboardPage() {
         <CardContent className="p-4 space-y-3">
           <p className="font-semibold text-sm">Cari Siswa (via NIS)</p>
           <div className="flex gap-2">
-            <Input placeholder="Masukkan NIS siswa..." />
-            <Button>
+            <Input 
+              placeholder="Masukkan NIS siswa..." 
+              value={nis}
+              onChange={(e) => setNis(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch();
+                }
+              }}
+            />
+            <Button onClick={handleSearch}>
               <Search className="mr-2 h-4 w-4" /> Cari
             </Button>
           </div>
