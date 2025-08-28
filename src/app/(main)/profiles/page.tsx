@@ -19,10 +19,11 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
+    DialogClose,
   } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2 } from 'lucide-react';
+import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useStudent } from '@/context/StudentContext';
@@ -46,26 +47,36 @@ export default function ProfilesPage() {
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                 <DialogTitle>Tambah Siswa Baru</DialogTitle>
-                <DialogDescription>
-                    Isi detail di bawah untuk membuat profil siswa baru.
-                </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">
-                    Nama
-                    </Label>
-                    <Input id="name" placeholder="contoh: John Doe" className="col-span-3" />
+                  <div className="space-y-2">
+                      <Label htmlFor="nis">NIS (Nomor Induk Siswa)</Label>
+                      <Input id="nis" />
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="fullName">Nama Lengkap</Label>
+                      <Input id="fullName" />
+                  </div>
+                   <div className="space-y-2">
+                      <Label htmlFor="class">Kelas</Label>
+                      <Input id="class" />
+                  </div>
+                   <div className="space-y-2">
+                      <Label htmlFor="whatsapp">Nomor WhatsApp Wali (Opsional)</Label>
+                      <Input id="whatsapp" placeholder="Contoh: 6281234567890" />
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="pin">PIN Siswa (untuk Login)</Label>
+                      <Input id="pin" defaultValue="123456" />
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="studentId" className="text-right">
-                    ID Siswa
-                    </Label>
-                    <Input id="studentId" placeholder="contoh: 123456" className="col-span-3" />
-                </div>
-                </div>
-                <DialogFooter>
-                <Button type="submit">Buat Profil</Button>
+                <DialogFooter className="grid grid-cols-2 gap-2">
+                  <DialogClose asChild>
+                    <Button variant="outline">Batal</Button>
+                  </DialogClose>
+                  <Button type="submit">
+                    <Save className="mr-2 h-4 w-4" /> Simpan Siswa
+                  </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
