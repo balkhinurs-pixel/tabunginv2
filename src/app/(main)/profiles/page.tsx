@@ -194,26 +194,39 @@ export default function ProfilesPage() {
                                         <Pencil className="h-4 w-4" />
                                     </Button>
                                 </DialogTrigger>
-                                 <DialogContent>
+                                 <DialogContent className="sm:max-w-[425px]">
                                     <DialogHeader>
                                         <DialogTitle>Ubah Profil Siswa</DialogTitle>
                                     </DialogHeader>
                                     <div className="grid gap-4 py-4">
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="edit-name" className="text-right">
-                                            Nama
-                                            </Label>
-                                            <Input id="edit-name" defaultValue={student.name} className="col-span-3" />
+                                        <div className="space-y-2">
+                                            <Label htmlFor="edit-nis">NIS (Nomor Induk Siswa)</Label>
+                                            <Input id="edit-nis" defaultValue={student.nis} />
                                         </div>
-                                         <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="edit-class" className="text-right">
-                                            Kelas
-                                            </Label>
-                                            <Input id="edit-class" defaultValue={student.class} className="col-span-3" />
+                                        <div className="space-y-2">
+                                            <Label htmlFor="edit-fullName">Nama Lengkap</Label>
+                                            <Input id="edit-fullName" defaultValue={student.name} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="edit-class">Kelas</Label>
+                                            <Input id="edit-class" defaultValue={student.class} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="edit-whatsapp">Nomor WhatsApp Wali (Opsional)</Label>
+                                            <Input id="edit-whatsapp" placeholder="Contoh: 6281234567890" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="edit-pin">PIN Siswa (untuk Login)</Label>
+                                            <Input id="edit-pin" defaultValue="123456" />
                                         </div>
                                     </div>
-                                    <DialogFooter>
-                                        <Button type="submit">Simpan Perubahan</Button>
+                                    <DialogFooter className="grid grid-cols-2 gap-2">
+                                        <DialogClose asChild>
+                                            <Button variant="outline">Batal</Button>
+                                        </DialogClose>
+                                        <Button type="submit">
+                                            <Save className="mr-2 h-4 w-4" /> Simpan Perubahan
+                                        </Button>
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
