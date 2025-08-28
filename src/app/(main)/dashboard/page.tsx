@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Users, QrCode, FileText, ShieldCheck, Search, ArrowRight, EyeOff } from 'lucide-react';
@@ -11,7 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStudent } from '@/context/StudentContext';
 import { useToast } from '@/hooks/use-toast';
-
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
+import { parse } from 'date-fns';
 
 const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href?: string }) => {
   const content = (
@@ -43,11 +45,41 @@ const BackpackIcon = (props: React.SVGProps<SVGSVGElement>) => (
 )
 
 export default function DashboardPage() {
-  const totalBalance = 5475000;
   const [nis, setNis] = useState('');
   const { students } = useStudent();
   const router = useRouter();
   const { toast } = useToast();
+
+  const totalBalance = useMemo(() => {
+    return students.reduce((total, student) => {
+      const studentBalance = student.transactions.reduce((acc, tx) => {
+        return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
+      }, 0);
+      return total + studentBalance;
+    }, 0);
+  }, [students]);
+
+  const recentTransactions = useMemo(() => {
+    const allTransactions = students.flatMap(student => 
+      student.transactions.map(tx => ({
+        ...tx,
+        studentName: student.name,
+        studentId: student.id,
+      }))
+    );
+
+    return allTransactions
+      .sort((a, b) => {
+         try {
+            const dateA = parse(a.date, 'dd/MM/yy', new Date()).getTime();
+            const dateB = parse(b.date, 'dd/MM/yy', new Date()).getTime();
+            return dateB - dateA;
+        } catch (e) {
+            return 0;
+        }
+      })
+      .slice(0, 5);
+  }, [students]);
 
   const handleSearch = () => {
     if (!nis) {
@@ -90,7 +122,7 @@ export default function DashboardPage() {
             <p className="text-4xl font-bold tracking-tight">
               {totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
             </p>
-            <p className="text-xs opacity-80 mt-1">Kuota Siswa Digunakan: 1 / 5</p>
+            <p className="text-xs opacity-80 mt-1">Kuota Siswa Digunakan: {students.length} / 5</p>
           </div>
         </CardContent>
       </Card>
@@ -129,13 +161,49 @@ export default function DashboardPage() {
           <CardContent className="p-4">
             <div className="flex justify-between items-center mb-2">
                 <h3 className="font-semibold">Transaksi Terkini</h3>
-                <Button variant="link" className="text-primary h-auto p-0">
-                    Lihat Semua <ArrowRight className="ml-1 h-4 w-4" />
+                <Button variant="link" className="text-primary h-auto p-0" asChild>
+                    <Link href="/reports">
+                      Lihat Semua <ArrowRight className="ml-1 h-4 w-4" />
+                    </Link>
                 </Button>
             </div>
-            <div className="text-center py-8">
-                <p className="text-muted-foreground text-sm">Belum ada transaksi terbaru dalam 2 hari terakhir.</p>
-            </div>
+            {recentTransactions.length > 0 ? (
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>SISWA</TableHead>
+                                <TableHead>JENIS</TableHead>
+                                <TableHead className="text-right">JUMLAH</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {recentTransactions.map((tx) => (
+                                <TableRow key={tx.id}>
+                                    <TableCell>
+                                        <Link href={`/profiles/${tx.studentId}`} className="hover:underline">
+                                            <div className="font-medium">{tx.studentName}</div>
+                                            <div className="text-xs text-muted-foreground">{tx.date}</div>
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={tx.type === 'Pemasukan' ? 'default' : 'destructive'} className={cn(tx.type === 'Pemasukan' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
+                                            {tx.type}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className={cn("text-right font-medium", tx.type === 'Pemasukan' ? 'text-green-600' : 'text-red-600')}>
+                                        {tx.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            ) : (
+                <div className="text-center py-8">
+                    <p className="text-muted-foreground text-sm">Belum ada transaksi terbaru.</p>
+                </div>
+            )}
           </CardContent>
       </Card>
     </div>
