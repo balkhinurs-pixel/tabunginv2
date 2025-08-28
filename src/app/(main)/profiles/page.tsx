@@ -27,15 +27,13 @@ import { Label } from '@/components/ui/label'
 import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useStudent } from '@/context/StudentContext';
 import { useToast } from '@/hooks/use-toast';
 import type { Student } from '@/data/students';
 import { initialStudents } from '@/data/students';
 import { supabase } from '@/lib/supabase';
 
 
-const AddStudentDialog = () => {
-    const { addStudent } = useStudent();
+const AddStudentDialog = ({ onStudentAdded }: { onStudentAdded: (newStudent: Omit<Student, 'id' | 'transactions'>) => void }) => {
     const { toast } = useToast();
     const [nis, setNis] = useState('');
     const [name, setName] = useState('');
@@ -51,7 +49,7 @@ const AddStudentDialog = () => {
             });
             return;
         }
-        addStudent({ nis, name, class: studentClass });
+        onStudentAdded({ nis, name, class: studentClass });
         toast({
             title: 'Siswa Ditambahkan',
             description: `Siswa baru dengan nama ${name} berhasil ditambahkan.`,
@@ -108,15 +106,21 @@ const AddStudentDialog = () => {
     )
 }
 
-const EditStudentDialog = ({ studentId }: { studentId: string }) => {
-    const { getStudentById, updateStudent } = useStudent();
+const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; onStudentUpdated: (studentId: string, data: Omit<Student, 'id' | 'transactions'>) => void }) => {
     const { toast } = useToast();
-    const student = getStudentById(studentId);
-
+    
     const [nis, setNis] = useState(student?.nis || '');
     const [name, setName] = useState(student?.name || '');
     const [studentClass, setStudentClass] = useState(student?.class || '');
     const [open, setOpen] = useState(false);
+
+    useEffect(() => {
+        if (student) {
+            setNis(student.nis);
+            setName(student.name);
+            setStudentClass(student.class);
+        }
+    }, [student, open]);
 
     const handleSubmit = () => {
         if (!nis || !name || !studentClass) {
@@ -127,7 +131,7 @@ const EditStudentDialog = ({ studentId }: { studentId: string }) => {
             });
             return;
         }
-        updateStudent(studentId, { nis, name, class: studentClass });
+        onStudentUpdated(student.id, { nis, name, class: studentClass });
         toast({
             title: 'Siswa Diperbarui',
             description: `Data siswa ${name} berhasil diperbarui.`,
@@ -181,12 +185,11 @@ const EditStudentDialog = ({ studentId }: { studentId: string }) => {
     )
 }
 
-const DeleteStudentDialog = ({ studentId, studentName }: { studentId: string; studentName: string; }) => {
-    const { deleteStudent } = useStudent();
+const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { studentId: string; studentName: string; onStudentDeleted: (studentId: string) => void; }) => {
     const { toast } = useToast();
 
     const handleDelete = () => {
-        deleteStudent(studentId);
+        onStudentDeleted(studentId);
         toast({
             title: 'Siswa Dihapus',
             description: `Data siswa ${studentName} telah dihapus.`,
@@ -219,7 +222,6 @@ const DeleteStudentDialog = ({ studentId, studentName }: { studentId: string; st
 
 
 export default function ProfilesPage() {
-  const { addStudent } = useStudent(); // We still need this for add/edit/delete until they are migrated
   const [students, setStudents] = useState<Student[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -241,6 +243,31 @@ export default function ProfilesPage() {
     
     setStudents(initialStudents);
   }, []);
+
+  const handleAddStudent = (studentData: Omit<Student, 'id' | 'transactions'>) => {
+    // This will later be a Supabase insert
+    const newStudent = {
+      ...studentData,
+      id: `s${Date.now()}`, // Temporary ID
+      transactions: [],
+    };
+    setStudents(prev => [...prev, newStudent]);
+  };
+
+  const handleUpdateStudent = (studentId: string, studentData: Omit<Student, 'id' | 'transactions'>) => {
+    // This will later be a Supabase update
+    setStudents(prev =>
+      prev.map(student =>
+        student.id === studentId ? { ...student, ...studentData } : student
+      )
+    );
+  };
+
+  const handleDeleteStudent = (studentId: string) => {
+    // This will later be a Supabase delete
+    setStudents(prev => prev.filter(student => student.id !== studentId));
+  };
+
 
   const handleDownloadTemplate = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
@@ -286,7 +313,7 @@ export default function ProfilesPage() {
                 if (data.length === 3) {
                     const [nis, name, studentClass] = data;
                     if (nis && name && studentClass) {
-                        addStudent({ nis, name, class: studentClass });
+                        handleAddStudent({ nis, name, class: studentClass });
                         addedCount++;
                     }
                 }
@@ -314,7 +341,7 @@ export default function ProfilesPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <AddStudentDialog />
+        <AddStudentDialog onStudentAdded={handleAddStudent} />
         <Button variant="outline" onClick={handleDownloadTemplate}>
             <Download className="mr-2 h-4 w-4" /> Unduh Template
         </Button>
@@ -429,8 +456,8 @@ export default function ProfilesPage() {
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
-                             <EditStudentDialog studentId={student.id} />
-                             <DeleteStudentDialog studentId={student.id} studentName={student.name} />
+                             <EditStudentDialog student={student} onStudentUpdated={handleUpdateStudent} />
+                             <DeleteStudentDialog studentId={student.id} studentName={student.name} onStudentDeleted={handleDeleteStudent} />
                         </div>
                     </TableCell>
                 </TableRow>
@@ -441,4 +468,5 @@ export default function ProfilesPage() {
       </div>
     </div>
   );
-}
+
+    
