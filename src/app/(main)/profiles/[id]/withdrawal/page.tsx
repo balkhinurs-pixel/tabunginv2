@@ -16,11 +16,12 @@ import { id } from 'date-fns/locale';
 
 export default function WithdrawalPage({ params }: { params: { id: string } }) {
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const studentId = params.id;
 
   return (
     <div className="space-y-6">
       <Button variant="ghost" asChild className="pl-0">
-        <Link href={`/profiles/${params.id}`}>
+        <Link href={`/profiles/${studentId}`}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Kembali ke Profil
         </Link>

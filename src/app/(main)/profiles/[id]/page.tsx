@@ -41,9 +41,10 @@ const ActionButton = ({ icon: Icon, label, variant = 'default', href }: { icon: 
 };
 
 export default function StudentProfilePage({ params }: { params: { id: string } }) {
-  // In a real app, you would fetch student data based on params.id
+  const studentId = params.id;
+  // In a real app, you would fetch student data based on studentId
   const student = {
-    nis: params.id,
+    nis: studentId,
     name: 'balkhi',
     class: '9a',
     income: 5500000,
@@ -83,8 +84,8 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
       </div>
 
       <div className="space-y-3 pt-4">
-        <ActionButton icon={PlusCircle} label="Setor Tunai" href={`/profiles/${params.id}/deposit`} />
-        <ActionButton icon={MinusCircle} label="Tarik Tunai" variant="destructive" href={`/profiles/${params.id}/withdrawal`} />
+        <ActionButton icon={PlusCircle} label="Setor Tunai" href={`/profiles/${studentId}/deposit`} />
+        <ActionButton icon={MinusCircle} label="Tarik Tunai" variant="destructive" href={`/profiles/${studentId}/withdrawal`} />
         <ActionButton icon={FileText} label="Cetak Laporan" variant="secondary" />
         <ActionButton icon={MessageCircle} label="Kirim WA" variant="ghost" />
       </div>
