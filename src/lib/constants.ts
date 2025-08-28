@@ -1,31 +1,38 @@
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, ArrowLeftRight, Users, FileText } from 'lucide-react';
+import { LayoutGrid, Users, FileText, Settings, Scan } from 'lucide-react';
 
 interface NavItem {
   href: string;
   title: string;
   icon: LucideIcon;
+  isCentral?: boolean;
 }
 
 export const NAV_ITEMS: NavItem[] = [
   {
     href: '/dashboard',
-    title: 'Dashboard',
-    icon: LayoutDashboard,
-  },
-  {
-    href: '/transactions',
-    title: 'Transactions',
-    icon: ArrowLeftRight,
+    title: 'Beranda',
+    icon: LayoutGrid,
   },
   {
     href: '/profiles',
-    title: 'Profiles',
+    title: 'Siswa',
     icon: Users,
   },
   {
+    href: '/transactions',
+    title: 'Scan',
+    icon: Scan,
+    isCentral: true,
+  },
+  {
     href: '/reports',
-    title: 'Reports',
+    title: 'Laporan',
     icon: FileText,
+  },
+  {
+    href: '#',
+    title: 'Pengaturan',
+    icon: Settings,
   },
 ];

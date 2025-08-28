@@ -10,16 +10,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex min-h-screen w-full bg-background">
-      {isMobile === undefined ? (
-        <div className="fixed inset-y-0 left-0 z-20 hidden w-20 flex-col border-r bg-card sm:flex" />
-      ) : isMobile ? (
+      {isMobile === undefined ? null : isMobile ? (
         <MobileBottomNav />
       ) : (
         <DesktopSidebar />
       )}
       <div
         className={`w-full transition-all duration-300 ease-in-out ${
-          isMobile ? 'pb-16' : 'sm:pl-20'
+          isMobile ? 'pb-24' : 'sm:pl-20'
         }`}
       >
         <Header />
