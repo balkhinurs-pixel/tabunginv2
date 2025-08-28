@@ -18,13 +18,12 @@ import {
   } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck } from 'lucide-react';
+import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import Image from 'next/image';
 
 const students = [
-  { nis: '12345', name: 'Ahmad Subarjo', class: '7A', profilePic: 'https://picsum.photos/40/40' },
+  { nis: '24001', name: 'Balkhi', class: '9a' },
 ];
 
 export default function ProfilesPage() {
@@ -138,19 +137,26 @@ export default function ProfilesPage() {
                 {students.map((student) => (
                 <TableRow key={student.nis}>
                     <TableCell>
-                        <Image 
-                            src={student.profilePic}
-                            width={40}
-                            height={40}
-                            alt={student.name}
-                            className="rounded-full"
-                            data-ai-hint="student profile"
-                        />
+                        <Button variant="outline" size="icon" className='h-8 w-8'>
+                            <User className="h-4 w-4" />
+                        </Button>
                     </TableCell>
                     <TableCell className="font-medium">{student.nis}</TableCell>
                     <TableCell>{student.name}</TableCell>
                     <TableCell>{student.class}</TableCell>
-                    <TableCell><Button variant="ghost" size="sm">...</Button></TableCell>
+                    <TableCell>
+                        <div className='flex items-center gap-2'>
+                            <Button variant="outline" size="icon" className='h-8 w-8 border-blue-500 text-blue-500 hover:bg-blue-50 hover:text-blue-600'>
+                                <KeyRound className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" className='h-8 w-8 border-yellow-500 text-yellow-500 hover:bg-yellow-50 hover:text-yellow-600'>
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" className='h-8 w-8 border-destructive text-destructive hover:bg-destructive/10'>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </TableCell>
                 </TableRow>
                 ))}
             </TableBody>
