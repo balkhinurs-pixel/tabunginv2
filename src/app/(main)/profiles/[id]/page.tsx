@@ -2,7 +2,9 @@
 import Link from 'next/link';
 import { ArrowLeft, PlusCircle, MinusCircle, FileText, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 const StatCard = ({ title, value, colorClass }: { title: string, value: string, colorClass: string }) => (
     <Card className={`text-center shadow-md ${colorClass}`}>
@@ -28,6 +30,22 @@ const ActionButton = ({ icon: Icon, label, variant = 'default' }: { icon: React.
     )
 };
 
+const TransactionHistoryItem = ({ date, type, description }: { date: string, type: 'Pemasukan' | 'Pengeluaran', description: string }) => (
+  <div className="flex items-center justify-between border-b py-3 text-sm">
+    <span className="text-muted-foreground">{date}</span>
+    <Badge
+      variant="outline"
+      className={cn(
+        type === 'Pemasukan'
+          ? 'border-green-200 bg-green-50 text-green-700'
+          : 'border-red-200 bg-red-50 text-red-700'
+      )}
+    >
+      {type}
+    </Badge>
+    <span className="text-foreground">{description}</span>
+  </div>
+);
 
 export default function StudentProfilePage({ params }: { params: { id: string } }) {
   // In a real app, you would fetch student data based on params.id
@@ -40,8 +58,14 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
     balance: 5475000
   };
 
+  const transactions = [
+      { date: '10/6/2025', type: 'Pemasukan', description: 'harian' },
+      { date: '10/6/2025', type: 'Pemasukan', description: 'bulanan' },
+      { date: '10/6/2025', type: 'Pengeluaran', description: 'jajan' },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-8">
       <Button variant="ghost" asChild className="pl-0">
         <Link href="/profiles">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -71,6 +95,24 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
         <ActionButton icon={FileText} label="Cetak Laporan" variant="secondary" />
         <ActionButton icon={MessageCircle} label="Kirim WA" variant="ghost" />
       </div>
+
+      <Card className="shadow-lg">
+          <CardHeader>
+              <CardTitle className="text-xl">Riwayat Transaksi</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="mb-4 grid grid-cols-3 text-xs font-semibold text-muted-foreground">
+                <span>TANGGAL</span>
+                <span>JENIS</span>
+                <span>KETERANGAN</span>
+            </div>
+            <div className="space-y-2">
+                {transactions.map((tx, index) => (
+                    <TransactionHistoryItem key={index} {...tx} />
+                ))}
+            </div>
+          </CardContent>
+      </Card>
     </div>
   );
 }
