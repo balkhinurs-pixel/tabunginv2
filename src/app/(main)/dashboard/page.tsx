@@ -13,7 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { parse } from 'date-fns';
-import { initialStudents, type Student } from '@/data/students';
+import { initialStudents } from '@/data/students';
+import type { Student } from '@/types';
 
 const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href?: string }) => {
   const content = (

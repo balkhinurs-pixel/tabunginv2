@@ -6,6 +6,155 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/componentsui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
+import { initialStudents } from '@/data/students';
+import type { Student } from '@/types';
+
+// We will simulate the action, preparing for Supabase
+export default function WithdrawPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
+  const { toast } = useToast();
+  
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
+  const [student, setStudent] = useState<Student | null>(null);
+  const studentId = params.id;
+
+  useEffect(() => {
+    // In a real scenario, you'd fetch from Supabase here.
+    const fetchedStudent = initialStudents.find(s => s.id === studentId);
+    setStudent(fetchedStudent || null);
+  }, [studentId]);
+
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const numericAmount = parseFloat(amount);
+    
+    if (!student) {
+        toast({ title: 'Siswa tidak ditemukan', variant: 'destructive' });
+        return;
+    }
+    
+    const balance = student.transactions.reduce((acc, tx) => acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount), 0);
+
+    if (!numericAmount || numericAmount <= 0) {
+        toast({
+            title: 'Jumlah Tidak Valid',
+            description: 'Mohon masukkan jumlah yang valid.',
+            variant: 'destructive',
+        });
+        return;
+    }
+    
+    if (numericAmount > balance) {
+        toast({
+            title: 'Saldo Tidak Cukup',
+            description: `Saldo akhir tidak mencukupi untuk penarikan ini. Saldo saat ini: ${balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}`,
+            variant: 'destructive',
+        });
+        return;
+    }
+
+    // In a real Supabase scenario, this would be an API call to insert a new transaction
+    console.log('Simulating add withdrawal:', { 
+        studentId, 
+        amount: numericAmount, 
+        description,
+        date: format(date || new Date(), 'dd/MM/yy'),
+        type: 'Pengeluaran'
+    });
+    
+    toast({
+        title: 'Transaksi Berhasil',
+        description: `Penarikan sebesar ${numericAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} telah disimpan.`,
+    });
+
+    // In a real app, data would be re-fetched on the profile page.
+    // For now, we just redirect.
+    router.push(`/profiles/${studentId}`);
+  };
+
+  return (
+    <div className="space-y-6">
+      <Button variant="ghost" asChild className="pl-0">
+        <Link href={`/profiles/${studentId}`}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Kembali ke Profil
+        </Link>
+      </Button>
+
+      <Card>
+        <CardContent className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <h1 className="text-2xl font-bold text-center">Form Input Pengeluaran</h1>
+            
+            <div className="space-y-2">
+              <Label htmlFor="date">Tanggal</Label>
+               <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {date ? format(date, "dd MMMM yyyy", { locale: id }) : <span>Pilih tanggal</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                      initialFocus
+                      locale={id}
+                      disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                    />
+                  </PopoverContent>
+                </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="amount">Jumlah (Rp)</Label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
+                <Input 
+                  id="amount" 
+                  type="number" 
+                  placeholder="Contoh: 20000" 
+                  className="pl-8" 
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Keterangan</Label>
+              <div className="relative">
+                <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  id="description" Meningkatkan keterbacaan, file `src/app/(main)/profiles/[id]/withdrawal/page.tsx` akan lebih baik dengan CardContent yang benar dari `@/components/ui/card`. Saya akan melakukan perbaikan ini.
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -15,7 +164,8 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { initialStudents, type Student } from '@/data/students';
+import { initialStudents } from '@/data/students';
+import type { Student } from '@/types';
 
 // We will simulate the action, preparing for Supabase
 export default function WithdrawPage({ params }: { params: { id: string } }) {

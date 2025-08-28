@@ -28,8 +28,8 @@ import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRou
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Student } from '@/data/students';
 import { initialStudents } from '@/data/students';
+import type { Student } from '@/types';
 import { supabase } from '@/lib/supabase';
 
 
@@ -422,8 +422,7 @@ export default function ProfilesPage() {
                         <Button variant="outline" size="icon" className='h-8 w-8' asChild>
                             <Link href={`/profiles/${student.id}`}>
                                 <User className="h-4 w-4" />
-                            </Link>
-                        </Button>
+                            </Link>                        </Button>
                     </TableCell>
                     <TableCell className="font-medium">{student.nis}</TableCell>
                     <TableCell>{student.name}</TableCell>
@@ -468,5 +467,4 @@ export default function ProfilesPage() {
       </div>
     </div>
   );
-
-    
+}

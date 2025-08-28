@@ -1,19 +1,4 @@
-
-export interface Transaction {
-  id: string;
-  date: string;
-  type: 'Pemasukan' | 'Pengeluaran';
-  description: string;
-  amount: number;
-}
-
-export interface Student {
-  id: string;
-  nis: string;
-  name: string;
-  class: string;
-  transactions: Transaction[];
-}
+import type { Student } from '@/types';
 
 export const initialStudents: Student[] = [
   {

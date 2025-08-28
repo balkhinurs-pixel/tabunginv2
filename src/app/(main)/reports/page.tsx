@@ -25,7 +25,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { initialStudents, type Student } from '@/data/students';
+import { initialStudents } from '@/data/students';
+import type { Student } from '@/types';
 
 interface ReportRow {
   nis: string;

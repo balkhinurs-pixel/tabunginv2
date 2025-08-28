@@ -14,7 +14,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
-import { initialStudents, type Student } from '@/data/students';
+import { initialStudents } from '@/data/students';
+import type { Student } from '@/types';
 
 
 export default function Header() {

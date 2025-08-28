@@ -21,7 +21,7 @@ import {
     DialogTrigger,
     DialogClose,
   } from '@/components/ui/dialog';
-import type { Student, Transaction } from '@/data/students';
+import type { Student } from '@/types';
 import { initialStudents } from '@/data/students';
 
 

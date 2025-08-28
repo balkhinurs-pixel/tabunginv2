@@ -9,7 +9,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { initialStudents, type Student } from '@/data/students';
+import { initialStudents } from '@/data/students';
+import type { Student } from '@/types';
 
 export default function PrintCardsPage() {
   const [students, setStudents] = useState<Student[]>([]);

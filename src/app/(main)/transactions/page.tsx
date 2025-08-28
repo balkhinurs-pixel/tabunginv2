@@ -7,7 +7,8 @@ import { QrCode, ScanLine } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { initialStudents, type Student } from '@/data/students';
+import { initialStudents } from '@/data/students';
+import type { Student } from '@/types';
 
 export default function TransactionsPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
