@@ -1,17 +1,27 @@
+import Link from 'next/link';
 import { Users, QrCode, FileText, ShieldCheck, Search, ArrowRight, EyeOff } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-const ActionButton = ({ icon: Icon, label }: { icon: React.ElementType, label: string }) => (
-  <div className="flex flex-col items-center gap-2">
-    <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-secondary hover:bg-primary/10 border-0">
-      <Icon className="h-6 w-6 text-primary" />
-    </Button>
-    <span className="text-xs text-muted-foreground font-medium">{label}</span>
-  </div>
-);
+const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href?: string }) => {
+  const content = (
+    <div className="flex flex-col items-center gap-2">
+      <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-secondary hover:bg-primary/10 border-0">
+        <Icon className="h-6 w-6 text-primary" />
+      </Button>
+      <span className="text-xs text-muted-foreground font-medium">{label}</span>
+    </div>
+  );
+
+  if (href) {
+    return <Link href={href}>{content}</Link>;
+  }
+
+  return content;
+};
+
 
 const BackpackIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -64,9 +74,9 @@ export default function DashboardPage() {
       
       <Card>
         <CardContent className="p-4 flex justify-around">
-            <ActionButton icon={Users} label="Data Siswa" />
-            <ActionButton icon={QrCode} label="Cetak Kartu" />
-            <ActionButton icon={FileText} label="Laporan" />
+            <ActionButton icon={Users} label="Data Siswa" href="/profiles" />
+            <ActionButton icon={QrCode} label="Cetak Kartu" href="/print-cards"/>
+            <ActionButton icon={FileText} label="Laporan" href="/reports"/>
             <ActionButton icon={ShieldCheck} label="Aktivasi" />
         </CardContent>
       </Card>
