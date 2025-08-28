@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -137,8 +138,10 @@ export default function ProfilesPage() {
                 {students.map((student) => (
                 <TableRow key={student.nis}>
                     <TableCell>
-                        <Button variant="outline" size="icon" className='h-8 w-8'>
-                            <User className="h-4 w-4" />
+                        <Button variant="outline" size="icon" className='h-8 w-8' asChild>
+                            <Link href={`/profiles/${student.nis}`}>
+                                <User className="h-4 w-4" />
+                            </Link>
                         </Button>
                     </TableCell>
                     <TableCell className="font-medium">{student.nis}</TableCell>
