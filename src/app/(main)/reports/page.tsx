@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -23,10 +23,9 @@ import { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { useStudent } from '@/context/StudentContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { Student, Transaction } from '@/data/students';
+import { initialStudents, type Student } from '@/data/students';
 
 interface ReportRow {
   nis: string;
@@ -38,9 +37,14 @@ interface ReportRow {
 }
 
 export default function ReportsPage() {
-    const { students } = useStudent();
+    const [students, setStudents] = useState<Student[]>([]);
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [selectedClass, setSelectedClass] = useState<string>('all');
+
+    useEffect(() => {
+        // In a real scenario, you'd fetch from Supabase here.
+        setStudents(initialStudents);
+    }, []);
 
     const filteredStudents = useMemo(() => {
         let studentsCopy = JSON.parse(JSON.stringify(students)) as Student[];
@@ -280,4 +284,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-

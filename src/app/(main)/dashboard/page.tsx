@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Users, QrCode, FileText, ShieldCheck, Search, ArrowRight, EyeOff } from 'lucide-react';
@@ -9,11 +9,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useStudent } from '@/context/StudentContext';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { parse } from 'date-fns';
+import { initialStudents, type Student } from '@/data/students';
 
 const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href?: string }) => {
   const content = (
@@ -46,9 +46,14 @@ const BackpackIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export default function DashboardPage() {
   const [nis, setNis] = useState('');
-  const { students } = useStudent();
+  const [students, setStudents] = useState<Student[]>([]);
   const router = useRouter();
   const { toast } = useToast();
+
+  useEffect(() => {
+    // In a real scenario, you'd fetch from Supabase here.
+    setStudents(initialStudents);
+  }, []);
 
   const totalBalance = useMemo(() => {
     return students.reduce((total, student) => {

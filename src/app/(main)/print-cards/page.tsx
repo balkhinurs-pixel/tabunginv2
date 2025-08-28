@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Download } from 'lucide-react';
@@ -9,12 +9,19 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { useStudent } from '@/context/StudentContext';
-import type { Student } from '@/data/students';
+import { initialStudents, type Student } from '@/data/students';
 
 export default function PrintCardsPage() {
-  const { students } = useStudent();
-  const [selectedStudentId, setSelectedStudentId] = useState<string | undefined>(students[0]?.id);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    // In a real scenario, you'd fetch from Supabase here.
+    setStudents(initialStudents);
+    if (initialStudents.length > 0) {
+        setSelectedStudentId(initialStudents[0].id);
+    }
+  }, []);
 
   const selectedStudent = students.find(s => s.id === selectedStudentId);
 

@@ -5,9 +5,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { QrCode, ScanLine } from 'lucide-react';
 import jsQR from 'jsqr';
-import { useStudent } from '@/context/StudentContext';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { initialStudents, type Student } from '@/data/students';
 
 export default function TransactionsPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -15,8 +15,13 @@ export default function TransactionsPage() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [scanResult, setScanResult] = useState<string | null>(null);
   const router = useRouter();
-  const { students } = useStudent();
+  const [students, setStudents] = useState<Student[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // In a real scenario, you'd fetch from Supabase here.
+    setStudents(initialStudents);
+  }, []);
 
   useEffect(() => {
     const getCameraPermission = async () => {

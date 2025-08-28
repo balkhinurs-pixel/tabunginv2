@@ -15,13 +15,12 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { StudentProvider, useStudent } from '@/context/StudentContext'; // Keep for now, but decouple logic
 
-// We will simulate the action without context, preparing for Supabase
-const AddDepositPage = ({ params }: { params: { id: string } }) => {
+
+// We will simulate the action, preparing for Supabase
+export default function AddDepositPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
-  // const { addTransaction } = useStudent(); // We will replace this logic
   
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [amount, setAmount] = useState('');
@@ -40,15 +39,22 @@ const AddDepositPage = ({ params }: { params: { id: string } }) => {
         return;
     }
 
-    // In a real Supabase scenario, this would be an API call
-    // addTransaction(studentId, { amount: numericAmount, description }, 'Pemasukan');
-    console.log('Simulating add deposit:', { studentId, amount: numericAmount, description });
+    // In a real Supabase scenario, this would be an API call to insert a new transaction
+    console.log('Simulating add deposit:', { 
+        studentId, 
+        amount: numericAmount, 
+        description,
+        date: format(date || new Date(), 'dd/MM/yy'),
+        type: 'Pemasukan'
+    });
     
     toast({
         title: 'Transaksi Berhasil',
         description: `Setoran sebesar ${numericAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} telah disimpan.`,
     });
 
+    // In a real app, data would be re-fetched on the profile page.
+    // For now, we just redirect.
     router.push(`/profiles/${studentId}`);
   };
 
@@ -88,7 +94,7 @@ const AddDepositPage = ({ params }: { params: { id: string } }) => {
                       onSelect={setDate}
                       initialFocus
                       locale={id}
-                      disabled
+                      disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
                     />
                   </PopoverContent>
                 </Popover>
@@ -133,13 +139,4 @@ const AddDepositPage = ({ params }: { params: { id: string } }) => {
       </Card>
     </div>
   );
-}
-
-// Wrap with provider to avoid breaking other parts of the app that might still use it temporarily
-export default function DepositPage({ params }: { params: { id: string } }) {
-  return (
-    <StudentProvider>
-      <AddDepositPage params={params} />
-    </StudentProvider>
-  )
 }

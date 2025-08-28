@@ -5,13 +5,11 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import DesktopSidebar from '@/components/layout/DesktopSidebar';
 import MobileBottomNav from '@/components/layout/MobileBottomNav';
 import Header from '@/components/layout/Header';
-import { StudentProvider } from '@/context/StudentContext';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile();
 
   return (
-    <StudentProvider>
       <div className="flex min-h-screen w-full bg-background">
         {isMobile === undefined ? null : isMobile ? (
           <MobileBottomNav />
@@ -27,6 +25,5 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           <main className="p-4 sm:p-6 lg:p-8">{children}</main>
         </div>
       </div>
-    </StudentProvider>
   );
 }

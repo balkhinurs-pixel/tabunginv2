@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
@@ -15,24 +15,30 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { StudentProvider, useStudent } from '@/context/StudentContext'; // Keep for now, but decouple logic
+import { initialStudents, type Student } from '@/data/students';
 
-const WithdrawPage = ({ params }: { params: { id: string } }) => {
+// We will simulate the action, preparing for Supabase
+export default function WithdrawPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
-  // We get student data from props now, but for balance check we still need context temporarily
-  const { getStudentById } = useStudent(); 
   
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [student, setStudent] = useState<Student | null>(null);
   const studentId = params.id;
+
+  useEffect(() => {
+    // In a real scenario, you'd fetch from Supabase here.
+    const fetchedStudent = initialStudents.find(s => s.id === studentId);
+    setStudent(fetchedStudent || null);
+  }, [studentId]);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const numericAmount = parseFloat(amount);
-    const student = getStudentById(studentId); // This part will need a Supabase fetch later
-
+    
     if (!student) {
         toast({ title: 'Siswa tidak ditemukan', variant: 'destructive' });
         return;
@@ -58,15 +64,22 @@ const WithdrawPage = ({ params }: { params: { id: string } }) => {
         return;
     }
 
-    // In a real Supabase scenario, this would be an API call
-    // addTransaction(studentId, { amount: numericAmount, description }, 'Pengeluaran');
-    console.log('Simulating add withdrawal:', { studentId, amount: numericAmount, description });
+    // In a real Supabase scenario, this would be an API call to insert a new transaction
+    console.log('Simulating add withdrawal:', { 
+        studentId, 
+        amount: numericAmount, 
+        description,
+        date: format(date || new Date(), 'dd/MM/yy'),
+        type: 'Pengeluaran'
+    });
     
     toast({
         title: 'Transaksi Berhasil',
         description: `Penarikan sebesar ${numericAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} telah disimpan.`,
     });
 
+    // In a real app, data would be re-fetched on the profile page.
+    // For now, we just redirect.
     router.push(`/profiles/${studentId}`);
   };
 
@@ -106,7 +119,7 @@ const WithdrawPage = ({ params }: { params: { id: string } }) => {
                       onSelect={setDate}
                       initialFocus
                       locale={id}
-                      disabled
+                      disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
                     />
                   </PopoverContent>
                 </Popover>
@@ -151,13 +164,4 @@ const WithdrawPage = ({ params }: { params: { id: string } }) => {
       </Card>
     </div>
   );
-}
-
-
-export default function WithdrawalPage({ params }: { params: { id: string } }) {
-  return (
-    <StudentProvider>
-      <WithdrawPage params={params} />
-    </StudentProvider>
-  )
 }

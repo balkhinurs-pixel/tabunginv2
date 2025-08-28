@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -12,11 +13,18 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
-import { useStudent } from '@/context/StudentContext';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { initialStudents, type Student } from '@/data/students';
+
 
 export default function Header() {
-  const { students } = useStudent();
+  const [students, setStudents] = useState<Student[]>([]);
+
+  useEffect(() => {
+    // In a real scenario, you'd fetch from Supabase here.
+    setStudents(initialStudents);
+  }, []);
+
   const totalBalance = useMemo(() => {
     return students.reduce((total, student) => {
       const studentBalance = student.transactions.reduce((acc, tx) => {
