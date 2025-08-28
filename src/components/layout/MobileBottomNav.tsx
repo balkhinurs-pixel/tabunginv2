@@ -16,9 +16,9 @@ export default function MobileBottomNav() {
           if (item.isCentral) {
             return (
               <div key={item.href} className="relative -top-6">
-                <Button asChild className="h-16 w-16 rounded-full shadow-lg" size="icon">
+                <Button asChild className="h-16 w-16 rounded-full shadow-lg bg-primary hover:bg-primary/90" size="icon">
                   <Link href={item.href}>
-                    <item.icon className="h-8 w-8" />
+                    <item.icon className="h-8 w-8 text-primary-foreground" />
                   </Link>
                 </Button>
               </div>
@@ -30,7 +30,7 @@ export default function MobileBottomNav() {
               href={item.href}
               className={cn(
                 'flex flex-col items-center gap-1 p-2 rounded-md transition-colors w-16',
-                pathname === item.href
+                pathname.startsWith(item.href)
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-primary'
               )}

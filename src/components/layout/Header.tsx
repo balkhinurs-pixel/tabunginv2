@@ -12,11 +12,23 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
+import { useStudent } from '@/context/StudentContext';
+import { useMemo } from 'react';
 
 export default function Header() {
+  const { students } = useStudent();
+  const totalBalance = useMemo(() => {
+    return students.reduce((total, student) => {
+      const studentBalance = student.transactions.reduce((acc, tx) => {
+        return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
+      }, 0);
+      return total + studentBalance;
+    }, 0);
+  }, [students]);
+
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-lg sm:px-6 md:hidden">
-      <div className="font-bold text-lg">Rp. 5.475.000</div>
+      <div className="font-bold text-lg">{totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</div>
       <div className='flex items-center gap-2'>
         <Button variant="ghost" size="icon">
           <Bell className="h-5 w-5" />
@@ -41,7 +53,9 @@ export default function Header() {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Akun Saya</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Pengaturan</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/settings">Pengaturan</Link>
+            </DropdownMenuItem>
             <DropdownMenuItem>Dukungan</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
