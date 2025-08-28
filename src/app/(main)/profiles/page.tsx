@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -30,6 +30,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useStudent } from '@/context/StudentContext';
 import { useToast } from '@/hooks/use-toast';
 import type { Student } from '@/data/students';
+import { initialStudents } from '@/data/students';
+import { supabase } from '@/lib/supabase';
+
 
 const AddStudentDialog = () => {
     const { addStudent } = useStudent();
@@ -216,9 +219,28 @@ const DeleteStudentDialog = ({ studentId, studentName }: { studentId: string; st
 
 
 export default function ProfilesPage() {
-  const { students, addStudent } = useStudent();
+  const { addStudent } = useStudent(); // We still need this for add/edit/delete until they are migrated
+  const [students, setStudents] = useState<Student[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // In a real scenario, you would fetch from Supabase here.
+    // For now, we'll use the dummy data to keep the UI working.
+    // Example:
+    // const fetchStudents = async () => {
+    //   const { data, error } = await supabase.from('students').select('*');
+    //   if (error) {
+    //     console.error('Error fetching students:', error);
+    //     toast({ title: 'Error', description: 'Gagal mengambil data siswa.', variant: 'destructive' });
+    //   } else {
+    //     setStudents(data);
+    //   }
+    // };
+    // fetchStudents();
+    
+    setStudents(initialStudents);
+  }, []);
 
   const handleDownloadTemplate = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
