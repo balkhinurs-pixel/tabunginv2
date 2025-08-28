@@ -1,6 +1,8 @@
+
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -13,111 +15,128 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { Download, Calendar as CalendarIcon } from 'lucide-react';
+import { Download, Calendar as CalendarIcon, ArrowLeft, Filter, FileSpreadsheet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
-
-const reportData = [
-  { id: 'TRX001', student: 'John Doe', type: 'Deposit', amount: 50000, date: '2023-10-26' },
-  { id: 'TRX002', student: 'Jane Smith', type: 'Withdrawal', amount: 20000, date: '2023-10-25' },
-  { id: 'TRX003', student: 'Peter Jones', type: 'Deposit', amount: 100000, date: '2023-10-25' },
-  { id: 'TRX004', student: 'Mary Johnson', type: 'Deposit', amount: 75000, date: '2023-10-24' },
-  { id: 'TRX005', student: 'John Doe', type: 'Withdrawal', amount: 15000, date: '2023-10-23' },
-  { id: 'TRX006', student: 'Jane Smith', type: 'Deposit', amount: 30000, date: '2023-10-22' },
-  { id: 'TRX007', student: 'Peter Jones', type: 'Withdrawal', amount: 50000, date: '2023-10-21' },
-];
+import { Card, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 export default function ReportsPage() {
-    const [date, setDate] = useState<DateRange | undefined>({
-        from: new Date(2023, 9, 20),
-        to: new Date(2023, 9, 26),
-      });
+    const [startDate, setStartDate] = useState<Date | undefined>();
+    const [endDate, setEndDate] = useState<Date | undefined>();
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex items-start justify-between sm:items-center flex-col sm:flex-row gap-4">
-        <div>
-            <h2 className="text-2xl font-bold tracking-tight">Laporan Tabungan</h2>
-            <p className="text-muted-foreground">
-                Buat dan ekspor laporan tabungan terperinci.
-            </p>
-        </div>
-        <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  id="date"
-                  variant={"outline"}
-                  className={cn(
-                    "w-[300px] justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date?.from ? (
-                    date.to ? (
-                      <>
-                        {format(date.from, "d MMMM yyyy", { locale: id })} -{" "}
-                        {format(date.to, "d MMMM yyyy", { locale: id })}
-                      </>
-                    ) : (
-                      format(date.from, "d MMMM yyyy", { locale: id })
-                    )
-                  ) : (
-                    <span>Pilih tanggal</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={date?.from}
-                  selected={date}
-                  onSelect={setDate}
-                  numberOfMonths={2}
-                  locale={id}
-                />
-              </PopoverContent>
-            </Popover>
-            <Button>
-                <Download className="mr-2 h-4 w-4" /> Ekspor
-            </Button>
-        </div>
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" asChild>
+          <Link href="/dashboard">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <h2 className="text-xl font-bold tracking-tight">Laporan Tabungan Siswa</h2>
       </div>
 
-      <div className="rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID Transaksi</TableHead>
-              <TableHead>Siswa</TableHead>
-              <TableHead>Tipe</TableHead>
-              <TableHead>Tanggal</TableHead>
-              <TableHead className="text-right">Jumlah</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {reportData.map((transaction) => (
-              <TableRow key={transaction.id}>
-                <TableCell className="font-medium">{transaction.id}</TableCell>
-                <TableCell>{transaction.student}</TableCell>
-                <TableCell>
-                  <Badge variant={transaction.type === 'Deposit' ? 'default' : 'destructive'} className={transaction.type === 'Deposit' ? 'bg-green-600' : ''}>
-                    {transaction.type === 'Deposit' ? 'Setoran' : 'Penarikan'}
-                  </Badge>
-                </TableCell>
-                <TableCell>{format(new Date(transaction.date), "d MMMM yyyy", { locale: id })}</TableCell>
-                <TableCell className="text-right">
-                  {transaction.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <Card>
+        <CardContent className="p-4 space-y-4">
+            <div className="space-y-2">
+                <Label>Filter Kelas:</Label>
+                <Select>
+                    <SelectTrigger>
+                        <div className='flex items-center gap-2'>
+                            <Filter className="h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder="Semua Kelas" />
+                        </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Kelas</SelectItem>
+                        <SelectItem value="9a">9a</SelectItem>
+                        <SelectItem value="9b">9b</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+             <div className="space-y-2">
+                <Label>Filter Jenis Transaksi:</Label>
+                <Select>
+                    <SelectTrigger>
+                         <div className='flex items-center gap-2'>
+                            <Filter className="h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder="Semua Jenis" />
+                        </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Jenis</SelectItem>
+                        <SelectItem value="deposit">Setoran</SelectItem>
+                        <SelectItem value="withdrawal">Penarikan</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="space-y-2">
+                <Label>Tanggal Mulai:</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "d MMMM yyyy", { locale: id }) : <span>Pilih tanggal</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={setStartDate}
+                      initialFocus
+                      locale={id}
+                    />
+                  </PopoverContent>
+                </Popover>
+            </div>
+            <div className="space-y-2">
+                <Label>Tanggal Selesai:</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "d MMMM yyyy", { locale: id }) : <span>Pilih tanggal</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={setEndDate}
+                      initialFocus
+                      locale={id}
+                    />
+                  </PopoverContent>
+                </Popover>
+            </div>
+        </CardContent>
+      </Card>
+      
+      <div className='space-y-2'>
+        <Button className="w-full">
+            <Download className="mr-2 h-4 w-4" /> Cetak Laporan (PDF)
+        </Button>
+        <Button variant="secondary" className="w-full">
+            <FileSpreadsheet className="mr-2 h-4 w-4" /> Ekspor ke CSV
+        </Button>
       </div>
+
     </div>
   );
 }
