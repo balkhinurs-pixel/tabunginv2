@@ -30,18 +30,19 @@ const ActionButton = ({ icon: Icon, label, variant = 'default' }: { icon: React.
     )
 };
 
-const TransactionHistoryItem = ({ description, amount, type }: { description: string, amount: number, type: 'Pemasukan' | 'Pengeluaran' }) => (
-    <div className="flex items-center justify-between border-b py-3 text-sm">
-        <span className="flex-1">{description}</span>
-        <span className={cn(
-            "font-medium flex-1",
-            type === 'Pemasukan' ? 'text-green-600' : 'text-red-600'
-        )}>
+const TransactionHistoryItem = ({ date, type, description, amount }: { date: string, type: 'Pemasukan' | 'Pengeluaran', description: string, amount: number }) => (
+    <div className="grid grid-cols-5 items-center gap-2 border-b py-3 text-sm">
+        <span className="col-span-1">{date}</span>
+        <span className={cn("col-span-1", type === 'Pemasukan' ? 'text-green-600' : 'text-red-600')}>{type}</span>
+        <span className="col-span-1">{description}</span>
+        <span className={cn("col-span-1 font-medium", type === 'Pemasukan' ? 'text-green-600' : 'text-red-600')}>
             {amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
         </span>
-        <Button variant="destructive" size="icon" className="h-8 w-8 bg-red-500 hover:bg-red-600">
-            <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="col-span-1 flex justify-end">
+            <Button variant="destructive" size="icon" className="h-8 w-8 bg-red-500 hover:bg-red-600">
+                <Trash2 className="h-4 w-4" />
+            </Button>
+        </div>
     </div>
 );
 
@@ -57,9 +58,9 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
   };
 
   const transactions = [
-      { type: 'Pemasukan', description: 'harian', amount: 500000 },
-      { type: 'Pemasukan', description: 'bulanan', amount: 5000000 },
-      { type: 'Pengeluaran', description: 'jajan', amount: 25000 },
+      { date: '12/07/24', type: 'Pemasukan', description: 'harian', amount: 500000 },
+      { date: '12/07/24', type: 'Pemasukan', description: 'bulanan', amount: 5000000 },
+      { date: '13/07/24', type: 'Pengeluaran', description: 'jajan', amount: 25000 },
   ];
 
   return (
@@ -99,10 +100,12 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
               <CardTitle className="text-xl">Riwayat Transaksi</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="mb-4 grid grid-cols-3 text-xs font-semibold text-muted-foreground">
+            <div className="mb-4 grid grid-cols-5 gap-2 text-xs font-semibold text-muted-foreground">
+                <span className="col-span-1">TANGGAL</span>
+                <span className="col-span-1">JENIS</span>
                 <span className="col-span-1">KETERANGAN</span>
                 <span className="col-span-1">JUMLAH</span>
-                <span className="col-span-1">AKSI</span>
+                <span className="col-span-1 text-right">AKSI</span>
             </div>
             <div className="space-y-2">
                 {transactions.map((tx, index) => (
