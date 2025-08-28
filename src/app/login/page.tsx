@@ -19,9 +19,9 @@ export default function LoginPage() {
           <div className="mb-4 flex justify-center">
             <AppLogo />
           </div>
-          <CardTitle className="text-2xl">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl">Selamat Datang Kembali</CardTitle>
           <CardDescription>
-            Enter your credentials to access your account.
+            Masukkan kredensial Anda untuk mengakses akun Anda.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -37,11 +37,11 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Kata Sandi</Label>
               <Input id="password" type="password" defaultValue="password" required />
             </div>
             <SubmitButton className="w-full bg-primary hover:bg-primary/90">
-              Sign In
+              Masuk
             </SubmitButton>
           </form>
         </CardContent>

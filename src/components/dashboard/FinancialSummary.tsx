@@ -25,7 +25,7 @@ export default function FinancialSummary({ savings, deposits, withdrawals }: Fin
       const result = await getFinancialSummary({ savings, deposits, withdrawals });
       setSummary(result);
     } catch (e) {
-      setError('Failed to generate summary. Please try again.');
+      setError('Gagal menghasilkan ringkasan. Silakan coba lagi.');
       console.error(e);
     }
     setIsLoading(false);
@@ -34,14 +34,14 @@ export default function FinancialSummary({ savings, deposits, withdrawals }: Fin
   return (
     <Card className="animate-fade-in-up animation-delay-200">
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>AI Financial Advisor</CardTitle>
+        <CardTitle>Penasihat Keuangan AI</CardTitle>
         <Button onClick={handleGenerateSummary} disabled={isLoading} size="sm">
           {isLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             <Wand2 className="mr-2 h-4 w-4" />
           )}
-          Generate Insights
+          Hasilkan Wawasan
         </Button>
       </CardHeader>
       <CardContent>
@@ -50,19 +50,19 @@ export default function FinancialSummary({ savings, deposits, withdrawals }: Fin
           <div className="space-y-4">
              <Alert>
                 <BarChart2 className="h-4 w-4" />
-                <AlertTitle>Financial Summary</AlertTitle>
+                <AlertTitle>Ringkasan Keuangan</AlertTitle>
                 <AlertDescription>{summary.summary}</AlertDescription>
             </Alert>
             <Alert>
                 <Lightbulb className="h-4 w-4" />
-                <AlertTitle>Recommendations</AlertTitle>
+                <AlertTitle>Rekomendasi</AlertTitle>
                 <AlertDescription>{summary.recommendations}</AlertDescription>
             </Alert>
           </div>
         ) : (
           <div className="text-center text-muted-foreground py-8">
             <Wand2 className="mx-auto h-12 w-12" />
-            <p className="mt-4">Click "Generate Insights" for a personalized summary of your financial health.</p>
+            <p className="mt-4">Klik "Hasilkan Wawasan" untuk ringkasan pribadi kesehatan keuangan Anda.</p>
           </div>
         )}
       </CardContent>

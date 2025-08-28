@@ -35,40 +35,40 @@ export default function ProfilesPage() {
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
         <div>
-            <h2 className="text-2xl font-bold tracking-tight">Student Profiles</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Profil Siswa</h2>
             <p className="text-muted-foreground">
-                Manage student accounts and balances.
+                Kelola akun dan saldo siswa.
             </p>
         </div>
         <Dialog>
           <DialogTrigger asChild>
             <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Student
+                <PlusCircle className="mr-2 h-4 w-4" /> Tambah Siswa
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Add New Student</DialogTitle>
+              <DialogTitle>Tambah Siswa Baru</DialogTitle>
               <DialogDescription>
-                Fill in the details below to create a new student profile.
+                Isi detail di bawah untuk membuat profil siswa baru.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">
-                  Name
+                  Nama
                 </Label>
-                <Input id="name" placeholder="e.g., John Doe" className="col-span-3" />
+                <Input id="name" placeholder="contoh: John Doe" className="col-span-3" />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="studentId" className="text-right">
-                  Student ID
+                  ID Siswa
                 </Label>
-                <Input id="studentId" placeholder="e.g., 123456" className="col-span-3" />
+                <Input id="studentId" placeholder="contoh: 123456" className="col-span-3" />
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Create Profile</Button>
+              <Button type="submit">Buat Profil</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -77,10 +77,10 @@ export default function ProfilesPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Student ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Join Date</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
+              <TableHead>ID Siswa</TableHead>
+              <TableHead>Nama</TableHead>
+              <TableHead>Tanggal Bergabung</TableHead>
+              <TableHead className="text-right">Saldo</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

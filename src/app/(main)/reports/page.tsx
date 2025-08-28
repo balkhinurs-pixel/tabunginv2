@@ -39,9 +39,9 @@ export default function ReportsPage() {
     <div className="flex flex-col gap-8">
       <div className="flex items-start justify-between sm:items-center flex-col sm:flex-row gap-4">
         <div>
-            <h2 className="text-2xl font-bold tracking-tight">Savings Reports</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Laporan Tabungan</h2>
             <p className="text-muted-foreground">
-                Generate and export detailed savings reports.
+                Buat dan ekspor laporan tabungan terperinci.
             </p>
         </div>
         <div className="flex items-center gap-2">
@@ -83,7 +83,7 @@ export default function ReportsPage() {
               </PopoverContent>
             </Popover>
             <Button>
-                <Download className="mr-2 h-4 w-4" /> Export
+                <Download className="mr-2 h-4 w-4" /> Ekspor
             </Button>
         </div>
       </div>
@@ -92,11 +92,11 @@ export default function ReportsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Transaction ID</TableHead>
-              <TableHead>Student</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>ID Transaksi</TableHead>
+              <TableHead>Siswa</TableHead>
+              <TableHead>Tipe</TableHead>
+              <TableHead>Tanggal</TableHead>
+              <TableHead className="text-right">Jumlah</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -106,7 +106,7 @@ export default function ReportsPage() {
                 <TableCell>{transaction.student}</TableCell>
                 <TableCell>
                   <Badge variant={transaction.type === 'Deposit' ? 'default' : 'destructive'} className={transaction.type === 'Deposit' ? 'bg-green-600' : ''}>
-                    {transaction.type}
+                    {transaction.type === 'Deposit' ? 'Setoran' : 'Penarikan'}
                   </Badge>
                 </TableCell>
                 <TableCell>{format(new Date(transaction.date), "d MMMM yyyy", { locale: id })}</TableCell>
