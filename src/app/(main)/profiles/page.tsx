@@ -18,84 +18,144 @@ import {
   } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PlusCircle } from 'lucide-react';
-import { format } from 'date-fns';
-import { id } from 'date-fns/locale';
+import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Image from 'next/image';
 
 const students = [
-  { id: 'S001', name: 'John Doe', balance: 125500, joinDate: '2023-09-01' },
-  { id: 'S002', name: 'Jane Smith', balance: 88000, joinDate: '2023-09-01' },
-  { id: 'S003', name: 'Peter Jones', balance: 250000, joinDate: '2023-09-02' },
-  { id: 'S004', name: 'Mary Johnson', balance: 175250, joinDate: '2023-09-03' },
-  { id: 'S005', name: 'Chris Lee', balance: 45000, joinDate: '2023-09-05' },
+  { nis: '12345', name: 'Ahmad Subarjo', class: '7A', profilePic: 'https://picsum.photos/40/40' },
 ];
 
 export default function ProfilesPage() {
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
-        <div>
-            <h2 className="text-2xl font-bold tracking-tight">Profil Siswa</h2>
-            <p className="text-muted-foreground">
-                Kelola akun dan saldo siswa.
-            </p>
-        </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Tambah Siswa
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Tambah Siswa Baru</DialogTitle>
-              <DialogDescription>
-                Isi detail di bawah untuk membuat profil siswa baru.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Nama
-                </Label>
-                <Input id="name" placeholder="contoh: John Doe" className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="studentId" className="text-right">
-                  ID Siswa
-                </Label>
-                <Input id="studentId" placeholder="contoh: 123456" className="col-span-3" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Buat Profil</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+    <div className="flex flex-col gap-4">
+      <div className='flex items-center justify-between'>
+        <h2 className="text-2xl font-bold tracking-tight">Data Siswa</h2>
       </div>
-      <div className="rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID Siswa</TableHead>
-              <TableHead>Nama</TableHead>
-              <TableHead>Tanggal Bergabung</TableHead>
-              <TableHead className="text-right">Saldo</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {students.map((student) => (
-              <TableRow key={student.id}>
-                <TableCell className="font-medium">{student.id}</TableCell>
-                <TableCell>{student.name}</TableCell>
-                <TableCell>{format(new Date(student.joinDate), "d MMMM yyyy", { locale: id })}</TableCell>
-                <TableCell className="text-right font-medium">
-                  {student.balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Tambah Siswa
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                <DialogTitle>Tambah Siswa Baru</DialogTitle>
+                <DialogDescription>
+                    Isi detail di bawah untuk membuat profil siswa baru.
+                </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right">
+                    Nama
+                    </Label>
+                    <Input id="name" placeholder="contoh: John Doe" className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="studentId" className="text-right">
+                    ID Siswa
+                    </Label>
+                    <Input id="studentId" placeholder="contoh: 123456" className="col-span-3" />
+                </div>
+                </div>
+                <DialogFooter>
+                <Button type="submit">Buat Profil</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Button variant="outline">
+            <Download className="mr-2 h-4 w-4" /> Unduh Template
+        </Button>
+      </div>
+      <Button variant="outline">
+            <Upload className="mr-2 h-4 w-4" /> Import (CSV)
+      </Button>
+
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="p-3 text-center">
+            <p className="text-sm text-blue-800 font-medium">Kuota Siswa Digunakan: 1 / 5</p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+          <CardContent className="p-4 space-y-4">
+            <div className='space-y-2'>
+                <Label className='flex items-center gap-2 text-muted-foreground'><Filter className='h-4 w-4' /> Filter Kelas:</Label>
+                <Select>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Semua Kelas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Kelas</SelectItem>
+                        <SelectItem value="7a">7A</SelectItem>
+                        <SelectItem value="7b">7B</SelectItem>
+                        <SelectItem value="8a">8A</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className='space-y-2'>
+                <Label htmlFor='search'>Cari Siswa (NIS, Nama):</Label>
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="search" placeholder="Ketik untuk mencari..." className="pl-10" />
+                </div>
+            </div>
+          </CardContent>
+      </Card>
+
+      <Card className="text-center">
+          <CardContent className="p-6 space-y-3">
+              <div className='flex justify-center'>
+                <div className="p-2 bg-primary/10 rounded-full inline-block">
+                    <ShieldCheck className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+              <h3 className="font-semibold">Aktivasi Aplikasi Anda</h3>
+              <p className="text-muted-foreground text-sm">Buka kuota hingga 32 siswa dan dapatkan akses penuh.</p>
+              <Button>Lihat Opsi Aktivasi</Button>
+          </CardContent>
+      </Card>
+
+      <div>
+        <p className="text-sm text-muted-foreground mb-2">Menampilkan 1 - 1 dari 1 data</p>
+        <div className="rounded-lg border">
+            <Table>
+            <TableHeader>
+                <TableRow>
+                <TableHead>PROFIL</TableHead>
+                <TableHead>NIS</TableHead>
+                <TableHead>NAMA</TableHead>
+                <TableHead>KELAS</TableHead>
+                <TableHead>AKSI</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {students.map((student) => (
+                <TableRow key={student.nis}>
+                    <TableCell>
+                        <Image 
+                            src={student.profilePic}
+                            width={40}
+                            height={40}
+                            alt={student.name}
+                            className="rounded-full"
+                            data-ai-hint="student profile"
+                        />
+                    </TableCell>
+                    <TableCell className="font-medium">{student.nis}</TableCell>
+                    <TableCell>{student.name}</TableCell>
+                    <TableCell>{student.class}</TableCell>
+                    <TableCell><Button variant="ghost" size="sm">...</Button></TableCell>
+                </TableRow>
+                ))}
+            </TableBody>
+            </Table>
+        </div>
       </div>
     </div>
   );
