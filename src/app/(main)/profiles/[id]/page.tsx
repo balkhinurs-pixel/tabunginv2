@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useStudent } from '@/context/StudentContext';
 import { useParams } from 'next/navigation';
 import { useMemo, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -22,7 +21,7 @@ import {
     DialogTrigger,
     DialogClose,
   } from '@/components/ui/dialog';
-import type { Student } from '@/data/students';
+import type { Student, Transaction } from '@/data/students';
 import { initialStudents } from '@/data/students';
 
 
@@ -57,12 +56,11 @@ const ActionButton = ({ icon: Icon, label, variant = 'default', href }: { icon: 
     return content;
 };
 
-const DeleteTransactionDialog = ({ studentId, transactionId, description }: { studentId: string; transactionId: string, description: string }) => {
-    const { deleteTransaction } = useStudent();
+const DeleteTransactionDialog = ({ transactionId, description, onDelete }: { transactionId: string, description: string, onDelete: (id: string) => void }) => {
     const { toast } = useToast();
 
     const handleDelete = () => {
-        deleteTransaction(studentId, transactionId);
+        onDelete(transactionId);
         toast({
             title: 'Transaksi Dihapus',
             description: `Transaksi "${description}" telah dihapus.`,
@@ -96,9 +94,7 @@ const DeleteTransactionDialog = ({ studentId, transactionId, description }: { st
 export default function StudentProfilePage() {
   const params = useParams();
   const studentId = typeof params.id === 'string' ? params.id : '';
-  const { deleteTransaction } = useStudent(); // We still need this for deleting transactions for now
   
-  // Simulate fetching a single student
   const [student, setStudent] = useState<Student | null>(null);
 
   useEffect(() => {
@@ -108,6 +104,13 @@ export default function StudentProfilePage() {
     setStudent(fetchedStudent || null);
   }, [studentId]);
 
+  const handleDeleteTransaction = (transactionId: string) => {
+    // This will later be a Supabase delete call
+    if (student) {
+        const updatedTransactions = student.transactions.filter(tx => tx.id !== transactionId);
+        setStudent({ ...student, transactions: updatedTransactions });
+    }
+  };
 
   if (!student) {
     return (
@@ -199,9 +202,9 @@ export default function StudentProfilePage() {
                                 </TableCell>
                                 <TableCell className="text-center">
                                     <DeleteTransactionDialog 
-                                        studentId={student.id} 
                                         transactionId={tx.id}
                                         description={tx.description}
+                                        onDelete={handleDeleteTransaction}
                                     />
                                 </TableCell>
                             </TableRow>
@@ -214,4 +217,3 @@ export default function StudentProfilePage() {
     </div>
   );
 }
-

@@ -14,13 +14,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { useStudent } from '@/context/StudentContext';
 import { useToast } from '@/hooks/use-toast';
+import { StudentProvider, useStudent } from '@/context/StudentContext'; // Keep for now, but decouple logic
 
-export default function WithdrawalPage({ params }: { params: { id: string } }) {
+const WithdrawPage = ({ params }: { params: { id: string } }) => {
   const router = useRouter();
   const { toast } = useToast();
-  const { getStudentById, addTransaction } = useStudent();
+  // We get student data from props now, but for balance check we still need context temporarily
+  const { getStudentById } = useStudent(); 
   
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [amount, setAmount] = useState('');
@@ -30,7 +31,7 @@ export default function WithdrawalPage({ params }: { params: { id: string } }) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const numericAmount = parseFloat(amount);
-    const student = getStudentById(studentId);
+    const student = getStudentById(studentId); // This part will need a Supabase fetch later
 
     if (!student) {
         toast({ title: 'Siswa tidak ditemukan', variant: 'destructive' });
@@ -57,7 +58,9 @@ export default function WithdrawalPage({ params }: { params: { id: string } }) {
         return;
     }
 
-    addTransaction(studentId, { amount: numericAmount, description }, 'Pengeluaran');
+    // In a real Supabase scenario, this would be an API call
+    // addTransaction(studentId, { amount: numericAmount, description }, 'Pengeluaran');
+    console.log('Simulating add withdrawal:', { studentId, amount: numericAmount, description });
     
     toast({
         title: 'Transaksi Berhasil',
@@ -148,4 +151,13 @@ export default function WithdrawalPage({ params }: { params: { id: string } }) {
       </Card>
     </div>
   );
+}
+
+
+export default function WithdrawalPage({ params }: { params: { id: string } }) {
+  return (
+    <StudentProvider>
+      <WithdrawPage params={params} />
+    </StudentProvider>
+  )
 }

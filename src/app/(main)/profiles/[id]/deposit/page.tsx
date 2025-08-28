@@ -14,13 +14,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { useStudent } from '@/context/StudentContext';
 import { useToast } from '@/hooks/use-toast';
+import { StudentProvider, useStudent } from '@/context/StudentContext'; // Keep for now, but decouple logic
 
-export default function DepositPage({ params }: { params: { id: string } }) {
+// We will simulate the action without context, preparing for Supabase
+const AddDepositPage = ({ params }: { params: { id: string } }) => {
   const router = useRouter();
   const { toast } = useToast();
-  const { addTransaction } = useStudent();
+  // const { addTransaction } = useStudent(); // We will replace this logic
   
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [amount, setAmount] = useState('');
@@ -39,7 +40,9 @@ export default function DepositPage({ params }: { params: { id: string } }) {
         return;
     }
 
-    addTransaction(studentId, { amount: numericAmount, description }, 'Pemasukan');
+    // In a real Supabase scenario, this would be an API call
+    // addTransaction(studentId, { amount: numericAmount, description }, 'Pemasukan');
+    console.log('Simulating add deposit:', { studentId, amount: numericAmount, description });
     
     toast({
         title: 'Transaksi Berhasil',
@@ -130,4 +133,13 @@ export default function DepositPage({ params }: { params: { id: string } }) {
       </Card>
     </div>
   );
+}
+
+// Wrap with provider to avoid breaking other parts of the app that might still use it temporarily
+export default function DepositPage({ params }: { params: { id: string } }) {
+  return (
+    <StudentProvider>
+      <AddDepositPage params={params} />
+    </StudentProvider>
+  )
 }
