@@ -1,3 +1,6 @@
+
+'use client';
+
 import Link from 'next/link';
 import {
   Table,
@@ -22,12 +25,11 @@ import { Label } from '@/components/ui/label'
 import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useStudent } from '@/context/StudentContext';
 
-const students = [
-  { nis: '24001', name: 'Balkhi', class: '9a' },
-];
 
 export default function ProfilesPage() {
+  const { students } = useStudent();
   return (
     <div className="flex flex-col gap-4">
       <div className='flex items-center justify-between'>
@@ -78,7 +80,7 @@ export default function ProfilesPage() {
 
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="p-3 text-center">
-            <p className="text-sm text-blue-800 font-medium">Kuota Siswa Digunakan: 1 / 5</p>
+            <p className="text-sm text-blue-800 font-medium">Kuota Siswa Digunakan: {students.length} / 5</p>
         </CardContent>
       </Card>
       
@@ -122,7 +124,7 @@ export default function ProfilesPage() {
       </Card>
 
       <div>
-        <p className="text-sm text-muted-foreground mb-2">Menampilkan 1 - 1 dari 1 data</p>
+        <p className="text-sm text-muted-foreground mb-2">Menampilkan 1 - {students.length} dari {students.length} data</p>
         <div className="rounded-lg border">
             <Table>
             <TableHeader>
@@ -136,10 +138,10 @@ export default function ProfilesPage() {
             </TableHeader>
             <TableBody>
                 {students.map((student) => (
-                <TableRow key={student.nis}>
+                <TableRow key={student.id}>
                     <TableCell>
                         <Button variant="outline" size="icon" className='h-8 w-8' asChild>
-                            <Link href={`/profiles/${student.nis}`}>
+                            <Link href={`/profiles/${student.id}`}>
                                 <User className="h-4 w-4" />
                             </Link>
                         </Button>

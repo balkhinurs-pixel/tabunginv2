@@ -8,6 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useStudent } from '@/context/StudentContext';
+import { useParams } from 'next/navigation';
+import { useMemo } from 'react';
 
 const StatCard = ({ title, value, colorClass }: { title: string, value: string, colorClass: string }) => (
     <Card className={`text-center shadow-md ${colorClass}`}>
@@ -40,23 +43,36 @@ const ActionButton = ({ icon: Icon, label, variant = 'default', href }: { icon: 
     return content;
 };
 
-export default function StudentProfilePage({ params }: { params: { id: string } }) {
-  const studentId = params.id;
-  // In a real app, you would fetch student data based on studentId
-  const student = {
-    nis: studentId,
-    name: 'balkhi',
-    class: '9a',
-    income: 5500000,
-    expense: 25000,
-    balance: 5475000
-  };
+export default function StudentProfilePage() {
+  const params = useParams();
+  const studentId = typeof params.id === 'string' ? params.id : '';
+  const { getStudentById } = useStudent();
 
-  const transactions = [
-      { date: '12/07/24', type: 'Pemasukan', description: 'harian', amount: 500000 },
-      { date: '12/07/24', type: 'Pemasukan', description: 'bulanan', amount: 5000000 },
-      { date: '13/07/24', type: 'Pengeluaran', description: 'jajan', amount: 25000 },
-  ];
+  const student = useMemo(() => getStudentById(studentId), [studentId, getStudentById]);
+
+  if (!student) {
+    return (
+      <div className="text-center">
+        <p>Siswa tidak ditemukan.</p>
+        <Button asChild variant="link">
+          <Link href="/profiles">Kembali ke Daftar Siswa</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const { income, expense, balance } = student.transactions.reduce(
+    (acc, tx) => {
+      if (tx.type === 'Pemasukan') {
+        acc.income += tx.amount;
+      } else {
+        acc.expense += tx.amount;
+      }
+      acc.balance = acc.income - acc.expense;
+      return acc;
+    },
+    { income: 0, expense: 0, balance: 0 }
+  );
 
   return (
     <div className="space-y-6 pb-8">
@@ -78,9 +94,9 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
       </Card>
       
       <div className="space-y-3">
-        <StatCard title="Total Pemasukan" value={student.income.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-green-100/50 border-green-200 text-green-700" />
-        <StatCard title="Total Pengeluaran" value={student.expense.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-red-100/50 border-red-200 text-red-700" />
-        <StatCard title="Saldo Akhir" value={student.balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-blue-100/50 border-blue-200 text-blue-700" />
+        <StatCard title="Total Pemasukan" value={income.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-green-100/50 border-green-200 text-green-700" />
+        <StatCard title="Total Pengeluaran" value={expense.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-red-100/50 border-red-200 text-red-700" />
+        <StatCard title="Saldo Akhir" value={balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-blue-100/50 border-blue-200 text-blue-700" />
       </div>
 
       <div className="space-y-3 pt-4">
@@ -107,8 +123,8 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {transactions.map((tx, index) => (
-                            <TableRow key={index}>
+                        {student.transactions.map((tx) => (
+                            <TableRow key={tx.id}>
                                 <TableCell>{tx.date}</TableCell>
                                 <TableCell className={cn(tx.type === 'Pemasukan' ? 'text-green-600' : 'text-red-600')}>{tx.type}</TableCell>
                                 <TableCell>{tx.description}</TableCell>
