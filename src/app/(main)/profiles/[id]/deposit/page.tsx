@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,10 +14,40 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { useStudent } from '@/context/StudentContext';
+import { useToast } from '@/hooks/use-toast';
 
 export default function DepositPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { addTransaction } = useStudent();
+  
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
   const studentId = params.id;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const numericAmount = parseFloat(amount);
+    if (!numericAmount || numericAmount <= 0) {
+        toast({
+            title: 'Jumlah Tidak Valid',
+            description: 'Mohon masukkan jumlah yang valid.',
+            variant: 'destructive',
+        });
+        return;
+    }
+
+    addTransaction(studentId, { amount: numericAmount, description }, 'Pemasukan');
+    
+    toast({
+        title: 'Transaksi Berhasil',
+        description: `Setoran sebesar ${numericAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} telah disimpan.`,
+    });
+
+    router.push(`/profiles/${studentId}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -29,7 +60,7 @@ export default function DepositPage({ params }: { params: { id: string } }) {
 
       <Card>
         <CardContent className="p-6">
-          <form className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <h1 className="text-2xl font-bold text-center">Form Input Pemasukan</h1>
             
             <div className="space-y-2">
@@ -44,7 +75,7 @@ export default function DepositPage({ params }: { params: { id: string } }) {
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "dd/MM/yyyy") : <span>Pilih tanggal</span>}
+                      {date ? format(date, "dd MMMM yyyy", { locale: id }) : <span>Pilih tanggal</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -54,6 +85,7 @@ export default function DepositPage({ params }: { params: { id: string } }) {
                       onSelect={setDate}
                       initialFocus
                       locale={id}
+                      disabled
                     />
                   </PopoverContent>
                 </Popover>
@@ -62,8 +94,16 @@ export default function DepositPage({ params }: { params: { id: string } }) {
             <div className="space-y-2">
               <Label htmlFor="amount">Jumlah (Rp)</Label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
-                <Input id="amount" type="number" placeholder="Contoh: 50000" className="pl-8" />
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
+                <Input 
+                  id="amount" 
+                  type="number" 
+                  placeholder="Contoh: 50000" 
+                  className="pl-8" 
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
               </div>
             </div>
 
@@ -71,11 +111,18 @@ export default function DepositPage({ params }: { params: { id: string } }) {
               <Label htmlFor="description">Keterangan</Label>
               <div className="relative">
                 <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="description" placeholder="Contoh: Setoran mingguan" className="pl-10" />
+                <Input 
+                  id="description" 
+                  placeholder="Contoh: Setoran mingguan" 
+                  className="pl-10" 
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  required
+                />
               </div>
             </div>
 
-            <Button className="w-full bg-green-500 hover:bg-green-600 text-white h-12">
+            <Button type="submit" className="w-full bg-green-500 hover:bg-green-600 text-white h-12">
               Simpan Transaksi
             </Button>
           </form>

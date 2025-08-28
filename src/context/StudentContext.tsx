@@ -3,13 +3,16 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { initialStudents, type Student, type Transaction } from '@/data/students';
+import { format } from 'date-fns';
 
 interface StudentContextType {
   students: Student[];
   getStudentById: (id: string) => Student | undefined;
-  addTransaction: (studentId: string, transaction: Omit<Transaction, 'id'>) => void;
+  addTransaction: (studentId: string, transaction: Omit<Transaction, 'id' | 'type' | 'date'>, type: 'Pemasukan' | 'Pengeluaran') => void;
   deleteTransaction: (studentId: string, transactionId: string) => void;
-  // TODO: Add functions for add/update/delete students
+  addStudent: (student: Omit<Student, 'id' | 'transactions'>) => void;
+  updateStudent: (studentId: string, studentData: Omit<Student, 'id' | 'transactions'>) => void;
+  deleteStudent: (studentId: string) => void;
 }
 
 const StudentContext = createContext<StudentContextType | undefined>(undefined);
@@ -21,17 +24,42 @@ export const StudentProvider = ({ children }: { children: ReactNode }) => {
     return students.find((student) => student.id === id);
   };
 
-  const addTransaction = (studentId: string, transaction: Omit<Transaction, 'id'>) => {
+  const addStudent = (studentData: Omit<Student, 'id' | 'transactions'>) => {
+    setStudents((prevStudents) => [
+      ...prevStudents,
+      {
+        ...studentData,
+        id: `s${Date.now()}`,
+        transactions: [],
+      },
+    ]);
+  };
+
+  const updateStudent = (studentId: string, studentData: Omit<Student, 'id' | 'transactions'>) => {
+     setStudents((prevStudents) =>
+      prevStudents.map((student) =>
+        student.id === studentId ? { ...student, ...studentData } : student
+      )
+    );
+  }
+
+  const deleteStudent = (studentId: string) => {
+    setStudents((prevStudents) => prevStudents.filter((student) => student.id !== studentId));
+  }
+
+  const addTransaction = (studentId: string, transaction: Omit<Transaction, 'id' | 'type' | 'date'>, type: 'Pemasukan' | 'Pengeluaran') => {
     setStudents((prevStudents) =>
       prevStudents.map((student) => {
         if (student.id === studentId) {
           const newTransaction: Transaction = {
             ...transaction,
             id: `t${Date.now()}`,
+            type,
+            date: format(new Date(), 'dd/MM/yy'),
           };
           return {
             ...student,
-            transactions: [...student.transactions, newTransaction],
+            transactions: [newTransaction, ...student.transactions],
           };
         }
         return student;
@@ -60,6 +88,9 @@ export const StudentProvider = ({ children }: { children: ReactNode }) => {
     getStudentById,
     addTransaction,
     deleteTransaction,
+    addStudent,
+    updateStudent,
+    deleteStudent,
   };
 
   return (

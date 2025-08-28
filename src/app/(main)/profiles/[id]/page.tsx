@@ -11,6 +11,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useStudent } from '@/context/StudentContext';
 import { useParams } from 'next/navigation';
 import { useMemo } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogClose,
+  } from '@/components/ui/dialog';
 
 const StatCard = ({ title, value, colorClass }: { title: string, value: string, colorClass: string }) => (
     <Card className={`text-center shadow-md ${colorClass}`}>
@@ -42,6 +53,42 @@ const ActionButton = ({ icon: Icon, label, variant = 'default', href }: { icon: 
 
     return content;
 };
+
+const DeleteTransactionDialog = ({ studentId, transactionId, description }: { studentId: string; transactionId: string, description: string }) => {
+    const { deleteTransaction } = useStudent();
+    const { toast } = useToast();
+
+    const handleDelete = () => {
+        deleteTransaction(studentId, transactionId);
+        toast({
+            title: 'Transaksi Dihapus',
+            description: `Transaksi "${description}" telah dihapus.`,
+            variant: 'destructive',
+        });
+    }
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="destructive" size="icon" className="h-8 w-8 bg-red-500 hover:bg-red-600">
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Hapus Transaksi?</DialogTitle>
+                    <DialogDescription>
+                        Tindakan ini tidak dapat dibatalkan. Yakin ingin menghapus transaksi "{description}"?
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="ghost">Batal</Button></DialogClose>
+                    <DialogClose asChild><Button variant="destructive" onClick={handleDelete}>Ya, Hapus</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function StudentProfilePage() {
   const params = useParams();
@@ -123,6 +170,13 @@ export default function StudentProfilePage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
+                        {student.transactions.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                                    Belum ada transaksi.
+                                </TableCell>
+                            </TableRow>
+                        )}
                         {student.transactions.map((tx) => (
                             <TableRow key={tx.id}>
                                 <TableCell>{tx.date}</TableCell>
@@ -132,9 +186,11 @@ export default function StudentProfilePage() {
                                     {tx.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                                 </TableCell>
                                 <TableCell className="text-center">
-                                    <Button variant="destructive" size="icon" className="h-8 w-8 bg-red-500 hover:bg-red-600">
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <DeleteTransactionDialog 
+                                        studentId={student.id} 
+                                        transactionId={tx.id}
+                                        description={tx.description}
+                                    />
                                 </TableCell>
                             </TableRow>
                         ))}

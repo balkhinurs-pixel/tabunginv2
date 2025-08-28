@@ -1,6 +1,7 @@
 
 'use client';
 
+import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -27,18 +28,38 @@ import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRou
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useStudent } from '@/context/StudentContext';
+import { useToast } from '@/hooks/use-toast';
 
+const AddStudentDialog = () => {
+    const { addStudent } = useStudent();
+    const { toast } = useToast();
+    const [nis, setNis] = useState('');
+    const [name, setName] = useState('');
+    const [studentClass, setStudentClass] = useState('');
+    const [open, setOpen] = useState(false);
 
-export default function ProfilesPage() {
-  const { students } = useStudent();
-  return (
-    <div className="flex flex-col gap-4">
-      <div className='flex items-center justify-between'>
-        <h2 className="text-2xl font-bold tracking-tight">Data Siswa</h2>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <Dialog>
+    const handleSubmit = () => {
+        if (!nis || !name || !studentClass) {
+            toast({
+                title: 'Data Tidak Lengkap',
+                description: 'Mohon isi semua kolom yang wajib diisi.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        addStudent({ nis, name, class: studentClass });
+        toast({
+            title: 'Siswa Ditambahkan',
+            description: `Siswa baru dengan nama ${name} berhasil ditambahkan.`,
+        });
+        setNis('');
+        setName('');
+        setStudentClass('');
+        setOpen(false);
+    }
+    
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button>
                     <PlusCircle className="mr-2 h-4 w-4" /> Tambah Siswa
@@ -51,15 +72,15 @@ export default function ProfilesPage() {
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
                       <Label htmlFor="nis">NIS (Nomor Induk Siswa)</Label>
-                      <Input id="nis" />
+                      <Input id="nis" value={nis} onChange={(e) => setNis(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                       <Label htmlFor="fullName">Nama Lengkap</Label>
-                      <Input id="fullName" />
+                      <Input id="fullName" value={name} onChange={(e) => setName(e.target.value)} />
                   </div>
                    <div className="space-y-2">
                       <Label htmlFor="class">Kelas</Label>
-                      <Input id="class" />
+                      <Input id="class" value={studentClass} onChange={(e) => setStudentClass(e.target.value)} />
                   </div>
                    <div className="space-y-2">
                       <Label htmlFor="whatsapp">Nomor WhatsApp Wali (Opsional)</Label>
@@ -74,12 +95,135 @@ export default function ProfilesPage() {
                   <DialogClose asChild>
                     <Button variant="outline">Batal</Button>
                   </DialogClose>
-                  <Button type="submit">
+                  <Button onClick={handleSubmit}>
                     <Save className="mr-2 h-4 w-4" /> Simpan Siswa
                   </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    )
+}
+
+const EditStudentDialog = ({ studentId }: { studentId: string }) => {
+    const { getStudentById, updateStudent } = useStudent();
+    const { toast } = useToast();
+    const student = getStudentById(studentId);
+
+    const [nis, setNis] = useState(student?.nis || '');
+    const [name, setName] = useState(student?.name || '');
+    const [studentClass, setStudentClass] = useState(student?.class || '');
+    const [open, setOpen] = useState(false);
+
+    const handleSubmit = () => {
+        if (!nis || !name || !studentClass) {
+            toast({
+                title: 'Data Tidak Lengkap',
+                description: 'Mohon isi semua kolom yang wajib diisi.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        updateStudent(studentId, { nis, name, class: studentClass });
+        toast({
+            title: 'Siswa Diperbarui',
+            description: `Data siswa ${name} berhasil diperbarui.`,
+        });
+        setOpen(false);
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="icon" className='h-8 w-8 border-yellow-500 text-yellow-500 hover:bg-yellow-50 hover:text-yellow-600'>
+                    <Pencil className="h-4 w-4" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Ubah Profil Siswa</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-nis">NIS (Nomor Induk Siswa)</Label>
+                        <Input id="edit-nis" value={nis} onChange={(e) => setNis(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-fullName">Nama Lengkap</Label>
+                        <Input id="edit-fullName" value={name} onChange={(e) => setName(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-class">Kelas</Label>
+                        <Input id="edit-class" value={studentClass} onChange={(e) => setStudentClass(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-whatsapp">Nomor WhatsApp Wali (Opsional)</Label>
+                        <Input id="edit-whatsapp" placeholder="Contoh: 6281234567890" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-pin">PIN Siswa (untuk Login)</Label>
+                        <Input id="edit-pin" defaultValue="123456" />
+                    </div>
+                </div>
+                <DialogFooter className="grid grid-cols-2 gap-2">
+                    <DialogClose asChild>
+                        <Button variant="outline">Batal</Button>
+                    </DialogClose>
+                    <Button onClick={handleSubmit}>
+                        <Save className="mr-2 h-4 w-4" /> Simpan Perubahan
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+const DeleteStudentDialog = ({ studentId, studentName }: { studentId: string; studentName: string; }) => {
+    const { deleteStudent } = useStudent();
+    const { toast } = useToast();
+
+    const handleDelete = () => {
+        deleteStudent(studentId);
+        toast({
+            title: 'Siswa Dihapus',
+            description: `Data siswa ${studentName} telah dihapus.`,
+            variant: 'destructive',
+        });
+    }
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="icon" className='h-8 w-8 border-destructive text-destructive hover:bg-destructive/10'>
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Hapus Siswa?</DialogTitle>
+                    <DialogDescription>
+                        Tindakan ini tidak dapat dibatalkan. Ini akan menghapus profil dan semua data terkait untuk {studentName}.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="ghost">Batal</Button></DialogClose>
+                    <DialogClose asChild><Button variant="destructive" onClick={handleDelete}>Ya, Hapus</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+
+export default function ProfilesPage() {
+  const { students } = useStudent();
+  return (
+    <div className="flex flex-col gap-4">
+      <div className='flex items-center justify-between'>
+        <h2 className="text-2xl font-bold tracking-tight">Data Siswa</h2>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <AddStudentDialog />
 
         <Button variant="outline">
             <Download className="mr-2 h-4 w-4" /> Unduh Template
@@ -188,67 +332,8 @@ export default function ProfilesPage() {
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
-                             <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" size="icon" className='h-8 w-8 border-yellow-500 text-yellow-500 hover:bg-yellow-50 hover:text-yellow-600'>
-                                        <Pencil className="h-4 w-4" />
-                                    </Button>
-                                </DialogTrigger>
-                                 <DialogContent className="sm:max-w-[425px]">
-                                    <DialogHeader>
-                                        <DialogTitle>Ubah Profil Siswa</DialogTitle>
-                                    </DialogHeader>
-                                    <div className="grid gap-4 py-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="edit-nis">NIS (Nomor Induk Siswa)</Label>
-                                            <Input id="edit-nis" defaultValue={student.nis} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="edit-fullName">Nama Lengkap</Label>
-                                            <Input id="edit-fullName" defaultValue={student.name} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="edit-class">Kelas</Label>
-                                            <Input id="edit-class" defaultValue={student.class} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="edit-whatsapp">Nomor WhatsApp Wali (Opsional)</Label>
-                                            <Input id="edit-whatsapp" placeholder="Contoh: 6281234567890" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="edit-pin">PIN Siswa (untuk Login)</Label>
-                                            <Input id="edit-pin" defaultValue="123456" />
-                                        </div>
-                                    </div>
-                                    <DialogFooter className="grid grid-cols-2 gap-2">
-                                        <DialogClose asChild>
-                                            <Button variant="outline">Batal</Button>
-                                        </DialogClose>
-                                        <Button type="submit">
-                                            <Save className="mr-2 h-4 w-4" /> Simpan Perubahan
-                                        </Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                             <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" size="icon" className='h-8 w-8 border-destructive text-destructive hover:bg-destructive/10'>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Hapus Siswa?</DialogTitle>
-                                        <DialogDescription>
-                                            Tindakan ini tidak dapat dibatalkan. Ini akan menghapus profil dan semua data terkait untuk {student.name}.
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <DialogFooter>
-                                        <Button variant="ghost">Batal</Button>
-                                        <Button variant="destructive">Ya, Hapus</Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
+                             <EditStudentDialog studentId={student.id} />
+                             <DeleteStudentDialog studentId={student.id} studentName={student.name} />
                         </div>
                     </TableCell>
                 </TableRow>
