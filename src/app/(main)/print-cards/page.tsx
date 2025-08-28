@@ -1,4 +1,7 @@
 
+'use client';
+
+import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Download } from 'lucide-react';
@@ -6,8 +9,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { useStudent } from '@/context/StudentContext';
+import type { Student } from '@/data/students';
 
 export default function PrintCardsPage() {
+  const { students } = useStudent();
+  const [selectedStudentId, setSelectedStudentId] = useState<string | undefined>(students[0]?.id);
+
+  const selectedStudent = students.find(s => s.id === selectedStudentId);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -23,13 +33,16 @@ export default function PrintCardsPage() {
         <CardContent className="p-4 space-y-4">
             <div className="space-y-2">
                 <Label>Pilih Siswa (untuk preview & unduh PDF tunggal)</Label>
-                <Select defaultValue="balkhi">
+                <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
                     <SelectTrigger>
                         <SelectValue placeholder="Pilih siswa..." />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="balkhi">balkhi (24001)</SelectItem>
-                        <SelectItem value="jane">Jane Smith (24002)</SelectItem>
+                        {students.map(student => (
+                             <SelectItem key={student.id} value={student.id}>
+                                {student.name} ({student.nis})
+                             </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>
@@ -40,36 +53,38 @@ export default function PrintCardsPage() {
         </CardContent>
       </Card>
 
-      <div className="space-y-2">
-        <h3 className="font-semibold text-center">Preview Kartu</h3>
-        <Card>
-            <CardContent className="p-4 space-y-4">
-                <div className="border rounded-lg p-4 space-y-4">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="font-bold text-primary text-sm">KARTU TABUNGAN SISWA</p>
-                            <p className="text-xs text-muted-foreground">ribath5</p>
+      {selectedStudent && (
+        <div className="space-y-2">
+            <h3 className="font-semibold text-center">Preview Kartu</h3>
+            <Card>
+                <CardContent className="p-4 space-y-4">
+                    <div className="border rounded-lg p-4 space-y-4">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="font-bold text-primary text-sm">KARTU TABUNGAN SISWA</p>
+                                <p className="text-xs text-muted-foreground">ribath5</p>
+                            </div>
+                            <Image src="https://picsum.photos/seed/burgerking/40/40" width={40} height={40} alt="Logo Sekolah" className="rounded-full" data-ai-hint="company logo" />
                         </div>
-                        <Image src="https://picsum.photos/seed/burgerking/40/40" width={40} height={40} alt="Logo Sekolah" className="rounded-full" data-ai-hint="company logo" />
-                    </div>
 
-                    <div className="flex items-center gap-4">
-                        <Image src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=24001" width={80} height={80} alt="QR Code" data-ai-hint="qr code" />
-                        <div>
-                            <p className="font-bold">balkhi</p>
-                            <p className="text-sm text-muted-foreground">NIS: 24001</p>
-                            <p className="text-sm text-muted-foreground">Kelas: 9a</p>
+                        <div className="flex items-center gap-4">
+                            <Image src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${selectedStudent.nis}`} width={80} height={80} alt="QR Code" data-ai-hint="qr code" />
+                            <div>
+                                <p className="font-bold">{selectedStudent.name}</p>
+                                <p className="text-sm text-muted-foreground">NIS: {selectedStudent.nis}</p>
+                                <p className="text-sm text-muted-foreground">Kelas: {selectedStudent.class}</p>
+                            </div>
                         </div>
+                        <p className="text-xs text-muted-foreground text-center">Gunakan kartu ini untuk transaksi & login</p>
                     </div>
-                    <p className="text-xs text-muted-foreground text-center">Gunakan kartu ini untuk transaksi & login</p>
-                </div>
-                <Button className="w-full">
-                    <Download className="mr-2 h-4 w-4" />
-                    Unduh Kartu Ini (PDF)
-                </Button>
-            </CardContent>
-        </Card>
-      </div>
+                    <Button className="w-full">
+                        <Download className="mr-2 h-4 w-4" />
+                        Unduh Kartu Ini (PDF)
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
+      )}
 
     </div>
   );
