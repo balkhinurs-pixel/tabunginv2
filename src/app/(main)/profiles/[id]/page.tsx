@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useStudent } from '@/context/StudentContext';
 import { useParams } from 'next/navigation';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import {
     Dialog,
@@ -22,6 +22,9 @@ import {
     DialogTrigger,
     DialogClose,
   } from '@/components/ui/dialog';
+import type { Student } from '@/data/students';
+import { initialStudents } from '@/data/students';
+
 
 const StatCard = ({ title, value, colorClass }: { title: string, value: string, colorClass: string }) => (
     <Card className={`text-center shadow-md ${colorClass}`}>
@@ -93,14 +96,23 @@ const DeleteTransactionDialog = ({ studentId, transactionId, description }: { st
 export default function StudentProfilePage() {
   const params = useParams();
   const studentId = typeof params.id === 'string' ? params.id : '';
-  const { getStudentById } = useStudent();
+  const { deleteTransaction } = useStudent(); // We still need this for deleting transactions for now
+  
+  // Simulate fetching a single student
+  const [student, setStudent] = useState<Student | null>(null);
 
-  const student = useMemo(() => getStudentById(studentId), [studentId, getStudentById]);
+  useEffect(() => {
+    // In a real scenario, you'd fetch from Supabase here.
+    // For now, we'll find the student in our dummy data.
+    const fetchedStudent = initialStudents.find(s => s.id === studentId);
+    setStudent(fetchedStudent || null);
+  }, [studentId]);
+
 
   if (!student) {
     return (
       <div className="text-center">
-        <p>Siswa tidak ditemukan.</p>
+        <p>Memuat data siswa...</p>
         <Button asChild variant="link">
           <Link href="/profiles">Kembali ke Daftar Siswa</Link>
         </Button>
@@ -202,3 +214,4 @@ export default function StudentProfilePage() {
     </div>
   );
 }
+
