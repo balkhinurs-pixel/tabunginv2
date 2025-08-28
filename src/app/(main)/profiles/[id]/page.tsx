@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const StatCard = ({ title, value, colorClass }: { title: string, value: string, colorClass: string }) => (
     <Card className={`text-center shadow-md ${colorClass}`}>
@@ -29,22 +30,6 @@ const ActionButton = ({ icon: Icon, label, variant = 'default' }: { icon: React.
         </Button>
     )
 };
-
-const TransactionHistoryItem = ({ date, type, description, amount }: { date: string, type: 'Pemasukan' | 'Pengeluaran', description: string, amount: number }) => (
-    <div className="grid grid-cols-5 items-center gap-2 border-b py-3 text-sm">
-        <span className="col-span-1">{date}</span>
-        <span className={cn("col-span-1", type === 'Pemasukan' ? 'text-green-600' : 'text-red-600')}>{type}</span>
-        <span className="col-span-1">{description}</span>
-        <span className={cn("col-span-1 font-medium", type === 'Pemasukan' ? 'text-green-600' : 'text-red-600')}>
-            {amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
-        </span>
-        <div className="col-span-1 flex justify-end">
-            <Button variant="destructive" size="icon" className="h-8 w-8 bg-red-500 hover:bg-red-600">
-                <Trash2 className="h-4 w-4" />
-            </Button>
-        </div>
-    </div>
-);
 
 export default function StudentProfilePage({ params }: { params: { id: string } }) {
   // In a real app, you would fetch student data based on params.id
@@ -100,17 +85,35 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
               <CardTitle className="text-xl">Riwayat Transaksi</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="mb-4 grid grid-cols-5 gap-2 text-xs font-semibold text-muted-foreground">
-                <span className="col-span-1">TANGGAL</span>
-                <span className="col-span-1">JENIS</span>
-                <span className="col-span-1">KETERANGAN</span>
-                <span className="col-span-1">JUMLAH</span>
-                <span className="col-span-1 text-right">AKSI</span>
-            </div>
-            <div className="space-y-2">
-                {transactions.map((tx, index) => (
-                    <TransactionHistoryItem key={index} {...tx} />
-                ))}
+            <div className="overflow-x-auto">
+                <Table className="whitespace-nowrap">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>TANGGAL</TableHead>
+                            <TableHead>JENIS</TableHead>
+                            <TableHead>KETERANGAN</TableHead>
+                            <TableHead className="text-right">JUMLAH</TableHead>
+                            <TableHead className="text-center">AKSI</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {transactions.map((tx, index) => (
+                            <TableRow key={index}>
+                                <TableCell>{tx.date}</TableCell>
+                                <TableCell className={cn(tx.type === 'Pemasukan' ? 'text-green-600' : 'text-red-600')}>{tx.type}</TableCell>
+                                <TableCell>{tx.description}</TableCell>
+                                <TableCell className={cn("text-right font-medium", tx.type === 'Pemasukan' ? 'text-green-600' : 'text-red-600')}>
+                                    {tx.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <Button variant="destructive" size="icon" className="h-8 w-8 bg-red-500 hover:bg-red-600">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </div>
           </CardContent>
       </Card>
