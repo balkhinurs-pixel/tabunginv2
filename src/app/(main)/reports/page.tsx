@@ -17,7 +17,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Download, Calendar as CalendarIcon, ArrowLeft, Filter, FileSpreadsheet } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, parse } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,8 +25,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { initialStudents } from '@/data/students';
 import type { Student } from '@/types';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReportRow {
   nis: string;
@@ -39,40 +40,55 @@ interface ReportRow {
 
 export default function ReportsPage() {
     const [students, setStudents] = useState<Student[]>([]);
+    const [loading, setLoading] = useState(true);
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [selectedClass, setSelectedClass] = useState<string>('all');
+    const { toast } = useToast();
 
     useEffect(() => {
-        // In a real scenario, you'd fetch from Supabase here.
-        setStudents(initialStudents);
-    }, []);
+        const fetchStudents = async () => {
+            setLoading(true);
+            let query = supabase
+                .from('students')
+                .select(`
+                    id, nis, name, class,
+                    transactions (
+                        type,
+                        amount,
+                        created_at
+                    )
+                `);
+
+            if (dateRange?.from) {
+                 query = query.gte('transactions.created_at', format(startOfDay(dateRange.from), "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"));
+            }
+            if (dateRange?.to) {
+                query = query.lte('transactions.created_at', format(endOfDay(dateRange.to), "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"));
+            }
+
+            const { data, error } = await query;
+
+            if (error && error.code !== 'PGRST116') { // Ignore error when transactions are empty for a date range
+                 toast({
+                    title: 'Gagal memuat data laporan',
+                    description: error.message,
+                    variant: 'destructive',
+                });
+            } else {
+                setStudents(data as Student[]);
+            }
+            setLoading(false);
+        };
+
+        fetchStudents();
+    }, [dateRange, toast]);
 
     const filteredStudents = useMemo(() => {
-        let studentsCopy = JSON.parse(JSON.stringify(students)) as Student[];
-        
-        if (selectedClass !== 'all') {
-            studentsCopy = studentsCopy.filter(s => s.class === selectedClass);
+        if (selectedClass === 'all') {
+            return students;
         }
-
-        if (dateRange?.from || dateRange?.to) {
-            studentsCopy.forEach(student => {
-                student.transactions = student.transactions.filter(tx => {
-                    try {
-                        const txDate = parse(tx.date, 'dd/MM/yy', new Date());
-                        const from = dateRange.from;
-                        const to = dateRange.to;
-                        if (from && to) return txDate >= from && txDate <= to;
-                        if (from) return txDate >= from;
-                        if (to) return txDate <= to;
-                        return false;
-                    } catch {
-                        return false;
-                    }
-                });
-            });
-        }
-        return studentsCopy;
-    }, [students, dateRange, selectedClass]);
+        return students.filter(s => s.class === selectedClass);
+    }, [students, selectedClass]);
     
     const reportData: ReportRow[] = useMemo(() => {
         return filteredStudents.map(student => {
@@ -251,7 +267,13 @@ export default function ReportsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {reportData.length > 0 ? reportData.map((item, index) => (
+                        {loading ? (
+                             <TableRow>
+                                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                                    Memuat data...
+                                </TableCell>
+                            </TableRow>
+                        ) : reportData.length > 0 ? reportData.map((item, index) => (
                             <TableRow key={item.nis}>
                                 <TableCell className="text-center">{index + 1}</TableCell>
                                 <TableCell>{item.nis}</TableCell>
@@ -264,7 +286,7 @@ export default function ReportsPage() {
                         )) : (
                            <TableRow>
                                 <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                                    Tidak ada data untuk ditampilkan.
+                                    Tidak ada data untuk ditampilkan pada periode ini.
                                 </TableCell>
                             </TableRow>
                         )}

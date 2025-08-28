@@ -1,64 +1,44 @@
--- Skema Database untuk Aplikasi Tabungan Siswa di Supabase
 
--- 1. Buat tipe data custom untuk jenis transaksi
--- Ini memastikan bahwa kolom 'type' hanya bisa berisi nilai 'Pemasukan' atau 'Pengeluaran'.
-CREATE TYPE public.transaction_type AS ENUM ('Pemasukan', 'Pengeluaran');
-
--- 2. Buat tabel untuk data siswa (students)
--- Tabel ini akan menyimpan informasi dasar dari setiap siswa.
-CREATE TABLE public.students (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), -- Kunci utama unik untuk setiap siswa
-    nis TEXT NOT NULL UNIQUE,                       -- Nomor Induk Siswa, harus unik
-    name TEXT NOT NULL,                             -- Nama lengkap siswa
-    class TEXT NOT NULL,                            -- Kelas siswa
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL -- Waktu data dibuat
+-- Create students table
+CREATE TABLE students (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nis TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    "class" TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tambahkan komentar untuk menjelaskan tabel
-COMMENT ON TABLE public.students IS 'Menyimpan data profil siswa.';
-
-
--- 3. Buat tabel untuk data transaksi (transactions)
--- Tabel ini akan menyimpan semua catatan transaksi yang terkait dengan siswa.
-CREATE TABLE public.transactions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                        -- Kunci utama unik untuk setiap transaksi
-    student_id UUID NOT NULL REFERENCES public.students(id) ON DELETE CASCADE, -- Kunci asing yang terhubung ke tabel siswa. Jika siswa dihapus, transaksinya juga terhapus (ON DELETE CASCADE).
-    date TIMESTAMP WITH TIME ZONE NOT NULL,                               -- Tanggal dan waktu transaksi terjadi
-    type public.transaction_type NOT NULL,                                -- Jenis transaksi (Pemasukan / Pengeluaran)
-    description TEXT NOT NULL,                                            -- Keterangan singkat mengenai transaksi
-    amount NUMERIC NOT NULL CHECK (amount >= 0),                          -- Jumlah uang, tidak boleh negatif
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL -- Waktu data dibuat
+-- Create transactions table
+CREATE TABLE transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    type TEXT NOT NULL, -- "Pemasukan" or "Pengeluaran"
+    amount BIGINT NOT NULL,
+    description TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tambahkan komentar untuk menjelaskan tabel
-COMMENT ON TABLE public.transactions IS 'Menyimpan riwayat transaksi untuk setiap siswa.';
+-- Enable Row Level Security (RLS)
+ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 
--- 4. Aktifkan Row Level Security (RLS)
--- Ini adalah langkah keamanan penting di Supabase.
--- Secara default, ini akan memblokir semua akses ke tabel.
--- Anda harus membuat 'policies' untuk mengizinkan akses (SELECT, INSERT, UPDATE, DELETE).
-ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+-- Create policies
+-- These policies allow anyone to read/write data. 
+-- For production, you should implement proper authentication and authorization.
+-- Example: restrict access to authenticated users only.
 
--- Contoh Policy (Kebijakan Akses):
--- Izinkan semua pengguna yang terautentikasi untuk membaca semua data siswa.
--- Anda mungkin ingin membuat aturan yang lebih ketat sesuai kebutuhan.
--- CREATE POLICY "Allow authenticated read access to students"
--- ON public.students FOR SELECT
--- TO authenticated
--- USING (true);
+-- Policy for students table
+CREATE POLICY "Allow public read access to students" ON students FOR SELECT USING (true);
+CREATE POLICY "Allow public write access to students" ON students FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access to students" ON students FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public delete access to students" ON students FOR DELETE USING (true);
 
--- CREATE POLICY "Allow authenticated read access to transactions"
--- ON public.transactions FOR SELECT
--- TO authenticated
--- USING (true);
+-- Policy for transactions table
+CREATE POLICY "Allow public read access to transactions" ON transactions FOR SELECT USING (true);
+CREATE POLICY "Allow public write access to transactions" ON transactions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access to transactions" ON transactions FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public delete access to transactions" ON transactions FOR DELETE USING (true);
 
--- CREATE POLICY "Allow users to insert their own transactions"
--- ON public.transactions FOR INSERT
--- TO authenticated
--- WITH CHECK (auth.uid() = student_id); -- Contoh jika Anda menghubungkan 'student_id' dengan user id di Supabase Auth
-
--- 5. Buat Indeks (Indexes) untuk Performa
--- Indeks mempercepat query pada kolom yang sering digunakan untuk pencarian atau filter.
-CREATE INDEX idx_student_id ON public.transactions(student_id);
-CREATE INDEX idx_nis ON public.students(nis);
+-- Create Indexes for performance
+CREATE INDEX idx_students_nis ON students(nis);
+CREATE INDEX idx_transactions_student_id ON transactions(student_id);

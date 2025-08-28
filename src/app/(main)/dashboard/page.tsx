@@ -12,9 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { parse } from 'date-fns';
-import { initialStudents } from '@/data/students';
-import type { Student } from '@/types';
+import { parseISO, format } from 'date-fns';
+import type { Student, Transaction } from '@/types';
+import { supabase } from '@/lib/supabase';
+
 
 const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href?: string }) => {
   const content = (
@@ -48,46 +49,79 @@ const BackpackIcon = (props: React.SVGProps<SVGSVGElement>) => (
 export default function DashboardPage() {
   const [nis, setNis] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    // In a real scenario, you'd fetch from Supabase here.
-    setStudents(initialStudents);
-  }, []);
+    const fetchData = async () => {
+      setLoading(true);
+      
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('students')
+        .select(`
+          id,
+          nis,
+          name,
+          class,
+          transactions (
+            id,
+            type,
+            amount
+          )
+        `);
+
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          students (
+            id,
+            name
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (studentsError || transactionsError) {
+        toast({
+          title: 'Gagal memuat data',
+          description: studentsError?.message || transactionsError?.message,
+          variant: 'destructive',
+        });
+      } else {
+        setStudents(studentsData as Student[]);
+        setTransactions(transactionsData as Transaction[]);
+      }
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [toast]);
 
   const totalBalance = useMemo(() => {
+    if (loading || !students) return 0;
     return students.reduce((total, student) => {
       const studentBalance = student.transactions.reduce((acc, tx) => {
         return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
       }, 0);
       return total + studentBalance;
     }, 0);
-  }, [students]);
+  }, [students, loading]);
 
   const recentTransactions = useMemo(() => {
-    const allTransactions = students.flatMap(student => 
-      student.transactions.map(tx => ({
-        ...tx,
-        studentName: student.name,
-        studentId: student.id,
-      }))
-    );
-
-    return allTransactions
-      .sort((a, b) => {
-         try {
-            const dateA = parse(a.date, 'dd/MM/yy', new Date()).getTime();
-            const dateB = parse(b.date, 'dd/MM/yy', new Date()).getTime();
-            return dateB - dateA;
-        } catch (e) {
-            return 0;
-        }
-      })
-      .slice(0, 5);
-  }, [students]);
-
-  const handleSearch = () => {
+    return transactions.map(tx => ({
+        id: tx.id,
+        date: format(parseISO(tx.created_at!), 'dd/MM/yy'),
+        type: tx.type,
+        amount: tx.amount,
+        studentId: tx.student_id,
+        studentName: tx.students.name,
+    }));
+  }, [transactions]);
+  
+  const handleSearch = async () => {
     if (!nis) {
       toast({
         title: 'NIS Kosong',
@@ -97,9 +131,13 @@ export default function DashboardPage() {
       return;
     }
 
-    const student = students.find((s) => s.nis === nis);
+    const { data: student, error } = await supabase
+      .from('students')
+      .select('id')
+      .eq('nis', nis)
+      .single();
 
-    if (student) {
+    if (student && !error) {
       router.push(`/profiles/${student.id}`);
     } else {
       toast({
@@ -125,9 +163,13 @@ export default function DashboardPage() {
               <span className="text-sm opacity-80">Total Saldo Semua Siswa</span>
               <EyeOff className="h-4 w-4 opacity-80" />
             </div>
-            <p className="text-4xl font-bold tracking-tight">
-              {totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
-            </p>
+            {loading ? (
+                <div className="h-[36px] w-48 mt-1 rounded-md animate-pulse bg-white/20" />
+            ) : (
+                <p className="text-4xl font-bold tracking-tight">
+                {totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                </p>
+            )}
             <p className="text-xs opacity-80 mt-1">Kuota Siswa Digunakan: {students.length} / 5</p>
           </div>
         </CardContent>
@@ -173,7 +215,9 @@ export default function DashboardPage() {
                     </Link>
                 </Button>
             </div>
-            {recentTransactions.length > 0 ? (
+            {loading ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">Memuat transaksi...</div>
+            ) : recentTransactions.length > 0 ? (
                 <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>

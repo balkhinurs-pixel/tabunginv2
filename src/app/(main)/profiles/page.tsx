@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -24,23 +24,22 @@ import {
   } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2, Save } from 'lucide-react';
+import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2, Save, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { initialStudents } from '@/data/students';
 import type { Student } from '@/types';
 import { supabase } from '@/lib/supabase';
 
-
-const AddStudentDialog = ({ onStudentAdded }: { onStudentAdded: (newStudent: Omit<Student, 'id' | 'transactions'>) => void }) => {
+const AddStudentDialog = ({ onStudentAdded }: { onStudentAdded: (newStudent: Student) => void }) => {
     const { toast } = useToast();
     const [nis, setNis] = useState('');
     const [name, setName] = useState('');
     const [studentClass, setStudentClass] = useState('');
     const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!nis || !name || !studentClass) {
             toast({
                 title: 'Data Tidak Lengkap',
@@ -49,15 +48,32 @@ const AddStudentDialog = ({ onStudentAdded }: { onStudentAdded: (newStudent: Omi
             });
             return;
         }
-        onStudentAdded({ nis, name, class: studentClass });
-        toast({
-            title: 'Siswa Ditambahkan',
-            description: `Siswa baru dengan nama ${name} berhasil ditambahkan.`,
-        });
-        setNis('');
-        setName('');
-        setStudentClass('');
-        setOpen(false);
+        
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('students')
+            .insert({ nis, name, class: studentClass })
+            .select()
+            .single();
+        setLoading(false);
+
+        if (error) {
+            toast({
+                title: 'Gagal Menambahkan Siswa',
+                description: error.message,
+                variant: 'destructive'
+            });
+        } else {
+            onStudentAdded(data as Student);
+            toast({
+                title: 'Siswa Ditambahkan',
+                description: `Siswa baru dengan nama ${name} berhasil ditambahkan.`,
+            });
+            setNis('');
+            setName('');
+            setStudentClass('');
+            setOpen(false);
+        }
     }
     
     return (
@@ -97,8 +113,9 @@ const AddStudentDialog = ({ onStudentAdded }: { onStudentAdded: (newStudent: Omi
                   <DialogClose asChild>
                     <Button variant="outline">Batal</Button>
                   </DialogClose>
-                  <Button onClick={handleSubmit}>
-                    <Save className="mr-2 h-4 w-4" /> Simpan Siswa
+                  <Button onClick={handleSubmit} disabled={loading}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Simpan Siswa
                   </Button>
                 </DialogFooter>
             </DialogContent>
@@ -106,13 +123,14 @@ const AddStudentDialog = ({ onStudentAdded }: { onStudentAdded: (newStudent: Omi
     )
 }
 
-const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; onStudentUpdated: (studentId: string, data: Omit<Student, 'id' | 'transactions'>) => void }) => {
+const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; onStudentUpdated: (updatedStudent: Student) => void }) => {
     const { toast } = useToast();
     
     const [nis, setNis] = useState(student?.nis || '');
     const [name, setName] = useState(student?.name || '');
     const [studentClass, setStudentClass] = useState(student?.class || '');
     const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (student) {
@@ -122,7 +140,7 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
         }
     }, [student, open]);
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!nis || !name || !studentClass) {
             toast({
                 title: 'Data Tidak Lengkap',
@@ -131,12 +149,30 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
             });
             return;
         }
-        onStudentUpdated(student.id, { nis, name, class: studentClass });
-        toast({
-            title: 'Siswa Diperbarui',
-            description: `Data siswa ${name} berhasil diperbarui.`,
-        });
-        setOpen(false);
+
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('students')
+          .update({ nis, name, class: studentClass })
+          .eq('id', student.id)
+          .select()
+          .single();
+        setLoading(false);
+
+        if (error) {
+            toast({
+                title: 'Gagal Memperbarui Siswa',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } else {
+            onStudentUpdated(data as Student);
+            toast({
+                title: 'Siswa Diperbarui',
+                description: `Data siswa ${name} berhasil diperbarui.`,
+            });
+            setOpen(false);
+        }
     }
 
     return (
@@ -176,8 +212,9 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
                     <DialogClose asChild>
                         <Button variant="outline">Batal</Button>
                     </DialogClose>
-                    <Button onClick={handleSubmit}>
-                        <Save className="mr-2 h-4 w-4" /> Simpan Perubahan
+                    <Button onClick={handleSubmit} disabled={loading}>
+                        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Simpan Perubahan
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -188,13 +225,25 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
 const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { studentId: string; studentName: string; onStudentDeleted: (studentId: string) => void; }) => {
     const { toast } = useToast();
 
-    const handleDelete = () => {
-        onStudentDeleted(studentId);
-        toast({
-            title: 'Siswa Dihapus',
-            description: `Data siswa ${studentName} telah dihapus.`,
-            variant: 'destructive',
-        });
+    const handleDelete = async () => {
+        const { error } = await supabase
+          .from('students')
+          .delete()
+          .eq('id', studentId);
+
+        if (error) {
+             toast({
+                title: 'Gagal Menghapus Siswa',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } else {
+            onStudentDeleted(studentId);
+            toast({
+                title: 'Siswa Dihapus',
+                description: `Data siswa ${studentName} telah dihapus.`,
+            });
+        }
     }
 
     return (
@@ -208,12 +257,12 @@ const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { stu
                 <DialogHeader>
                     <DialogTitle>Hapus Siswa?</DialogTitle>
                     <DialogDescription>
-                        Tindakan ini tidak dapat dibatalkan. Ini akan menghapus profil dan semua data terkait untuk {studentName}.
+                        Tindakan ini tidak dapat dibatalkan. Ini akan menghapus profil dan semua data transaksi terkait untuk {studentName}.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="ghost">Batal</Button></DialogClose>
-                    <DialogClose asChild><Button variant="destructive" onClick={handleDelete}>Ya, Hapus</Button></DialogClose>
+                    <Button variant="destructive" onClick={handleDelete}>Ya, Hapus</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -223,50 +272,63 @@ const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { stu
 
 export default function ProfilesPage() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClass, setSelectedClass] = useState('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    // In a real scenario, you would fetch from Supabase here.
-    // For now, we'll use the dummy data to keep the UI working.
-    // Example:
-    // const fetchStudents = async () => {
-    //   const { data, error } = await supabase.from('students').select('*');
-    //   if (error) {
-    //     console.error('Error fetching students:', error);
-    //     toast({ title: 'Error', description: 'Gagal mengambil data siswa.', variant: 'destructive' });
-    //   } else {
-    //     setStudents(data);
-    //   }
-    // };
-    // fetchStudents();
-    
-    setStudents(initialStudents);
-  }, []);
-
-  const handleAddStudent = (studentData: Omit<Student, 'id' | 'transactions'>) => {
-    // This will later be a Supabase insert
-    const newStudent = {
-      ...studentData,
-      id: `s${Date.now()}`, // Temporary ID
-      transactions: [],
+    const fetchStudents = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .order('name', { ascending: true });
+        
+      if (error) {
+        console.error('Error fetching students:', error);
+        toast({ title: 'Error', description: 'Gagal mengambil data siswa.', variant: 'destructive' });
+      } else {
+        setStudents(data as Student[]);
+      }
+      setLoading(false);
     };
-    setStudents(prev => [...prev, newStudent]);
+    fetchStudents();
+  }, [toast]);
+
+  const handleAddStudent = (newStudent: Student) => {
+    setStudents(prev => [...prev, newStudent].sort((a,b) => a.name.localeCompare(b.name)));
   };
 
-  const handleUpdateStudent = (studentId: string, studentData: Omit<Student, 'id' | 'transactions'>) => {
-    // This will later be a Supabase update
+  const handleUpdateStudent = (updatedStudent: Student) => {
     setStudents(prev =>
       prev.map(student =>
-        student.id === studentId ? { ...student, ...studentData } : student
+        student.id === updatedStudent.id ? updatedStudent : student
       )
     );
   };
 
   const handleDeleteStudent = (studentId: string) => {
-    // This will later be a Supabase delete
     setStudents(prev => prev.filter(student => student.id !== studentId));
   };
+  
+  const uniqueClasses = useMemo(() => [...new Set(students.map(s => s.class))], [students]);
+
+  const filteredStudents = useMemo(() => {
+    return students
+      .filter(student => {
+        if (selectedClass === 'all') return true;
+        return student.class === selectedClass;
+      })
+      .filter(student => {
+        if (!searchTerm) return true;
+        return (
+          student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          student.nis.includes(searchTerm)
+        );
+      });
+  }, [students, searchTerm, selectedClass]);
 
 
   const handleDownloadTemplate = () => {
@@ -291,7 +353,7 @@ export default function ProfilesPage() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         const text = e.target?.result as string;
         const lines = text.split('\n').filter(line => line.trim() !== '');
         
@@ -300,35 +362,35 @@ export default function ProfilesPage() {
             return;
         }
 
-        const header = lines[0].trim().split(',');
+        const header = lines[0].trim().toLowerCase().split(',');
         if (header[0] !== 'nis' || header[1] !== 'name' || header[2] !== 'class') {
             toast({ title: 'Format Salah', description: 'Pastikan header CSV adalah: nis,name,class', variant: 'destructive' });
             return;
         }
         
-        let addedCount = 0;
-        try {
-            for (let i = 1; i < lines.length; i++) {
-                const data = lines[i].trim().split(',');
-                if (data.length === 3) {
-                    const [nis, name, studentClass] = data;
-                    if (nis && name && studentClass) {
-                        handleAddStudent({ nis, name, class: studentClass });
-                        addedCount++;
-                    }
-                }
+        const newStudentsData = lines.slice(1).map(line => {
+            const data = line.trim().split(',');
+            if (data.length === 3) {
+                const [nis, name, studentClass] = data;
+                return { nis, name, class: studentClass };
             }
-            if (addedCount > 0) {
-                 toast({ title: 'Import Berhasil', description: `${addedCount} siswa berhasil diimpor.` });
+            return null;
+        }).filter(Boolean);
+
+        if (newStudentsData.length > 0) {
+            const { data: insertedData, error } = await supabase.from('students').insert(newStudentsData).select();
+            if (error) {
+                toast({ title: 'Import Gagal', description: error.message, variant: 'destructive' });
             } else {
-                 toast({ title: 'Tidak Ada Data Ditambahkan', description: 'Pastikan file CSV memiliki data yang valid.', variant: 'destructive' });
+                setStudents(prev => [...prev, ...insertedData].sort((a,b) => a.name.localeCompare(b.name)));
+                toast({ title: 'Import Berhasil', description: `${insertedData.length} siswa berhasil diimpor.` });
             }
-        } catch (error) {
-            toast({ title: 'Import Gagal', description: 'Terjadi kesalahan saat memproses file.', variant: 'destructive' });
-        } finally {
-            if(fileInputRef.current) {
-                fileInputRef.current.value = '';
-            }
+        } else {
+             toast({ title: 'Tidak Ada Data Ditambahkan', description: 'Pastikan file CSV memiliki data yang valid.', variant: 'destructive' });
+        }
+
+        if(fileInputRef.current) {
+            fileInputRef.current.value = '';
         }
     };
     reader.readAsText(file);
@@ -367,15 +429,13 @@ export default function ProfilesPage() {
           <CardContent className="p-4 space-y-4">
             <div className='space-y-2'>
                 <Label className='flex items-center gap-2 text-muted-foreground'><Filter className='h-4 w-4' /> Filter Kelas:</Label>
-                <Select>
+                <Select value={selectedClass} onValueChange={setSelectedClass}>
                     <SelectTrigger>
                         <SelectValue placeholder="Semua Kelas" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Semua Kelas</SelectItem>
-                        <SelectItem value="7a">7A</SelectItem>
-                        <SelectItem value="7b">7B</SelectItem>
-                        <SelectItem value="8a">8A</SelectItem>
+                        {uniqueClasses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                 </Select>
             </div>
@@ -383,7 +443,7 @@ export default function ProfilesPage() {
                 <Label htmlFor='search'>Cari Siswa (NIS, Nama):</Label>
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="search" placeholder="Ketik untuk mencari..." className="pl-10" />
+                    <Input id="search" placeholder="Ketik untuk mencari..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
             </div>
           </CardContent>
@@ -403,7 +463,7 @@ export default function ProfilesPage() {
       </Card>
 
       <div>
-        <p className="text-sm text-muted-foreground mb-2">Menampilkan 1 - {students.length} dari {students.length} data</p>
+        <p className="text-sm text-muted-foreground mb-2">Menampilkan {filteredStudents.length} dari {students.length} data</p>
         <div className="rounded-lg border">
             <Table>
             <TableHeader>
@@ -416,51 +476,66 @@ export default function ProfilesPage() {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {students.map((student) => (
-                <TableRow key={student.id}>
-                    <TableCell>
-                        <Button variant="outline" size="icon" className='h-8 w-8' asChild>
-                            <Link href={`/profiles/${student.id}`}>
-                                <User className="h-4 w-4" />
-                            </Link>                        </Button>
-                    </TableCell>
-                    <TableCell className="font-medium">{student.nis}</TableCell>
-                    <TableCell>{student.name}</TableCell>
-                    <TableCell>{student.class}</TableCell>
-                    <TableCell>
-                        <div className='flex items-center gap-2'>
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" size="icon" className='h-8 w-8 border-blue-500 text-blue-500 hover:bg-blue-50 hover:text-blue-600'>
-                                        <KeyRound className="h-4 w-4" />
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Reset Kata Sandi</DialogTitle>
-                                        <DialogDescription>
-                                            Masukkan kata sandi baru untuk siswa {student.name}.
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="grid gap-4 py-4">
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="new-password" className="text-right">
-                                            Sandi Baru
-                                            </Label>
-                                            <Input id="new-password" type="password" className="col-span-3" />
+                {loading ? (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                            Memuat data siswa...
+                        </TableCell>
+                    </TableRow>
+                ) : filteredStudents.length > 0 ? (
+                    filteredStudents.map((student) => (
+                    <TableRow key={student.id}>
+                        <TableCell>
+                            <Button variant="outline" size="icon" className='h-8 w-8' asChild>
+                                <Link href={`/profiles/${student.id}`}>
+                                    <User className="h-4 w-4" />
+                                </Link>
+                            </Button>
+                        </TableCell>
+                        <TableCell className="font-medium">{student.nis}</TableCell>
+                        <TableCell>{student.name}</TableCell>
+                        <TableCell>{student.class}</TableCell>
+                        <TableCell>
+                            <div className='flex items-center gap-2'>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" size="icon" className='h-8 w-8 border-blue-500 text-blue-500 hover:bg-blue-50 hover:text-blue-600'>
+                                            <KeyRound className="h-4 w-4" />
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Reset Kata Sandi</DialogTitle>
+                                            <DialogDescription>
+                                                Masukkan kata sandi baru untuk siswa {student.name}.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="grid gap-4 py-4">
+                                            <div className="grid grid-cols-4 items-center gap-4">
+                                                <Label htmlFor="new-password" className="text-right">
+                                                Sandi Baru
+                                                </Label>
+                                                <Input id="new-password" type="password" className="col-span-3" />
+                                            </div>
                                         </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <Button type="submit">Reset Kata Sandi</Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                             <EditStudentDialog student={student} onStudentUpdated={handleUpdateStudent} />
-                             <DeleteStudentDialog studentId={student.id} studentName={student.name} onStudentDeleted={handleDeleteStudent} />
-                        </div>
-                    </TableCell>
-                </TableRow>
-                ))}
+                                        <DialogFooter>
+                                            <Button type="submit">Reset Kata Sandi</Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                                <EditStudentDialog student={student} onStudentUpdated={handleUpdateStudent} />
+                                <DeleteStudentDialog studentId={student.id} studentName={student.name} onStudentDeleted={handleDeleteStudent} />
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                    ))
+                ) : (
+                     <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                           Tidak ada siswa yang cocok dengan filter Anda.
+                        </TableCell>
+                    </TableRow>
+                )}
             </TableBody>
             </Table>
         </div>

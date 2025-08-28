@@ -1,11 +1,16 @@
+
 export interface Transaction {
   id: string;
-  date: string; // We'll keep this as string to match the dummy data format 'dd/MM/yy'
+  created_at?: string;
   type: 'Pemasukan' | 'Pengeluaran';
   description: string;
   amount: number;
-  studentId?: string; // Optional: useful for flattened transaction lists
-  studentName?: string; // Optional: useful for flattened transaction lists
+  student_id: string; 
+  // Joined properties
+  students?: {
+    id: string;
+    name: string;
+  }
 }
 
 export interface Student {
@@ -13,5 +18,6 @@ export interface Student {
   nis: string;
   name: string;
   class: string;
+  created_at?: string;
   transactions: Transaction[];
 }

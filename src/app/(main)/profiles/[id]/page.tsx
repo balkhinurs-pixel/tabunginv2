@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useParams } from 'next/navigation';
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import {
     Dialog,
@@ -21,15 +21,19 @@ import {
     DialogTrigger,
     DialogClose,
   } from '@/components/ui/dialog';
-import type { Student } from '@/types';
-import { initialStudents } from '@/data/students';
+import type { Student, Transaction } from '@/types';
+import { supabase } from '@/lib/supabase';
+import { parseISO, format } from 'date-fns';
 
-
-const StatCard = ({ title, value, colorClass }: { title: string, value: string, colorClass: string }) => (
+const StatCard = ({ title, value, colorClass, loading }: { title: string, value: string, colorClass: string, loading?: boolean }) => (
     <Card className={`text-center shadow-md ${colorClass}`}>
         <CardContent className="p-4">
             <p className="text-sm">{title}</p>
-            <p className="text-2xl font-bold">{value}</p>
+            {loading ? (
+                 <div className="h-8 w-32 mt-1 mx-auto rounded-md animate-pulse bg-gray-300/50" />
+            ): (
+                <p className="text-2xl font-bold">{value}</p>
+            )}
         </CardContent>
     </Card>
 );
@@ -59,13 +63,22 @@ const ActionButton = ({ icon: Icon, label, variant = 'default', href }: { icon: 
 const DeleteTransactionDialog = ({ transactionId, description, onDelete }: { transactionId: string, description: string, onDelete: (id: string) => void }) => {
     const { toast } = useToast();
 
-    const handleDelete = () => {
-        onDelete(transactionId);
-        toast({
-            title: 'Transaksi Dihapus',
-            description: `Transaksi "${description}" telah dihapus.`,
-            variant: 'destructive',
-        });
+    const handleDelete = async () => {
+        const { error } = await supabase.from('transactions').delete().eq('id', transactionId);
+        
+        if (error) {
+             toast({
+                title: 'Gagal Menghapus Transaksi',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } else {
+            onDelete(transactionId);
+            toast({
+                title: 'Transaksi Dihapus',
+                description: `Transaksi "${description}" telah dihapus.`,
+            });
+        }
     }
 
     return (
@@ -84,7 +97,7 @@ const DeleteTransactionDialog = ({ transactionId, description, onDelete }: { tra
                 </DialogHeader>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="ghost">Batal</Button></DialogClose>
-                    <DialogClose asChild><Button variant="destructive" onClick={handleDelete}>Ya, Hapus</Button></DialogClose>
+                    <Button variant="destructive" onClick={handleDelete}>Ya, Hapus</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -96,34 +109,48 @@ export default function StudentProfilePage() {
   const studentId = typeof params.id === 'string' ? params.id : '';
   
   const [student, setStudent] = useState<Student | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // In a real scenario, you'd fetch from Supabase here.
-    // For now, we'll find the student in our dummy data.
-    const fetchedStudent = initialStudents.find(s => s.id === studentId);
-    setStudent(fetchedStudent || null);
-  }, [studentId]);
+    if (!studentId) return;
+
+    const fetchStudent = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('students')
+            .select(`
+                *,
+                transactions (
+                    *
+                )
+            `)
+            .eq('id', studentId)
+            .single();
+
+        if (error) {
+            console.error(error);
+            toast({ title: "Error", description: "Gagal mengambil data siswa.", variant: "destructive" });
+            setStudent(null);
+        } else {
+            const studentData = data as Student;
+            studentData.transactions = studentData.transactions.sort((a,b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
+            setStudent(studentData);
+        }
+        setLoading(false);
+    };
+
+    fetchStudent();
+  }, [studentId, toast]);
 
   const handleDeleteTransaction = (transactionId: string) => {
-    // This will later be a Supabase delete call
     if (student) {
         const updatedTransactions = student.transactions.filter(tx => tx.id !== transactionId);
         setStudent({ ...student, transactions: updatedTransactions });
     }
   };
 
-  if (!student) {
-    return (
-      <div className="text-center">
-        <p>Memuat data siswa...</p>
-        <Button asChild variant="link">
-          <Link href="/profiles">Kembali ke Daftar Siswa</Link>
-        </Button>
-      </div>
-    );
-  }
-
-  const { income, expense, balance } = student.transactions.reduce(
+  const { income, expense, balance } = (student?.transactions || []).reduce(
     (acc, tx) => {
       if (tx.type === 'Pemasukan') {
         acc.income += tx.amount;
@@ -135,6 +162,25 @@ export default function StudentProfilePage() {
     },
     { income: 0, expense: 0, balance: 0 }
   );
+  
+  if (loading) {
+    return (
+      <div className="text-center">
+        <p>Memuat data siswa...</p>
+      </div>
+    );
+  }
+
+  if (!student) {
+    return (
+      <div className="text-center">
+        <p className='text-destructive font-semibold'>Siswa tidak ditemukan.</p>
+        <Button asChild variant="link">
+          <Link href="/profiles">Kembali ke Daftar Siswa</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-8">
@@ -156,9 +202,9 @@ export default function StudentProfilePage() {
       </Card>
       
       <div className="space-y-3">
-        <StatCard title="Total Pemasukan" value={income.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-green-100/50 border-green-200 text-green-700" />
-        <StatCard title="Total Pengeluaran" value={expense.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-red-100/50 border-red-200 text-red-700" />
-        <StatCard title="Saldo Akhir" value={balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-blue-100/50 border-blue-200 text-blue-700" />
+        <StatCard loading={loading} title="Total Pemasukan" value={income.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-green-100/50 border-green-200 text-green-700" />
+        <StatCard loading={loading} title="Total Pengeluaran" value={expense.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-red-100/50 border-red-200 text-red-700" />
+        <StatCard loading={loading} title="Saldo Akhir" value={balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-blue-100/50 border-blue-200 text-blue-700" />
       </div>
 
       <div className="space-y-3 pt-4">
@@ -194,8 +240,12 @@ export default function StudentProfilePage() {
                         )}
                         {student.transactions.map((tx) => (
                             <TableRow key={tx.id}>
-                                <TableCell>{tx.date}</TableCell>
-                                <TableCell className={cn(tx.type === 'Pemasukan' ? 'text-green-600' : 'text-red-600')}>{tx.type}</TableCell>
+                                <TableCell>{format(parseISO(tx.created_at!), 'dd/MM/yy')}</TableCell>
+                                <TableCell>
+                                    <Badge variant={tx.type === 'Pemasukan' ? 'default' : 'destructive'} className={cn(tx.type === 'Pemasukan' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
+                                        {tx.type}
+                                    </Badge>
+                                </TableCell>
                                 <TableCell>{tx.description}</TableCell>
                                 <TableCell className={cn("text-right font-medium", tx.type === 'Pemasukan' ? 'text-green-600' : 'text-red-600')}>
                                     {tx.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}

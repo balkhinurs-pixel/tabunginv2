@@ -15,9 +15,9 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
+import { Loader2 } from 'lucide-react';
 
-
-// We will simulate the action, preparing for Supabase
 export default function AddDepositPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -25,9 +25,10 @@ export default function AddDepositPage({ params }: { params: { id: string } }) {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
   const studentId = params.id;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const numericAmount = parseFloat(amount);
     if (!numericAmount || numericAmount <= 0) {
@@ -39,23 +40,42 @@ export default function AddDepositPage({ params }: { params: { id: string } }) {
         return;
     }
 
-    // In a real Supabase scenario, this would be an API call to insert a new transaction
-    console.log('Simulating add deposit:', { 
-        studentId, 
+    if (!date) {
+        toast({
+            title: 'Tanggal Tidak Valid',
+            description: 'Mohon pilih tanggal transaksi.',
+            variant: 'destructive',
+        });
+        return;
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase
+      .from('transactions')
+      .insert({ 
+        student_id: studentId,
         amount: numericAmount, 
         description,
-        date: format(date || new Date(), 'dd/MM/yy'),
+        created_at: date.toISOString(),
         type: 'Pemasukan'
     });
     
-    toast({
-        title: 'Transaksi Berhasil',
-        description: `Setoran sebesar ${numericAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} telah disimpan.`,
-    });
+    setLoading(false);
 
-    // In a real app, data would be re-fetched on the profile page.
-    // For now, we just redirect.
-    router.push(`/profiles/${studentId}`);
+    if (error) {
+        toast({
+            title: 'Gagal Menyimpan Transaksi',
+            description: error.message,
+            variant: 'destructive',
+        });
+    } else {
+        toast({
+            title: 'Transaksi Berhasil',
+            description: `Setoran sebesar ${numericAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} telah disimpan.`,
+        });
+        router.push(`/profiles/${studentId}`);
+    }
   };
 
   return (
@@ -131,7 +151,8 @@ export default function AddDepositPage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            <Button type="submit" className="w-full bg-green-500 hover:bg-green-600 text-white h-12">
+            <Button type="submit" className="w-full bg-green-500 hover:bg-green-600 text-white h-12" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Simpan Transaksi
             </Button>
           </form>

@@ -15,10 +15,11 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { initialStudents } from '@/data/students';
 import type { Student } from '@/types';
+import { supabase } from '@/lib/supabase';
+import { Loader2 } from 'lucide-react';
 
-// We will simulate the action, preparing for Supabase
+
 export default function WithdrawPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -27,21 +28,37 @@ export default function WithdrawPage({ params }: { params: { id: string } }) {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [student, setStudent] = useState<Student | null>(null);
+  const [loading, setLoading] = useState(false);
   const studentId = params.id;
 
   useEffect(() => {
-    // In a real scenario, you'd fetch from Supabase here.
-    const fetchedStudent = initialStudents.find(s => s.id === studentId);
-    setStudent(fetchedStudent || null);
-  }, [studentId]);
+    const fetchStudentData = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('students')
+            .select(`*, transactions(*)`).eq('id', studentId).single();
+        
+        if (error) {
+            toast({ title: 'Siswa tidak ditemukan', variant: 'destructive' });
+        } else {
+            setStudent(data as Student);
+        }
+        setLoading(false);
+    };
+
+    fetchStudentData();
+  }, [studentId, toast]);
 
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+
     const numericAmount = parseFloat(amount);
     
     if (!student) {
         toast({ title: 'Siswa tidak ditemukan', variant: 'destructive' });
+        setLoading(false);
         return;
     }
     
@@ -53,6 +70,7 @@ export default function WithdrawPage({ params }: { params: { id: string } }) {
             description: 'Mohon masukkan jumlah yang valid.',
             variant: 'destructive',
         });
+        setLoading(false);
         return;
     }
     
@@ -62,26 +80,33 @@ export default function WithdrawPage({ params }: { params: { id: string } }) {
             description: `Saldo akhir tidak mencukupi untuk penarikan ini. Saldo saat ini: ${balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}`,
             variant: 'destructive',
         });
+        setLoading(false);
         return;
     }
 
-    // In a real Supabase scenario, this would be an API call to insert a new transaction
-    console.log('Simulating add withdrawal:', { 
-        studentId, 
+    const { error } = await supabase.from('transactions').insert({ 
+        student_id: studentId, 
         amount: numericAmount, 
         description,
-        date: format(date || new Date(), 'dd/MM/yy'),
+        created_at: date?.toISOString(),
         type: 'Pengeluaran'
     });
     
-    toast({
-        title: 'Transaksi Berhasil',
-        description: `Penarikan sebesar ${numericAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} telah disimpan.`,
-    });
+    setLoading(false);
 
-    // In a real app, data would be re-fetched on the profile page.
-    // For now, we just redirect.
-    router.push(`/profiles/${studentId}`);
+    if (error) {
+        toast({
+            title: 'Gagal Menyimpan Transaksi',
+            description: error.message,
+            variant: 'destructive',
+        });
+    } else {
+        toast({
+            title: 'Transaksi Berhasil',
+            description: `Penarikan sebesar ${numericAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} telah disimpan.`,
+        });
+        router.push(`/profiles/${studentId}`);
+    }
   };
 
   return (
@@ -157,7 +182,8 @@ export default function WithdrawPage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white h-12">
+            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white h-12" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Simpan Transaksi
             </Button>
           </form>

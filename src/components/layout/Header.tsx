@@ -14,30 +14,50 @@ import {
 import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
-import { initialStudents } from '@/data/students';
 import type { Student } from '@/types';
+import { supabase } from '@/lib/supabase';
 
 
 export default function Header() {
-  const [students, setStudents] = useState<Student[]>([]);
+  const [totalBalance, setTotalBalance] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a real scenario, you'd fetch from Supabase here.
-    setStudents(initialStudents);
-  }, []);
+    const fetchBalance = async () => {
+        setLoading(true);
+        // This is a simplified calculation. For large datasets, 
+        // a dedicated database function (RPC) would be more efficient.
+        const { data, error } = await supabase.from('transactions').select('type, amount');
 
-  const totalBalance = useMemo(() => {
-    return students.reduce((total, student) => {
-      const studentBalance = student.transactions.reduce((acc, tx) => {
-        return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
-      }, 0);
-      return total + studentBalance;
-    }, 0);
-  }, [students]);
+        if (error) {
+            console.error("Failed to fetch total balance:", error);
+        } else {
+            const balance = data.reduce((acc, tx) => {
+                return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
+            }, 0);
+            setTotalBalance(balance);
+        }
+        setLoading(false);
+    }
+    fetchBalance();
+
+    const channel = supabase.channel('realtime-transactions')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, fetchBalance)
+        .subscribe();
+    
+    return () => {
+        supabase.removeChannel(channel);
+    }
+
+  }, []);
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-lg sm:px-6 md:hidden">
-      <div className="font-bold text-lg">{totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</div>
+        {loading ? (
+            <div className="h-7 w-32 rounded-md animate-pulse bg-gray-200" />
+        ) : (
+            <div className="font-bold text-lg">{totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</div>
+        )}
       <div className='flex items-center gap-2'>
         <Button variant="ghost" size="icon">
           <Bell className="h-5 w-5" />

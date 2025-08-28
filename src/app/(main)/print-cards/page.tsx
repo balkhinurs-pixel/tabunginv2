@@ -9,20 +9,40 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { initialStudents } from '@/data/students';
 import type { Student } from '@/types';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 export default function PrintCardsPage() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedStudentId, setSelectedStudentId] = useState<string | undefined>(undefined);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // In a real scenario, you'd fetch from Supabase here.
-    setStudents(initialStudents);
-    if (initialStudents.length > 0) {
-        setSelectedStudentId(initialStudents[0].id);
-    }
-  }, []);
+    const fetchStudents = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('students')
+            .select('id, nis, name, class')
+            .order('name', { ascending: true });
+
+        if (error) {
+            toast({
+                title: 'Gagal memuat data siswa',
+                description: error.message,
+                variant: 'destructive'
+            });
+        } else {
+            setStudents(data as Student[]);
+            if (data && data.length > 0) {
+                setSelectedStudentId(data[0].id);
+            }
+        }
+        setLoading(false);
+    };
+    fetchStudents();
+  }, [toast]);
 
   const selectedStudent = students.find(s => s.id === selectedStudentId);
 
@@ -41,9 +61,9 @@ export default function PrintCardsPage() {
         <CardContent className="p-4 space-y-4">
             <div className="space-y-2">
                 <Label>Pilih Siswa (untuk preview & unduh PDF tunggal)</Label>
-                <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+                <Select value={selectedStudentId} onValueChange={setSelectedStudentId} disabled={loading || students.length === 0}>
                     <SelectTrigger>
-                        <SelectValue placeholder="Pilih siswa..." />
+                        <SelectValue placeholder={loading ? "Memuat siswa..." : "Pilih siswa..."} />
                     </SelectTrigger>
                     <SelectContent>
                         {students.map(student => (
@@ -54,9 +74,9 @@ export default function PrintCardsPage() {
                     </SelectContent>
                 </Select>
             </div>
-            <Button className="w-full">
+            <Button className="w-full" disabled>
                 <Download className="mr-2 h-4 w-4" />
-                Unduh Semua Kartu (PDF A4)
+                Unduh Semua Kartu (PDF A4) - Segera Hadir
             </Button>
         </CardContent>
       </Card>
@@ -85,9 +105,9 @@ export default function PrintCardsPage() {
                         </div>
                         <p className="text-xs text-muted-foreground text-center">Gunakan kartu ini untuk transaksi & login</p>
                     </div>
-                    <Button className="w-full">
+                    <Button className="w-full" disabled>
                         <Download className="mr-2 h-4 w-4" />
-                        Unduh Kartu Ini (PDF)
+                        Unduh Kartu Ini (PDF) - Segera Hadir
                     </Button>
                 </CardContent>
             </Card>

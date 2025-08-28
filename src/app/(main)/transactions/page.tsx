@@ -7,8 +7,7 @@ import { QrCode, ScanLine } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { initialStudents } from '@/data/students';
-import type { Student } from '@/types';
+import { supabase } from '@/lib/supabase';
 
 export default function TransactionsPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -16,13 +15,7 @@ export default function TransactionsPage() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [scanResult, setScanResult] = useState<string | null>(null);
   const router = useRouter();
-  const [students, setStudents] = useState<Student[]>([]);
   const { toast } = useToast();
-
-  useEffect(() => {
-    // In a real scenario, you'd fetch from Supabase here.
-    setStudents(initialStudents);
-  }, []);
 
   useEffect(() => {
     const getCameraPermission = async () => {
@@ -92,24 +85,32 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     if(scanResult) {
-        const student = students.find(s => s.nis === scanResult);
-        if (student) {
-            toast({
-                title: 'Siswa Ditemukan',
-                description: `Membuka profil untuk ${student.name}.`,
-            });
-            router.push(`/profiles/${student.id}`);
-        } else {
-            toast({
-                title: 'Siswa Tidak Ditemukan',
-                description: `Tidak ada siswa dengan NIS "${scanResult}". Pindai lagi.`,
-                variant: 'destructive',
-            });
-            // Reset scan to allow another scan
-            setTimeout(() => setScanResult(null), 2000); 
+        const findStudent = async () => {
+            const { data: student, error } = await supabase
+                .from('students')
+                .select('id, name')
+                .eq('nis', scanResult)
+                .single();
+
+            if (student && !error) {
+                toast({
+                    title: 'Siswa Ditemukan',
+                    description: `Membuka profil untuk ${student.name}.`,
+                });
+                router.push(`/profiles/${student.id}`);
+            } else {
+                toast({
+                    title: 'Siswa Tidak Ditemukan',
+                    description: `Tidak ada siswa dengan NIS "${scanResult}". Pindai lagi.`,
+                    variant: 'destructive',
+                });
+                // Reset scan to allow another scan
+                setTimeout(() => setScanResult(null), 2000); 
+            }
         }
+        findStudent();
     }
-  }, [scanResult, students, router, toast])
+  }, [scanResult, router, toast])
 
 
   return (
