@@ -201,7 +201,7 @@ export default function DashboardPage() {
             <ActionButton icon={Users} label="Data Siswa" href="/profiles" />
             <ActionButton icon={QrCode} label="Cetak Kartu" href="/print-cards"/>
             <ActionButton icon={FileText} label="Laporan" href="/reports"/>
-            <ActionButton icon={ShieldCheck} label="Aktivasi" />
+            <ActionButton icon={ShieldCheck} label="Aktivasi" href="/activation" />
         </CardContent>
       </Card>
 

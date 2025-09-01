@@ -458,7 +458,11 @@ export default function ProfilesPage() {
               </div>
               <h3 className="font-semibold">Aktivasi Aplikasi Anda</h3>
               <p className="text-muted-foreground text-sm">Buka kuota hingga 32 siswa dan dapatkan akses penuh.</p>
-              <Button>Lihat Opsi Aktivasi</Button>
+              <Button asChild>
+                <Link href="/activation">
+                    Lihat Opsi Aktivasi
+                </Link>
+              </Button>
           </CardContent>
       </Card>
 
