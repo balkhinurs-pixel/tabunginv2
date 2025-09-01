@@ -63,7 +63,8 @@ export default function DashboardPage() {
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
       if (authError || !authUser) {
-        toast({ title: "Anda tidak login", variant: "destructive" });
+        // This case should ideally be handled by middleware, but as a fallback:
+        toast({ title: "Sesi tidak ditemukan", description: "Silakan login kembali.", variant: "destructive" });
         router.push('/login');
         return;
       }
