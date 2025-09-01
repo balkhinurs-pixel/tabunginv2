@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { parseISO, format } from 'date-fns';
 import type { Student, Transaction, Profile } from '@/types';
 import { supabase } from '@/lib/supabase';
-
+import type { AuthUser } from '@supabase/supabase-js';
 
 const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href?: string }) => {
   const content = (
@@ -47,6 +47,7 @@ const BackpackIcon = (props: React.SVGProps<SVGSVGElement>) => (
 )
 
 export default function DashboardPage() {
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [nis, setNis] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -59,13 +60,15 @@ export default function DashboardPage() {
     const fetchData = async () => {
       setLoading(true);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !authUser) {
         toast({ title: "Anda tidak login", variant: "destructive" });
-        setLoading(false);
         router.push('/login');
         return;
       }
+      
+      setUser(authUser);
       
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
@@ -80,7 +83,7 @@ export default function DashboardPage() {
             amount
           )
         `)
-        .eq('user_id', user.id);
+        .eq('user_id', authUser.id);
 
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
@@ -91,14 +94,14 @@ export default function DashboardPage() {
             name
           )
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', authUser.id)
         .order('created_at', { ascending: false })
         .limit(5);
 
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id, email, plan')
-        .eq('id', user.id)
+        .eq('id', authUser.id)
         .single();
 
 
@@ -153,7 +156,6 @@ export default function DashboardPage() {
       return;
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
 
