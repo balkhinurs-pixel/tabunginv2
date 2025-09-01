@@ -1,6 +1,7 @@
 
 'use client';
 
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -83,6 +84,13 @@ export default function LoginPage() {
                   Lanjutkan dengan Google
               </Button>
           </form>
+          
+          <div className="mt-4 text-center text-sm">
+            Belum punya akun?{' '}
+            <Link href="/signup" className="underline">
+              Daftar di sini
+            </Link>
+          </div>
 
         </CardContent>
       </Card>
