@@ -51,10 +51,13 @@ export default function AddDepositPage({ params }: { params: { id: string } }) {
 
     setLoading(true);
 
+    const { data: { user } } = await supabase.auth.getUser();
+
     const { error } = await supabase
       .from('transactions')
       .insert({ 
         student_id: studentId,
+        user_id: user?.id,
         amount: numericAmount, 
         description,
         created_at: date.toISOString(),
@@ -75,6 +78,7 @@ export default function AddDepositPage({ params }: { params: { id: string } }) {
             description: `Setoran sebesar ${numericAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} telah disimpan.`,
         });
         router.push(`/profiles/${studentId}`);
+        router.refresh(); // Refresh server-side data
     }
   };
 

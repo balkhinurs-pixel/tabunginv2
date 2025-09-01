@@ -28,10 +28,11 @@ import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRou
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Student } from '@/types';
+import type { Student, Profile } from '@/types';
 import { supabase } from '@/lib/supabase';
+import type { AuthUser } from '@supabase/supabase-js';
 
-const AddStudentDialog = ({ onStudentAdded }: { onStudentAdded: (newStudent: Student) => void }) => {
+const AddStudentDialog = ({ onStudentAdded, studentCount, studentQuota }: { onStudentAdded: (newStudent: Student) => void, studentCount: number, studentQuota: number }) => {
     const { toast } = useToast();
     const [nis, setNis] = useState('');
     const [name, setName] = useState('');
@@ -40,6 +41,15 @@ const AddStudentDialog = ({ onStudentAdded }: { onStudentAdded: (newStudent: Stu
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async () => {
+        if (studentCount >= studentQuota) {
+            toast({
+                title: 'Kuota Siswa Penuh',
+                description: `Anda telah mencapai batas ${studentQuota} siswa untuk akun Anda.`,
+                variant: 'destructive',
+            });
+            return;
+        }
+
         if (!nis || !name || !studentClass) {
             toast({
                 title: 'Data Tidak Lengkap',
@@ -50,9 +60,11 @@ const AddStudentDialog = ({ onStudentAdded }: { onStudentAdded: (newStudent: Stu
         }
         
         setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+
         const { data, error } = await supabase
             .from('students')
-            .insert({ nis, name, class: studentClass })
+            .insert({ nis, name, class: studentClass, user_id: user?.id })
             .select()
             .single();
         setLoading(false);
@@ -60,7 +72,7 @@ const AddStudentDialog = ({ onStudentAdded }: { onStudentAdded: (newStudent: Stu
         if (error) {
             toast({
                 title: 'Gagal Menambahkan Siswa',
-                description: error.message,
+                description: error.code === '23505' ? 'NIS ini sudah digunakan. Mohon gunakan NIS yang lain.' : error.message,
                 variant: 'destructive'
             });
         } else {
@@ -272,6 +284,7 @@ const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { stu
 
 export default function ProfilesPage() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
@@ -281,21 +294,35 @@ export default function ProfilesPage() {
   useEffect(() => {
     const fetchStudents = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('students')
-        .select('*')
-        .order('name', { ascending: true });
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data, error } = await supabase
+            .from('students')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('name', { ascending: true });
         
-      if (error) {
-        console.error('Error fetching students:', error);
-        toast({ title: 'Error', description: 'Gagal mengambil data siswa.', variant: 'destructive' });
-      } else {
-        setStudents(data as Student[]);
+        const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('id, email, plan')
+            .eq('id', user.id)
+            .single();
+
+        if (error || profileError) {
+          console.error('Error fetching students:', error || profileError);
+          toast({ title: 'Error', description: 'Gagal mengambil data siswa.', variant: 'destructive' });
+        } else {
+          setStudents(data as Student[]);
+          setProfile(profileData as Profile);
+        }
       }
       setLoading(false);
     };
     fetchStudents();
   }, [toast]);
+
+  const studentQuota = profile?.plan === 'PRO' ? 32 : 5;
 
   const handleAddStudent = (newStudent: Student) => {
     setStudents(prev => [...prev, newStudent].sort((a,b) => a.name.localeCompare(b.name)));
@@ -348,11 +375,14 @@ export default function ProfilesPage() {
     fileInputRef.current?.click();
   };
 
-  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     reader.onload = async (e) => {
         const text = e.target?.result as string;
         const lines = text.split('\n').filter(line => line.trim() !== '');
@@ -372,13 +402,17 @@ export default function ProfilesPage() {
             const data = line.trim().split(',');
             if (data.length === 3) {
                 const [nis, name, studentClass] = data;
-                return { nis, name, class: studentClass };
+                return { nis, name, class: studentClass, user_id: user.id };
             }
             return null;
         }).filter(Boolean);
 
         if (newStudentsData.length > 0) {
-            const { data: insertedData, error } = await supabase.from('students').insert(newStudentsData).select();
+            if (students.length + newStudentsData.length > studentQuota) {
+                toast({ title: 'Import Gagal', description: `Import akan melebihi kuota siswa Anda (${studentQuota}).`, variant: 'destructive' });
+                return;
+            }
+            const { data: insertedData, error } = await supabase.from('students').insert(newStudentsData as any).select();
             if (error) {
                 toast({ title: 'Import Gagal', description: error.message, variant: 'destructive' });
             } else {
@@ -403,7 +437,7 @@ export default function ProfilesPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <AddStudentDialog onStudentAdded={handleAddStudent} />
+        <AddStudentDialog onStudentAdded={handleAddStudent} studentCount={students.length} studentQuota={studentQuota} />
         <Button variant="outline" onClick={handleDownloadTemplate}>
             <Download className="mr-2 h-4 w-4" /> Unduh Template
         </Button>
@@ -421,7 +455,7 @@ export default function ProfilesPage() {
 
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="p-3 text-center">
-            <p className="text-sm text-blue-800 font-medium">Kuota Siswa Digunakan: {students.length} / 5</p>
+            <p className="text-sm text-blue-800 font-medium">Kuota Siswa Digunakan: {students.length} / {studentQuota}</p>
         </CardContent>
       </Card>
       
@@ -449,22 +483,24 @@ export default function ProfilesPage() {
           </CardContent>
       </Card>
 
-      <Card className="text-center">
-          <CardContent className="p-6 space-y-3">
-              <div className='flex justify-center'>
-                <div className="p-2 bg-primary/10 rounded-full inline-block">
-                    <ShieldCheck className="h-6 w-6 text-primary" />
+      {profile?.plan === 'TRIAL' && (
+        <Card className="text-center">
+            <CardContent className="p-6 space-y-3">
+                <div className='flex justify-center'>
+                  <div className="p-2 bg-primary/10 rounded-full inline-block">
+                      <ShieldCheck className="h-6 w-6 text-primary" />
+                  </div>
                 </div>
-              </div>
-              <h3 className="font-semibold">Aktivasi Aplikasi Anda</h3>
-              <p className="text-muted-foreground text-sm">Buka kuota hingga 32 siswa dan dapatkan akses penuh.</p>
-              <Button asChild>
-                <Link href="/activation">
-                    Lihat Opsi Aktivasi
-                </Link>
-              </Button>
-          </CardContent>
-      </Card>
+                <h3 className="font-semibold">Aktivasi Akun PRO Anda</h3>
+                <p className="text-muted-foreground text-sm">Buka kuota hingga {studentQuota} siswa dan dapatkan akses penuh.</p>
+                <Button asChild>
+                  <Link href="/activation">
+                      Aktivasi Sekarang
+                  </Link>
+                </Button>
+            </CardContent>
+        </Card>
+      )}
 
       <div>
         <p className="text-sm text-muted-foreground mb-2">Menampilkan {filteredStudents.length} dari {students.length} data</p>

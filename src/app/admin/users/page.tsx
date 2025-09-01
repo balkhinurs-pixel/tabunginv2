@@ -6,14 +6,16 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { Profile } from '@/types';
 
 interface AppUser {
     id: string;
     email: string | undefined;
     created_at: string;
     last_sign_in_at: string | undefined;
+    plan: 'TRIAL' | 'PRO';
 }
 
 export default function AdminUsersPage() {
@@ -22,25 +24,23 @@ export default function AdminUsersPage() {
 
     useEffect(() => {
         const fetchUsers = async () => {
-            // Note: This requires admin privileges in Supabase.
-            // You might need to call this from a server-side function
-            // with service_role key for it to work.
-            // For now, we assume it's callable for demo purposes.
-            // A proper implementation would use an edge function.
-            
-            // This is a placeholder as listUsers is admin-only.
-            const { data, error } = await supabase.from('profiles').select('id, email');
-            
-            // A real implementation would look like this in an edge function:
-            // const { data: { users }, error } = await supabase.auth.admin.listUsers()
+            // Note: This requires admin privileges.
+            // A real implementation would use an edge function with service_role key.
+            const { data, error } = await supabase.from('profiles').select('*');
 
-            const demoUsers: AppUser[] = [
-                { id: '1', email: 'user1@example.com', created_at: new Date().toISOString(), last_sign_in_at: new Date().toISOString() },
-                { id: '2', email: 'user2@example.com', created_at: new Date().toISOString(), last_sign_in_at: new Date().toISOString() },
-                { id: '3', email: 'admin@admin.com', created_at: new Date().toISOString(), last_sign_in_at: new Date().toISOString() },
-            ];
-
-            setUsers(demoUsers);
+            if (error) {
+                console.error("Error fetching profiles:", error);
+            } else {
+                // This is a placeholder for user auth data which is harder to get on the client.
+                const mappedUsers = data.map((profile: Profile) => ({
+                    id: profile.id,
+                    email: profile.email,
+                    created_at: new Date().toISOString(), // Placeholder
+                    last_sign_in_at: new Date().toISOString(), // Placeholder
+                    plan: profile.plan
+                }));
+                setUsers(mappedUsers);
+            }
             setLoading(false);
         };
         fetchUsers();
@@ -60,7 +60,7 @@ export default function AdminUsersPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Email</TableHead>
-                                <TableHead>Status</TableHead>
+                                <TableHead>Status Akun</TableHead>
                                 <TableHead>Tanggal Registrasi</TableHead>
                                 <TableHead>Terakhir Login</TableHead>
                             </TableRow>
@@ -75,12 +75,12 @@ export default function AdminUsersPage() {
                                     <TableRow key={user.id}>
                                         <TableCell className="font-medium">{user.email}</TableCell>
                                         <TableCell>
-                                            <Badge variant={user.email?.endsWith('@admin.com') ? 'destructive' : 'default'}>
-                                                {user.email?.endsWith('@admin.com') ? 'Admin' : 'Pengguna'}
+                                            <Badge variant={user.plan === 'PRO' ? 'default' : 'secondary'}>
+                                                {user.plan}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>{format(new Date(user.created_at), 'd MMM yyyy, HH:mm', { locale: id })}</TableCell>
-                                        <TableCell>{user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'd MMM yyyy, HH:mm', { locale: id }) : 'Belum Pernah'}</TableCell>
+                                        <TableCell>{user.last_sign_in_at ? formatDistanceToNow(new Date(user.last_sign_in_at), { locale: id, addSuffix: true }) : 'Belum Pernah'}</TableCell>
                                     </TableRow>
                                 ))
                             )}
@@ -91,21 +91,3 @@ export default function AdminUsersPage() {
         </div>
     );
 }
-
-// You need to create a 'profiles' table for the demo to work,
-// or use an edge function with Supabase admin rights to fetch auth.users.
-/*
-create table
-  public.profiles (
-    id uuid not null,
-    updated_at timestamp with time zone null,
-    username text null,
-    full_name text null,
-    avatar_url text null,
-    website text null,
-    constraint profiles_pkey primary key (id),
-    constraint profiles_username_key unique (username),
-    constraint profiles_id_fkey foreign key (id) references auth.users (id) on delete cascade
-  );
-*/
-

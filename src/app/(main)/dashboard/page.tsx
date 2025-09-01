@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { parseISO, format } from 'date-fns';
-import type { Student, Transaction } from '@/types';
+import type { Student, Transaction, Profile } from '@/types';
 import { supabase } from '@/lib/supabase';
 
 
@@ -50,6 +50,7 @@ export default function DashboardPage() {
   const [nis, setNis] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
@@ -57,6 +58,14 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Anda tidak login", variant: "destructive" });
+        setLoading(false);
+        router.push('/login');
+        return;
+      }
       
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
@@ -70,7 +79,8 @@ export default function DashboardPage() {
             type,
             amount
           )
-        `);
+        `)
+        .eq('user_id', user.id);
 
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
@@ -81,24 +91,33 @@ export default function DashboardPage() {
             name
           )
         `)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(5);
 
-      if (studentsError || transactionsError) {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, email, plan')
+        .eq('id', user.id)
+        .single();
+
+
+      if (studentsError || transactionsError || profileError) {
         toast({
           title: 'Gagal memuat data',
-          description: studentsError?.message || transactionsError?.message,
+          description: studentsError?.message || transactionsError?.message || profileError?.message,
           variant: 'destructive',
         });
       } else {
         setStudents(studentsData as Student[]);
         setTransactions(transactionsData as Transaction[]);
+        setProfile(profileData as Profile);
       }
       setLoading(false);
     };
 
     fetchData();
-  }, [toast]);
+  }, [toast, router]);
 
   const totalBalance = useMemo(() => {
     if (loading || !students) return 0;
@@ -109,15 +128,18 @@ export default function DashboardPage() {
       return total + studentBalance;
     }, 0);
   }, [students, loading]);
+  
+  const studentQuota = profile?.plan === 'PRO' ? 32 : 5;
 
   const recentTransactions = useMemo(() => {
+    if (!transactions) return [];
     return transactions.map(tx => ({
         id: tx.id,
         date: format(parseISO(tx.created_at!), 'dd/MM/yy'),
         type: tx.type,
         amount: tx.amount,
         studentId: tx.student_id,
-        studentName: tx.students.name,
+        studentName: tx.students!.name,
     }));
   }, [transactions]);
   
@@ -131,10 +153,15 @@ export default function DashboardPage() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+
     const { data: student, error } = await supabase
       .from('students')
       .select('id')
       .eq('nis', nis)
+      .eq('user_id', user.id)
       .single();
 
     if (student && !error) {
@@ -156,7 +183,11 @@ export default function DashboardPage() {
             <div className="bg-white/20 p-2 rounded-lg">
                 <BackpackIcon className="h-6 w-6 text-white"/>
             </div>
-            <Badge variant="secondary" className="bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90">TRIAL</Badge>
+            {profile?.plan === 'TRIAL' ? (
+              <Badge variant="secondary" className="bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90">TRIAL</Badge>
+            ) : (
+              <Badge variant="secondary" className="bg-green-400 text-green-900 hover:bg-green-400/90">PRO</Badge>
+            )}
           </div>
           <div className="mt-4">
             <div className="flex items-center gap-2">
@@ -170,7 +201,7 @@ export default function DashboardPage() {
                 {totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                 </p>
             )}
-            <p className="text-xs opacity-80 mt-1">Kuota Siswa Digunakan: {students.length} / 5</p>
+            <p className="text-xs opacity-80 mt-1">Kuota Siswa Digunakan: {students.length} / {studentQuota}</p>
           </div>
         </CardContent>
       </Card>

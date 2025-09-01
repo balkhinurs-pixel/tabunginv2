@@ -29,6 +29,14 @@ export default function ActivationPage() {
     }
     setLoading(true);
 
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+         toast({ title: 'Gagal', description: 'Anda harus masuk untuk aktivasi.', variant: 'destructive' });
+         setLoading(false);
+         return;
+    }
+
     const { data: codeData, error: codeError } = await supabase
         .from('activation_codes')
         .select('*')
@@ -55,28 +63,20 @@ export default function ActivationPage() {
         return;
     }
     
-    const { data: { user } } = await supabase.auth.getUser();
+    // Use a transaction to ensure atomicity
+    const { data: profile, error: activationError } = await supabase.rpc('activate_account', {
+        p_code: activationCode,
+        p_user_id: user.id
+    });
 
-    if (!user) {
-         toast({ title: 'Gagal', description: 'Anda harus masuk untuk aktivasi.', variant: 'destructive' });
-         setLoading(false);
-         return;
-    }
 
-    const { error: updateError } = await supabase
-        .from('activation_codes')
-        .update({ is_used: true, used_by: user.id, used_at: new Date().toISOString() })
-        .eq('id', codeData.id);
-
-    if (updateError) {
-        toast({ title: 'Aktivasi Gagal', description: 'Terjadi kesalahan saat aktivasi.', variant: 'destructive' });
+    if (activationError) {
+        toast({ title: 'Aktivasi Gagal', description: activationError.message, variant: 'destructive' });
     } else {
         toast({
             title: 'Aktivasi Berhasil!',
-            description: 'Akun Anda telah berhasil diaktivasi. Semua fitur telah terbuka.',
+            description: 'Akun Anda telah berhasil diaktivasi ke PRO. Semua fitur telah terbuka.',
         });
-        // Here you would typically update the user's role or plan in your database
-        // For example, in a 'profiles' table.
         router.push('/dashboard');
     }
 
@@ -98,7 +98,7 @@ export default function ActivationPage() {
         <CardHeader>
           <CardTitle>Masukkan Kode Aktivasi</CardTitle>
           <CardDescription>
-            Masukkan kode aktivasi yang telah Anda terima untuk membuka semua fitur dan meningkatkan kuota siswa.
+            Masukkan kode aktivasi yang telah Anda terima untuk upgrade ke akun PRO, membuka semua fitur dan meningkatkan kuota siswa.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

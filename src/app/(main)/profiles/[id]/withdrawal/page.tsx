@@ -34,9 +34,17 @@ export default function WithdrawPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchStudentData = async () => {
         setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            toast({ title: 'Anda tidak login', variant: 'destructive' });
+            setLoading(false);
+            return;
+        }
+
         const { data, error } = await supabase
             .from('students')
-            .select(`*, transactions(*)`).eq('id', studentId).single();
+            .select(`*, transactions(*)`).eq('id', studentId).eq('user_id', user.id).single();
         
         if (error) {
             toast({ title: 'Siswa tidak ditemukan', variant: 'destructive' });
@@ -53,6 +61,8 @@ export default function WithdrawPage({ params }: { params: { id: string } }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
 
     const numericAmount = parseFloat(amount);
     
@@ -86,6 +96,7 @@ export default function WithdrawPage({ params }: { params: { id: string } }) {
 
     const { error } = await supabase.from('transactions').insert({ 
         student_id: studentId, 
+        user_id: user?.id,
         amount: numericAmount, 
         description,
         created_at: date?.toISOString(),
@@ -106,6 +117,7 @@ export default function WithdrawPage({ params }: { params: { id: string } }) {
             description: `Penarikan sebesar ${numericAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} telah disimpan.`,
         });
         router.push(`/profiles/${studentId}`);
+        router.refresh();
     }
   };
 

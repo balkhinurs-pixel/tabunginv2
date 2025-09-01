@@ -48,6 +48,12 @@ export default function ReportsPage() {
     useEffect(() => {
         const fetchStudents = async () => {
             setLoading(true);
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                setLoading(false);
+                return;
+            }
+
             let query = supabase
                 .from('students')
                 .select(`
@@ -57,25 +63,38 @@ export default function ReportsPage() {
                         amount,
                         created_at
                     )
-                `);
+                `)
+                .eq('user_id', user.id);
 
-            if (dateRange?.from) {
-                 query = query.gte('transactions.created_at', format(startOfDay(dateRange.from), "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"));
-            }
-            if (dateRange?.to) {
-                query = query.lte('transactions.created_at', format(endOfDay(dateRange.to), "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"));
-            }
+            // This logic is tricky with RLS and joins. 
+            // A simpler approach for filtering transactions by date is to fetch them separately
+            // or use a database function (RPC). For now, we filter on the client side after fetching all transactions.
+            // This is not ideal for large datasets but works for this scenario.
 
             const { data, error } = await query;
 
-            if (error && error.code !== 'PGRST116') { // Ignore error when transactions are empty for a date range
+            if (error) { 
                  toast({
                     title: 'Gagal memuat data laporan',
                     description: error.message,
                     variant: 'destructive',
                 });
             } else {
-                setStudents(data as Student[]);
+                // Filter transactions by date range on the client side
+                const filteredData = data.map(student => ({
+                    ...student,
+                    transactions: student.transactions.filter(tx => {
+                        const txDate = startOfDay(parseISO(tx.created_at!));
+                        if (dateRange?.from && dateRange.to) {
+                            return txDate >= startOfDay(dateRange.from) && txDate <= endOfDay(dateRange.to);
+                        }
+                        if (dateRange?.from) {
+                            return txDate >= startOfDay(dateRange.from);
+                        }
+                        return true;
+                    })
+                }));
+                setStudents(filteredData as Student[]);
             }
             setLoading(false);
         };

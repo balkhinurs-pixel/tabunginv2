@@ -6,6 +6,7 @@ export interface Transaction {
   description: string;
   amount: number;
   student_id: string; 
+  user_id?: string;
   // Joined properties
   students?: {
     id: string;
@@ -19,5 +20,13 @@ export interface Student {
   name: string;
   class: string;
   created_at?: string;
+  user_id?: string;
   transactions: Transaction[];
+}
+
+export interface Profile {
+  id: string;
+  email?: string;
+  plan: 'TRIAL' | 'PRO';
+  // Add other profile fields if needed
 }
