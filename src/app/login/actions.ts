@@ -42,6 +42,7 @@ export async function loginWithGoogle() {
     }
 
     if (data.url) {
+        revalidatePath('/', 'layout');
         return redirect(data.url);
     }
     
