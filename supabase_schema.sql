@@ -1,20 +1,14 @@
--- ### TABEL PENGGUNA & PROFIL ###
--- Tabel ini akan menyimpan informasi profil tambahan untuk pengguna.
--- Relasi 1-ke-1 dengan tabel auth.users.
+-- 1. Create custom transaction_type ENUM
+CREATE TYPE transaction_type AS ENUM ('Pemasukan', 'Pengeluaran');
+
+-- 2. Create profiles table
 CREATE TABLE profiles (
-  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT,
-  plan TEXT DEFAULT 'TRIAL' NOT NULL -- Bisa 'TRIAL' atau 'PRO'
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT,
+    plan TEXT DEFAULT 'TRIAL' NOT NULL
 );
 
--- Kebijakan Keamanan untuk Tabel Profiles
--- Memastikan pengguna hanya bisa melihat dan mengedit profil mereka sendiri.
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view their own profile" ON profiles FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update their own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
-
--- Fungsi ini akan dijalankan setiap kali ada pengguna baru mendaftar.
--- Ini akan membuat entri profil baru untuk pengguna tersebut.
+-- Function to create a profile when a new user signs up
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -24,120 +18,129 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger yang memanggil fungsi handle_new_user setiap kali ada user baru.
+-- Trigger to call the function on new user creation
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
 
--- ### TABEL DATA UTAMA ###
-
--- Tipe enumerasi untuk jenis transaksi
-CREATE TYPE transaction_type AS ENUM ('Pemasukan', 'Pengeluaran');
-
--- Tabel untuk menyimpan data siswa.
--- Setiap siswa terhubung dengan seorang pengguna (guru/admin sekolah).
+-- 3. Create students table
 CREATE TABLE students (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
     nis TEXT NOT NULL,
     name TEXT NOT NULL,
     class TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    -- Membuat NIS unik untuk setiap user_id, tapi bisa sama antar user yang berbeda.
     UNIQUE(user_id, nis)
 );
 
--- Kebijakan Keamanan untuk Tabel Students
--- Pengguna hanya bisa melihat/mengelola siswa yang mereka buat.
-ALTER TABLE students ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage their own students" ON students
-    FOR ALL USING (auth.uid() = user_id);
-
--- Tabel untuk menyimpan semua transaksi yang terkait dengan siswa.
+-- 4. Create transactions table
 CREATE TABLE transactions (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    student_id uuid REFERENCES students(id) ON DELETE CASCADE NOT NULL,
-    user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    type transaction_type NOT NULL,
-    amount NUMERIC(10, 2) NOT NULL CHECK (amount >= 0),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID REFERENCES students(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    amount NUMERIC NOT NULL,
     description TEXT,
-    created_at TIMESTAMTZ DEFAULT NOW()
+    type transaction_type NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Kebijakan Keamanan untuk Tabel Transactions
--- Pengguna hanya bisa melihat/mengelola transaksi milik siswa mereka.
-ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage their own transactions" ON transactions
-    FOR ALL USING (auth.uid() = user_id);
-
-
--- ### TABEL KODE AKTIVASI ###
+-- 5. Create activation_codes table
 CREATE TABLE activation_codes (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     code TEXT UNIQUE NOT NULL,
     is_used BOOLEAN DEFAULT FALSE,
-    used_by uuid REFERENCES auth.users(id),
+    used_by UUID REFERENCES auth.users(id),
     used_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Kebijakan Keamanan untuk Tabel Activation Codes
--- Hanya pengguna terautentikasi yang dapat melihat kode (meskipun admin akan jadi satu-satunya yang melihatnya via UI).
-ALTER TABLE activation_codes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Authenticated users can view codes" ON activation_codes FOR SELECT USING (auth.role() = 'authenticated');
--- Admin (atau peran khusus di masa depan) dapat mengelola kode. Untuk saat ini, dibatasi.
--- Di aplikasi nyata, Anda akan membuat peran 'admin' dan kebijakan yang lebih ketat.
-CREATE POLICY "Admins can manage codes" ON activation_codes FOR ALL USING (
-  -- Untuk saat ini, kita bisa membatasi berdasarkan email admin untuk keamanan sederhana
-  auth.uid() IN (SELECT id FROM profiles WHERE email LIKE '%@admin.com%')
-);
-
-
--- ### FUNGSI DATABASE (RPC) ###
-
--- Fungsi untuk mengaktifkan akun pengguna ke PRO
-CREATE OR REPLACE FUNCTION activate_account(p_code TEXT, p_user_id uuid)
-RETURNS TABLE(status TEXT, message TEXT) AS $$
+-- Function to activate an account
+CREATE OR REPLACE FUNCTION activate_account(p_code TEXT, p_user_id UUID)
+RETURNS TABLE (profile_id UUID, new_plan TEXT) AS $$
 DECLARE
-    v_code_id BIGINT;
-    v_is_used BOOLEAN;
+  v_code_id BIGINT;
 BEGIN
-    -- 1. Cari kode dan kunci untuk pembaruan
-    SELECT id, is_used INTO v_code_id, v_is_used
-    FROM public.activation_codes
-    WHERE code = p_code
-    FOR UPDATE;
+  -- Check if code exists and is not used, then lock the row
+  SELECT id INTO v_code_id FROM activation_codes WHERE code = p_code AND is_used = FALSE FOR UPDATE;
 
-    -- 2. Cek jika kode ada
-    IF v_code_id IS NULL THEN
-        RETURN QUERY SELECT 'error'::TEXT, 'Kode aktivasi tidak valid.'::TEXT;
-        RETURN;
-    END IF;
+  IF v_code_id IS NULL THEN
+    RAISE EXCEPTION 'Kode aktivasi tidak valid atau sudah digunakan.';
+  END IF;
 
-    -- 3. Cek jika kode sudah digunakan
-    IF v_is_used THEN
-        RETURN QUERY SELECT 'error'::TEXT, 'Kode aktivasi ini telah digunakan.'::TEXT;
-        RETURN;
-    END IF;
+  -- Update profile plan
+  UPDATE profiles
+  SET plan = 'PRO'
+  WHERE id = p_user_id;
 
-    -- 4. Update profil pengguna menjadi 'PRO'
-    UPDATE public.profiles
-    SET plan = 'PRO'
-    WHERE id = p_user_id;
-
-    -- 5. Tandai kode sebagai telah digunakan
-    UPDATE public.activation_codes
-    SET 
-        is_used = TRUE,
-        used_by = p_user_id,
-        used_at = NOW()
-    WHERE id = v_code_id;
-
-    RETURN QUERY SELECT 'success'::TEXT, 'Akun berhasil diaktivasi ke PRO.'::TEXT;
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN QUERY SELECT 'error'::TEXT, 'Terjadi kesalahan internal.'::TEXT;
+  -- Mark the code as used
+  UPDATE activation_codes
+  SET 
+    is_used = TRUE,
+    used_by = p_user_id,
+    used_at = NOW()
+  WHERE id = v_code_id;
+  
+  RETURN QUERY SELECT id, plan FROM profiles WHERE id = p_user_id;
 END;
 $$ LANGUAGE plpgsql;
+
+-- 6. Setup Row Level Security (RLS)
+-- Enable RLS for all relevant tables
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for profiles
+-- Users can see their own profile
+CREATE POLICY "Users can see their own profile." ON profiles
+  FOR SELECT USING (auth.uid() = id);
+-- Users can update their own profile
+CREATE POLICY "Users can update their own profile." ON profiles
+  FOR UPDATE USING (auth.uid() = id);
+
+-- Create policies for students
+-- Users can manage students linked to their user_id
+CREATE POLICY "Users can manage their own students." ON students
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Create policies for transactions
+-- Users can manage transactions linked to their user_id
+CREATE POLICY "Users can manage their own transactions." ON transactions
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Make new storage buckets public.
+-- Used for profile images or other public assets.
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true);
+
+create policy "Avatar images are publicly accessible."
+  on storage.objects for select
+  using ( bucket_id = 'avatars' );
+
+create policy "Anyone can upload an avatar."
+  on storage.objects for insert
+  with check ( bucket_id = 'avatars' );
+
+-- NOTE: For admin-only access to activation codes, you would typically
+-- create a separate admin role or use a service_role key from a secure backend.
+-- The policies below are a basic setup.
+
+ALTER TABLE activation_codes ENABLE ROW LEVEL SECURITY;
+
+-- For now, we allow admins (identified by a specific role you'd create) to manage codes.
+-- This is a placeholder; you should create a role like 'admin' in your Supabase project.
+-- CREATE POLICY "Admins can manage activation codes" ON activation_codes
+--   FOR ALL USING (auth.role() = 'admin');
+
+-- Or, for development, you can disable RLS for a specific user via the Supabase UI
+-- or keep it disabled until you have a proper admin role setup.
+-- For the purpose of the app working, we'll allow authenticated users to read codes,
+-- but inserts/updates should be locked down.
+CREATE POLICY "Authenticated users can view codes" ON activation_codes
+  FOR SELECT USING (auth.role() = 'authenticated');
+  
+-- Important: You MUST use the `service_role` key from a secure backend (like an Edge Function)
+-- to generate codes. Do NOT allow clients to insert into this table.
+-- The RPC function `activate_account` handles the secure usage of a code.
