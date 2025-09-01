@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Card,
   CardContent,
@@ -10,8 +12,13 @@ import { Label } from '@/components/ui/label';
 import { AppLogo } from '@/components/AppLogo';
 import { login } from './actions';
 import { SubmitButton } from '@/components/SubmitButton';
+import { useSearchParams } from 'next/navigation';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const errorMessage = searchParams.get('message');
+
   return (
     <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
@@ -30,16 +37,21 @@ export default function LoginPage() {
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
-                placeholder="student@school.edu"
-                defaultValue="student@school.edu"
+                placeholder="anda@email.com"
                 required
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Kata Sandi</Label>
-              <Input id="password" type="password" defaultValue="password" required />
+              <Input id="password" name="password" type="password" required />
             </div>
+            {errorMessage && (
+                <Alert variant="destructive">
+                    <AlertDescription>{errorMessage}</AlertDescription>
+                </Alert>
+            )}
             <SubmitButton className="w-full bg-primary hover:bg-primary/90">
               Masuk
             </SubmitButton>
