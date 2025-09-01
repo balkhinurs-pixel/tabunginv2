@@ -2,28 +2,34 @@
 'use client';
 
 import { useIsMobile } from '@/hooks/use-mobile';
-import DesktopSidebar from '@/components/layout/DesktopSidebar';
 import MobileBottomNav from '@/components/layout/MobileBottomNav';
 import Header from '@/components/layout/Header';
+import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
+import AppSidebar from '@/components/layout/AppSidebar';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile();
 
-  return (
+  if (isMobile) {
+    return (
       <div className="flex min-h-screen w-full bg-background">
-        {isMobile === undefined ? null : isMobile ? (
-          <MobileBottomNav />
-        ) : (
-          <DesktopSidebar />
-        )}
-        <div
-          className={`w-full transition-all duration-300 ease-in-out ${
-            isMobile ? 'pb-24' : 'sm:pl-20'
-          }`}
-        >
+        <MobileBottomNav />
+        <div className="w-full pb-24">
           <Header />
           <main className="p-4 sm:p-6 lg:p-8">{children}</main>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <SidebarProvider>
+      <Sidebar>
+        <AppSidebar />
+      </Sidebar>
+      <SidebarInset>
+        <main>{children}</main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

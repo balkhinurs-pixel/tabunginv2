@@ -9,11 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
 export default function ActivationPage() {
   const [activationCode, setActivationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleActivate = async () => {
     if (!activationCode) {
@@ -26,20 +29,55 @@ export default function ActivationPage() {
     }
     setLoading(true);
 
-    // Simulate API call for activation
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    if (activationCode === 'PRO-12345') {
-        toast({
-            title: 'Aktivasi Berhasil!',
-            description: 'Akun Anda telah berhasil diaktivasi. Kuota siswa telah ditingkatkan.',
-        });
-    } else {
+    const { data: codeData, error: codeError } = await supabase
+        .from('activation_codes')
+        .select('*')
+        .eq('code', activationCode)
+        .single();
+    
+    if (codeError || !codeData) {
         toast({
             title: 'Aktivasi Gagal',
             description: 'Kode aktivasi yang Anda masukkan tidak valid.',
             variant: 'destructive',
         });
+        setLoading(false);
+        return;
+    }
+
+    if (codeData.is_used) {
+        toast({
+            title: 'Kode Telah Digunakan',
+            description: 'Kode aktivasi ini sudah pernah digunakan.',
+            variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+    }
+    
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+         toast({ title: 'Gagal', description: 'Anda harus masuk untuk aktivasi.', variant: 'destructive' });
+         setLoading(false);
+         return;
+    }
+
+    const { error: updateError } = await supabase
+        .from('activation_codes')
+        .update({ is_used: true, used_by: user.id, used_at: new Date().toISOString() })
+        .eq('id', codeData.id);
+
+    if (updateError) {
+        toast({ title: 'Aktivasi Gagal', description: 'Terjadi kesalahan saat aktivasi.', variant: 'destructive' });
+    } else {
+        toast({
+            title: 'Aktivasi Berhasil!',
+            description: 'Akun Anda telah berhasil diaktivasi. Semua fitur telah terbuka.',
+        });
+        // Here you would typically update the user's role or plan in your database
+        // For example, in a 'profiles' table.
+        router.push('/dashboard');
     }
 
     setLoading(false);
@@ -68,9 +106,10 @@ export default function ActivationPage() {
             <Label htmlFor="activation-code">Kode Aktivasi</Label>
             <Input
               id="activation-code"
-              placeholder="XXXXX-XXXXX-XXXXX"
+              placeholder="PRO-XXXXX-XXXXX-XXXXX"
               value={activationCode}
               onChange={(e) => setActivationCode(e.target.value.toUpperCase())}
+              className="font-mono"
             />
           </div>
           <Button onClick={handleActivate} disabled={loading} className="w-full">

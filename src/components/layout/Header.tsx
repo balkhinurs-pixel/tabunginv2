@@ -12,52 +12,39 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Bell } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
-import type { Student } from '@/types';
+import { Bell, User, LogOut, Shield, Settings as SettingsIcon } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
+import type { AuthUser } from '@supabase/supabase-js';
 
 
 export default function Header() {
-  const [totalBalance, setTotalBalance] = useState(0);
-  const [loading, setLoading] = useState(true);
-
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const router = useRouter();
+  
   useEffect(() => {
-    const fetchBalance = async () => {
-        setLoading(true);
-        // This is a simplified calculation. For large datasets, 
-        // a dedicated database function (RPC) would be more efficient.
-        const { data, error } = await supabase.from('transactions').select('type, amount');
-
-        if (error) {
-            console.error("Failed to fetch total balance:", error);
-        } else {
-            const balance = data.reduce((acc, tx) => {
-                return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
-            }, 0);
-            setTotalBalance(balance);
-        }
-        setLoading(false);
-    }
-    fetchBalance();
-
-    const channel = supabase.channel('realtime-transactions')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, fetchBalance)
-        .subscribe();
-    
-    return () => {
-        supabase.removeChannel(channel);
-    }
-
+    const fetchUser = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (!error) {
+        setUser(data.user);
+      }
+    };
+    fetchUser();
   }, []);
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
+
+  const isAdmin = user?.email?.endsWith('@admin.com');
+
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-lg sm:px-6 md:hidden">
-        {loading ? (
-            <div className="h-7 w-32 rounded-md animate-pulse bg-gray-200" />
-        ) : (
-            <div className="font-bold text-lg">{totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}</div>
-        )}
+    <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-lg sm:px-6">
+        <div className="font-bold text-lg">
+            {/* Balance can be added back here if needed */}
+        </div>
       <div className='flex items-center gap-2'>
         <Button variant="ghost" size="icon">
           <Bell className="h-5 w-5" />
@@ -70,7 +57,7 @@ export default function Header() {
               className="overflow-hidden rounded-full"
             >
               <Image
-                src="https://picsum.photos/36/36"
+                src={`https://api.dicebear.com/7.x/identicon/svg?seed=${user?.email || 'default'}`}
                 width={36}
                 height={36}
                 alt="Avatar"
@@ -79,16 +66,24 @@ export default function Header() {
               />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Akun Saya</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className='flex flex-col'>
+                <span>Akun Saya</span>
+                <span className='text-xs text-muted-foreground font-normal truncate'>{user?.email}</span>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/settings">Pengaturan</Link>
+              <Link href="/settings"><SettingsIcon className="mr-2 h-4 w-4" /><span>Pengaturan</span></Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>Dukungan</DropdownMenuItem>
+            {isAdmin && (
+                <DropdownMenuItem asChild>
+                    <Link href="/admin/dashboard"><Shield className="mr-2 h-4 w-4" /><span>Panel Admin</span></Link>
+                </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/login">Keluar</Link>
+            <DropdownMenuItem onClick={handleLogout} className="text-red-500 focus:text-red-500">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Keluar</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
