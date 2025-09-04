@@ -60,12 +60,13 @@ export default function DashboardPage() {
     const fetchData = async () => {
       setLoading(true);
 
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-
-      if (authError || !authUser) {
-        // This case should ideally be handled by middleware, but as a fallback:
-        toast({ title: "Sesi tidak ditemukan", description: "Silakan login kembali.", variant: "destructive" });
-        router.push('/login');
+      // Middleware handles auth check, so we can safely get the user.
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (!authUser) {
+        // This should not happen if middleware is correct, but as a safeguard.
+        console.error("Dashboard: No user found, though it should be protected.");
+        setLoading(false);
         return;
       }
       
@@ -293,3 +294,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
