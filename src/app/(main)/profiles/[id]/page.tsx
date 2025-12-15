@@ -201,6 +201,16 @@ export default function StudentProfilePage() {
 
     const handleSendWA = () => {
         if (!student) return;
+
+        if (!student.whatsapp_number) {
+            toast({
+                title: 'Nomor WA Tidak Ditemukan',
+                description: 'Mohon tambahkan nomor WhatsApp wali siswa terlebih dahulu di halaman Data Siswa.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
         const formatCurrency = (val: number) => val.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
         const message = `
@@ -213,8 +223,12 @@ Total Pengeluaran: ${formatCurrency(expense)}
 *Saldo Akhir: ${formatCurrency(balance)}*
 
 Terima kasih.
-        `.trim();
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        `.trim().replace(/^\s+/gm, '');
+        
+        // Pastikan nomor WA dalam format internasional tanpa +, -, atau spasi
+        const cleanPhoneNumber = student.whatsapp_number.replace(/\D/g, '');
+
+        const whatsappUrl = `https://wa.me/${cleanPhoneNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
   
@@ -253,6 +267,7 @@ Terima kasih.
             <p className="text-xl font-bold">{student.name}</p>
             <p className="text-muted-foreground">NIS: {student.nis}</p>
             <p className="text-muted-foreground">Kelas: {student.class}</p>
+             {student.whatsapp_number && <p className="text-muted-foreground text-sm">WA: {student.whatsapp_number}</p>}
           </CardContent>
       </Card>
       
@@ -322,5 +337,7 @@ Terima kasih.
     </div>
   );
 }
+
+    
 
     

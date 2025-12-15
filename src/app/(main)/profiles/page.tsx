@@ -40,6 +40,7 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
     const [nis, setNis] = useState(student?.nis || '');
     const [name, setName] = useState(student?.name || '');
     const [studentClass, setStudentClass] = useState(student?.class || '');
+    const [whatsappNumber, setWhatsappNumber] = useState(student?.whatsapp_number || '');
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -48,6 +49,7 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
             setNis(student.nis);
             setName(student.name);
             setStudentClass(student.class);
+            setWhatsappNumber(student.whatsapp_number || '');
         }
     }, [student, open]);
 
@@ -64,7 +66,7 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
         setLoading(true);
         const { data, error } = await supabase
           .from('students')
-          .update({ nis, name, class: studentClass })
+          .update({ nis, name, class: studentClass, whatsapp_number: whatsappNumber })
           .eq('id', student.id)
           .select()
           .single();
@@ -112,7 +114,7 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="edit-whatsapp">Nomor WhatsApp Wali (Opsional)</Label>
-                        <Input id="edit-whatsapp" placeholder="Contoh: 6281234567890" />
+                        <Input id="edit-whatsapp" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="Contoh: 6281234567890" />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="edit-pin">PIN Siswa (untuk Login)</Label>
@@ -198,6 +200,7 @@ export default function ProfilesPage() {
   const [newNis, setNewNis] = useState('');
   const [newName, setNewName] = useState('');
   const [newStudentClass, setNewStudentClass] = useState('');
+  const [newWhatsappNumber, setNewWhatsappNumber] = useState('');
   const [addLoading, setAddLoading] = useState(false);
 
 
@@ -281,7 +284,7 @@ export default function ProfilesPage() {
 
     const { data, error } = await supabase
         .from('students')
-        .insert({ nis: newNis, name: newName, class: newStudentClass, user_id: user.id })
+        .insert({ nis: newNis, name: newName, class: newStudentClass, user_id: user.id, whatsapp_number: newWhatsappNumber })
         .select()
         .single();
     setAddLoading(false);
@@ -301,6 +304,7 @@ export default function ProfilesPage() {
         setNewNis('');
         setNewName('');
         setNewStudentClass('');
+        setNewWhatsappNumber('');
         setAddDialogOpen(false);
     }
   }
@@ -326,8 +330,8 @@ export default function ProfilesPage() {
 
   const handleDownloadTemplate = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
-      + "nis,name,class\n"
-      + "24003,Contoh Siswa,9c\n";
+      + "nis,name,class,whatsapp_number\n"
+      + "24003,Contoh Siswa,9c,6281234567890\n";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -360,17 +364,14 @@ export default function ProfilesPage() {
 
         const header = lines[0].trim().toLowerCase().split(',');
         if (header[0] !== 'nis' || header[1] !== 'name' || header[2] !== 'class') {
-            toast({ title: 'Format Salah', description: 'Pastikan header CSV adalah: nis,name,class', variant: 'destructive' });
+            toast({ title: 'Format Salah', description: 'Pastikan header CSV adalah: nis,name,class,whatsapp_number', variant: 'destructive' });
             return;
         }
         
         const newStudentsData = lines.slice(1).map(line => {
             const data = line.trim().split(',');
-            if (data.length === 3) {
-                const [nis, name, studentClass] = data;
-                return { nis, name, class: studentClass, user_id: user.id };
-            }
-            return null;
+            const [nis, name, studentClass, whatsapp_number] = data;
+            return { nis, name, class: studentClass, whatsapp_number: whatsapp_number || null, user_id: user.id };
         }).filter(Boolean);
 
         if (newStudentsData.length > 0) {
@@ -405,7 +406,7 @@ export default function ProfilesPage() {
       <div className="grid grid-cols-2 gap-2">
         <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
-                <Button disabled={!user}>
+                <Button disabled={loading}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Tambah Siswa
                 </Button>
             </DialogTrigger>
@@ -428,7 +429,7 @@ export default function ProfilesPage() {
                   </div>
                    <div className="space-y-2">
                       <Label htmlFor="whatsapp">Nomor WhatsApp Wali (Opsional)</Label>
-                      <Input id="whatsapp" placeholder="Contoh: 6281234567890" />
+                      <Input id="whatsapp" value={newWhatsappNumber} onChange={(e) => setNewWhatsappNumber(e.target.value)} placeholder="Contoh: 6281234567890" />
                   </div>
                   <div className="space-y-2">
                       <Label htmlFor="pin">PIN Siswa (untuk Login)</Label>
@@ -592,3 +593,5 @@ export default function ProfilesPage() {
     </div>
   );
 }
+
+    

@@ -19,6 +19,7 @@ export interface Student {
   nis: string;
   name: string;
   class: string;
+  whatsapp_number?: string;
   created_at?: string;
   user_id?: string;
   transactions: Transaction[];
@@ -30,3 +31,5 @@ export interface Profile {
   plan: 'TRIAL' | 'PRO';
   // Add other profile fields if needed
 }
+
+    
