@@ -62,9 +62,15 @@ const AddStudentDialog = ({ onStudentAdded, studentCount, studentQuota }: { onSt
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
 
+        if (!user) {
+            toast({ title: 'Gagal', description: 'Anda harus masuk untuk menambahkan siswa.', variant: 'destructive' });
+            setLoading(false);
+            return;
+        }
+
         const { data, error } = await supabase
             .from('students')
-            .insert({ nis, name, class: studentClass, user_id: user?.id })
+            .insert({ nis, name, class: studentClass, user_id: user.id })
             .select()
             .single();
         setLoading(false);
