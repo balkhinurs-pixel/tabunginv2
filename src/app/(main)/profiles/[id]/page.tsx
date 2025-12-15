@@ -24,6 +24,9 @@ import {
 import type { Student, Transaction } from '@/types';
 import { createClient } from '@/lib/supabase';
 import { parseISO, format } from 'date-fns';
+import { id } from 'date-fns/locale';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const StatCard = ({ title, value, colorClass, loading }: { title: string, value: string, colorClass: string, loading?: boolean }) => (
     <Card className={`text-center shadow-md ${colorClass}`}>
@@ -38,7 +41,7 @@ const StatCard = ({ title, value, colorClass, loading }: { title: string, value:
     </Card>
 );
 
-const ActionButton = ({ icon: Icon, label, variant = 'default', href }: { icon: React.ElementType, label: string, variant?: 'default' | 'destructive' | 'secondary' | 'ghost', href?: string }) => {
+const ActionButton = ({ icon: Icon, label, variant = 'default', href, onClick }: { icon: React.ElementType, label: string, variant?: 'default' | 'destructive' | 'secondary' | 'ghost', href?: string, onClick?: () => void }) => {
     const colorClasses = {
         default: 'bg-green-500 hover:bg-green-600 text-white',
         destructive: 'bg-red-600 hover:bg-red-700 text-white',
@@ -47,7 +50,7 @@ const ActionButton = ({ icon: Icon, label, variant = 'default', href }: { icon: 
     };
     
     const content = (
-        <Button className={`w-full justify-start text-left h-12 text-base font-medium ${colorClasses[variant]}`}>
+        <Button onClick={onClick} className={`w-full justify-start text-left h-12 text-base font-medium ${colorClasses[variant]}`}>
             <Icon className="mr-3 h-5 w-5" />
             {label}
         </Button>
@@ -121,12 +124,7 @@ export default function StudentProfilePage() {
         setLoading(true);
         const { data, error } = await supabase
             .from('students')
-            .select(`
-                *,
-                transactions (
-                    *
-                )
-            `)
+            .select('*, transactions (*)')
             .eq('id', studentId)
             .single();
 
@@ -164,6 +162,61 @@ export default function StudentProfilePage() {
     },
     { income: 0, expense: 0, balance: 0 }
   );
+
+  const handlePrintReport = () => {
+    if (!student) return;
+
+    const doc = new jsPDF();
+    
+    doc.setFontSize(16);
+    doc.text(`Laporan Tabungan Siswa`, 105, 15, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text(student.name, 105, 22, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.text(`NIS: ${student.nis}`, 14, 30);
+    doc.text(`Kelas: ${student.class}`, 14, 35);
+    
+    autoTable(doc, {
+        startY: 40,
+        head: [['TANGGAL', 'JENIS', 'KETERANGAN', 'JUMLAH (RP)']],
+        body: student.transactions.map(tx => [
+            format(parseISO(tx.created_at!), 'dd/MM/yyyy'),
+            tx.type,
+            tx.description,
+            { content: tx.amount.toLocaleString('id-ID'), styles: { halign: 'right' } }
+        ]),
+        foot: [
+            [{ content: 'Total Pemasukan', colSpan: 3, styles: { fontStyle: 'bold' } }, { content: income.toLocaleString('id-ID'), styles: { halign: 'right', fontStyle: 'bold' } }],
+            [{ content: 'Total Pengeluaran', colSpan: 3, styles: { fontStyle: 'bold' } }, { content: expense.toLocaleString('id-ID'), styles: { halign: 'right', fontStyle: 'bold' } }],
+            [{ content: 'Saldo Akhir', colSpan: 3, styles: { fontStyle: 'bold' } }, { content: balance.toLocaleString('id-ID'), styles: { halign: 'right', fontStyle: 'bold' } }]
+        ],
+        headStyles: { fillColor: [22, 163, 74] },
+        footStyles: { fillColor: [241, 245, 249] },
+        theme: 'grid'
+    });
+
+    doc.save(`laporan-${student.nis}-${student.name}.pdf`);
+    };
+
+    const handleSendWA = () => {
+        if (!student) return;
+        const formatCurrency = (val: number) => val.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
+
+        const message = `
+*Laporan Tabungan Siswa*
+Nama: ${student.name}
+Kelas: ${student.class}
+
+Total Pemasukan: ${formatCurrency(income)}
+Total Pengeluaran: ${formatCurrency(expense)}
+*Saldo Akhir: ${formatCurrency(balance)}*
+
+Terima kasih.
+        `.trim();
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+    };
   
   if (loading) {
     return (
@@ -212,8 +265,8 @@ export default function StudentProfilePage() {
       <div className="space-y-3 pt-4">
         <ActionButton icon={PlusCircle} label="Setor Tunai" href={`/profiles/${studentId}/deposit`} />
         <ActionButton icon={MinusCircle} label="Tarik Tunai" variant="destructive" href={`/profiles/${studentId}/withdrawal`} />
-        <ActionButton icon={FileText} label="Cetak Laporan" variant="secondary" />
-        <ActionButton icon={MessageCircle} label="Kirim WA" variant="ghost" />
+        <ActionButton icon={FileText} label="Cetak Laporan" variant="secondary" onClick={handlePrintReport} />
+        <ActionButton icon={MessageCircle} label="Kirim WA" variant="ghost" onClick={handleSendWA} />
       </div>
 
       <Card className="shadow-lg">
@@ -269,3 +322,5 @@ export default function StudentProfilePage() {
     </div>
   );
 }
+
+    
