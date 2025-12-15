@@ -60,16 +60,13 @@ export default function DashboardPage() {
     const fetchData = async () => {
       setLoading(true);
 
-      // Middleware handles auth check, so we can safely get the user.
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      
-      if (!authUser) {
-        // This should not happen if middleware is correct, but as a safeguard.
-        console.error("Dashboard: No user found, though it should be protected.");
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+      if (userError || !authUser) {
         setLoading(false);
+        // Middleware should prevent this, but as a fallback, do nothing.
+        // The middleware will redirect to /login if there's no session.
         return;
       }
-      
       setUser(authUser);
       
       const { data: studentsData, error: studentsError } = await supabase
@@ -122,7 +119,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [toast, router]);
+  }, [toast]);
 
   const totalBalance = useMemo(() => {
     if (loading || !students) return 0;
