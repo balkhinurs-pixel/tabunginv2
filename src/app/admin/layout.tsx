@@ -8,6 +8,8 @@ import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar'
 import AdminSidebar from './components/AdminSidebar';
 import { Loader2 } from 'lucide-react';
 import type { Profile } from '@/types';
+import { useToast } from '@/hooks/use-toast';
+
 
 export default function AdminLayout({
   children,
@@ -17,22 +19,21 @@ export default function AdminLayout({
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
+  const { toast } = useToast();
 
   useEffect(() => {
     const checkAdmin = async () => {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
         router.push('/login');
         return;
       }
       
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+      // Access the custom claim directly from the session token
+      const userRole = session.user?.user_metadata?.role;
 
-      if (profileError || !profile || (profile as Profile).role !== 'ADMIN') {
+      if (userRole !== 'ADMIN') {
         toast({
             title: 'Akses Ditolak',
             description: 'Anda tidak memiliki hak untuk mengakses halaman ini.',
@@ -44,7 +45,7 @@ export default function AdminLayout({
       }
     };
     checkAdmin();
-  }, [router, supabase]);
+  }, [router, supabase, toast]);
 
   if (loading) {
     return (
