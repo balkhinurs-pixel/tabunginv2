@@ -32,107 +32,6 @@ import type { Student, Profile } from '@/types';
 import { supabase } from '@/lib/supabase';
 import type { AuthUser } from '@supabase/supabase-js';
 
-const AddStudentDialog = ({ userId, onStudentAdded, studentCount, studentQuota, disabled }: { userId: string; onStudentAdded: (newStudent: Student) => void, studentCount: number, studentQuota: number, disabled?: boolean }) => {
-    const { toast } = useToast();
-    const [nis, setNis] = useState('');
-    const [name, setName] = useState('');
-    const [studentClass, setStudentClass] = useState('');
-    const [open, setOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
-
-    const handleSubmit = async () => {
-        if (studentCount >= studentQuota) {
-            toast({
-                title: 'Kuota Siswa Penuh',
-                description: `Anda telah mencapai batas ${studentQuota} siswa untuk akun Anda.`,
-                variant: 'destructive',
-            });
-            return;
-        }
-
-        if (!nis || !name || !studentClass) {
-            toast({
-                title: 'Data Tidak Lengkap',
-                description: 'Mohon isi semua kolom yang wajib diisi.',
-                variant: 'destructive',
-            });
-            return;
-        }
-        
-        setLoading(true);
-
-        const { data, error } = await supabase
-            .from('students')
-            .insert({ nis, name, class: studentClass, user_id: userId })
-            .select()
-            .single();
-        setLoading(false);
-
-        if (error) {
-            toast({
-                title: 'Gagal Menambahkan Siswa',
-                description: error.code === '23505' ? 'NIS ini sudah digunakan. Mohon gunakan NIS yang lain.' : error.message,
-                variant: 'destructive'
-            });
-        } else {
-            onStudentAdded(data as Student);
-            toast({
-                title: 'Siswa Ditambahkan',
-                description: `Siswa baru dengan nama ${name} berhasil ditambahkan.`,
-            });
-            setNis('');
-            setName('');
-            setStudentClass('');
-            setOpen(false);
-        }
-    }
-    
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button disabled={disabled}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Tambah Siswa
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                <DialogTitle>Tambah Siswa Baru</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="space-y-2">
-                      <Label htmlFor="nis">NIS (Nomor Induk Siswa)</Label>
-                      <Input id="nis" value={nis} onChange={(e) => setNis(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="fullName">Nama Lengkap</Label>
-                      <Input id="fullName" value={name} onChange={(e) => setName(e.target.value)} />
-                  </div>
-                   <div className="space-y-2">
-                      <Label htmlFor="class">Kelas</Label>
-                      <Input id="class" value={studentClass} onChange={(e) => setStudentClass(e.target.value)} />
-                  </div>
-                   <div className="space-y-2">
-                      <Label htmlFor="whatsapp">Nomor WhatsApp Wali (Opsional)</Label>
-                      <Input id="whatsapp" placeholder="Contoh: 6281234567890" />
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="pin">PIN Siswa (untuk Login)</Label>
-                      <Input id="pin" defaultValue="123456" />
-                  </div>
-                </div>
-                <DialogFooter className="grid grid-cols-2 gap-2">
-                  <DialogClose asChild>
-                    <Button variant="outline">Batal</Button>
-                  </DialogClose>
-                  <Button onClick={handleSubmit} disabled={loading}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Simpan Siswa
-                  </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
 
 const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; onStudentUpdated: (updatedStudent: Student) => void }) => {
     const { toast } = useToast();
@@ -291,28 +190,36 @@ export default function ProfilesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchStudents = async () => {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+  // State for AddStudentDialog
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [newNis, setNewNis] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newStudentClass, setNewStudentClass] = useState('');
+  const [addLoading, setAddLoading] = useState(false);
 
-      if (user) {
-        setUser(user);
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      setLoading(true);
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+
+      if (authUser) {
+        setUser(authUser);
         const { data, error } = await supabase
             .from('students')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', authUser.id)
             .order('name', { ascending: true });
         
         const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('id, email, plan')
-            .eq('id', user.id)
+            .eq('id', authUser.id)
             .single();
 
         if (error || profileError) {
-          console.error('Error fetching students:', error || profileError);
-          toast({ title: 'Error', description: 'Gagal mengambil data siswa.', variant: 'destructive' });
+          console.error('Error fetching data:', error || profileError);
+          toast({ title: 'Error', description: 'Gagal mengambil data awal.', variant: 'destructive' });
         } else {
           setStudents(data as Student[]);
           setProfile(profileData as Profile);
@@ -320,7 +227,7 @@ export default function ProfilesPage() {
       }
       setLoading(false);
     };
-    fetchStudents();
+    fetchInitialData();
   }, [toast]);
 
   const studentQuota = profile?.plan === 'PRO' ? 32 : 5;
@@ -341,6 +248,62 @@ export default function ProfilesPage() {
     setStudents(prev => prev.filter(student => student.id !== studentId));
   };
   
+  const handleAddStudentSubmit = async () => {
+    if (students.length >= studentQuota) {
+        toast({
+            title: 'Kuota Siswa Penuh',
+            description: `Anda telah mencapai batas ${studentQuota} siswa untuk akun Anda.`,
+            variant: 'destructive',
+        });
+        return;
+    }
+
+    if (!newNis || !newName || !newStudentClass) {
+        toast({
+            title: 'Data Tidak Lengkap',
+            description: 'Mohon isi semua kolom yang wajib diisi.',
+            variant: 'destructive',
+        });
+        return;
+    }
+    
+    if (!user) {
+        toast({
+            title: 'Anda harus masuk untuk menambahkan siswa',
+            variant: 'destructive',
+        });
+        return;
+    }
+    
+    setAddLoading(true);
+
+    const { data, error } = await supabase
+        .from('students')
+        .insert({ nis: newNis, name: newName, class: newStudentClass, user_id: user.id })
+        .select()
+        .single();
+    setAddLoading(false);
+
+    if (error) {
+        toast({
+            title: 'Gagal Menambahkan Siswa',
+            description: error.code === '23505' ? 'NIS ini sudah digunakan. Mohon gunakan NIS yang lain.' : error.message,
+            variant: 'destructive'
+        });
+    } else {
+        handleAddStudent(data as Student);
+        toast({
+            title: 'Siswa Ditambahkan',
+            description: `Siswa baru dengan nama ${newName} berhasil ditambahkan.`,
+        });
+        setNewNis('');
+        setNewName('');
+        setNewStudentClass('');
+        setAddDialogOpen(false);
+    }
+  }
+
+
   const uniqueClasses = useMemo(() => [...new Set(students.map(s => s.class))], [students]);
 
   const filteredStudents = useMemo(() => {
@@ -438,13 +401,50 @@ export default function ProfilesPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <AddStudentDialog 
-            userId={user?.id || ''} 
-            onStudentAdded={handleAddStudent} 
-            studentCount={students.length} 
-            studentQuota={studentQuota} 
-            disabled={!user}
-        />
+        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+            <DialogTrigger asChild>
+                <Button disabled={!user}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Tambah Siswa
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                <DialogTitle>Tambah Siswa Baru</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                      <Label htmlFor="nis">NIS (Nomor Induk Siswa)</Label>
+                      <Input id="nis" value={newNis} onChange={(e) => setNewNis(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="fullName">Nama Lengkap</Label>
+                      <Input id="fullName" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                  </div>
+                   <div className="space-y-2">
+                      <Label htmlFor="class">Kelas</Label>
+                      <Input id="class" value={newStudentClass} onChange={(e) => setNewStudentClass(e.target.value)} />
+                  </div>
+                   <div className="space-y-2">
+                      <Label htmlFor="whatsapp">Nomor WhatsApp Wali (Opsional)</Label>
+                      <Input id="whatsapp" placeholder="Contoh: 6281234567890" />
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="pin">PIN Siswa (untuk Login)</Label>
+                      <Input id="pin" defaultValue="123456" />
+                  </div>
+                </div>
+                <DialogFooter className="grid grid-cols-2 gap-2">
+                  <DialogClose asChild>
+                    <Button variant="outline">Batal</Button>
+                  </DialogClose>
+                  <Button onClick={handleAddStudentSubmit} disabled={addLoading}>
+                    {addLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Simpan Siswa
+                  </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
         <Button variant="outline" onClick={handleDownloadTemplate}>
             <Download className="mr-2 h-4 w-4" /> Unduh Template
         </Button>
@@ -499,7 +499,7 @@ export default function ProfilesPage() {
                   </div>
                 </div>
                 <h3 className="font-semibold">Aktivasi Akun PRO Anda</h3>
-                <p className="text-muted-foreground text-sm">Buka kuota hingga {studentQuota} siswa dan dapatkan akses penuh.</p>
+                <p className="text-muted-foreground text-sm">Buka kuota hingga 32 siswa dan dapatkan akses penuh.</p>
                 <Button asChild>
                   <Link href="/activation">
                       Aktivasi Sekarang
