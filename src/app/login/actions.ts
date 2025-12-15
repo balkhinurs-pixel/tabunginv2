@@ -11,7 +11,7 @@ export async function login(formData: FormData) {
   const password = formData.get('password') as string;
   const supabase = createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: signInData, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -19,6 +19,20 @@ export async function login(formData: FormData) {
   if (error) {
     const errorMessage = encodeURIComponent(error.message);
     return redirect(`/login?message=Gagal masuk: ${errorMessage}`);
+  }
+
+  if (signInData.user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', signInData.user.id)
+      .single();
+    
+    revalidatePath('/', 'layout');
+
+    if (profile && profile.role === 'ADMIN') {
+        return redirect('/admin/dashboard');
+    }
   }
 
   revalidatePath('/', 'layout');

@@ -7,14 +7,30 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   // if "next" is in param, use it as the redirect URL
-  const next = searchParams.get('next') ?? '/dashboard'
+  const next = searchParams.get('next') ?? '';
 
   if (code) {
-    const supabase = createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
+    const supabase = createClient();
+    const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code);
+    
+    if (!error && session) {
       revalidatePath('/', 'layout');
-      return NextResponse.redirect(`${origin}${next}`)
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (profile && profile.role === 'ADMIN') {
+        return NextResponse.redirect(`${origin}/admin/dashboard`);
+      }
+
+      if (next) {
+        return NextResponse.redirect(`${origin}${next}`);
+      }
+
+      return NextResponse.redirect(`${origin}/dashboard`);
     }
   }
 
