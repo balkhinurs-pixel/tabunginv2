@@ -96,49 +96,94 @@ export default function AdminCodesPage() {
                     <CardTitle>Daftar Kode</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Kode</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Tanggal Dibuat</TableHead>
-                                <TableHead>Digunakan Oleh</TableHead>
-                                <TableHead>Tanggal Digunakan</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {loading ? (
+                    {/* Desktop Table */}
+                    <div className="hidden md:block">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center">Memuat kode...</TableCell>
+                                    <TableHead>Kode</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Tanggal Dibuat</TableHead>
+                                    <TableHead>Digunakan Oleh</TableHead>
+                                    <TableHead>Tanggal Digunakan</TableHead>
                                 </TableRow>
-                            ) : codes.length > 0 ? (
-                                codes.map(code => (
-                                    <TableRow key={code.id}>
-                                        <TableCell className="font-mono">
-                                            <div className="flex items-center gap-2">
-                                                <span>{code.code}</span>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(code.code)}>
-                                                    {copiedCode === code.code ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={code.is_used ? 'secondary' : 'default'}>
-                                                {code.is_used ? 'Digunakan' : 'Tersedia'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>{format(new Date(code.created_at), 'd MMM yyyy', { locale: id })}</TableCell>
-                                        <TableCell>{code.used_by || '-'}</TableCell>
-                                        <TableCell>{code.used_at ? format(new Date(code.used_at), 'd MMM yyyy', { locale: id }) : '-'}</TableCell>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center">Memuat kode...</TableCell>
                                     </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center text-muted-foreground">Belum ada kode yang dibuat.</TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                                ) : codes.length > 0 ? (
+                                    codes.map(code => (
+                                        <TableRow key={code.id}>
+                                            <TableCell className="font-mono">
+                                                <div className="flex items-center gap-2">
+                                                    <span>{code.code}</span>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(code.code)}>
+                                                        {copiedCode === code.code ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={code.is_used ? 'secondary' : 'default'}>
+                                                    {code.is_used ? 'Digunakan' : 'Tersedia'}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>{format(new Date(code.created_at), 'd MMM yyyy', { locale: id })}</TableCell>
+                                            <TableCell>{code.used_by || '-'}</TableCell>
+                                            <TableCell>{code.used_at ? format(new Date(code.used_at), 'd MMM yyyy', { locale: id }) : '-'}</TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center text-muted-foreground">Belum ada kode yang dibuat.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+
+                    {/* Mobile Card List */}
+                    <div className="md:hidden">
+                        {loading ? (
+                             <p className="text-center text-muted-foreground">Memuat kode...</p>
+                        ) : codes.length > 0 ? (
+                            <div className="space-y-4">
+                                {codes.map(code => (
+                                    <div key={code.id} className="border rounded-lg p-4 space-y-3">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <p className="font-mono text-sm break-all font-semibold">{code.code}</p>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => handleCopy(code.code)}>
+                                                {copiedCode === code.code ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                            </Button>
+                                        </div>
+                                        <div className="space-y-2 text-sm">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-muted-foreground">Status:</span>
+                                                <Badge variant={code.is_used ? 'secondary' : 'default'}>
+                                                    {code.is_used ? 'Digunakan' : 'Tersedia'}
+                                                </Badge>
+                                            </div>
+                                             <div className="flex justify-between items-center">
+                                                <span className="text-muted-foreground">Dibuat:</span>
+                                                <span>{format(new Date(code.created_at), 'd MMM yyyy', { locale: id })}</span>
+                                            </div>
+                                             <div className="flex justify-between items-center">
+                                                <span className="text-muted-foreground">Oleh:</span>
+                                                <span>{code.used_by || '-'}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-muted-foreground">Digunakan:</span>
+                                                <span>{code.used_at ? format(new Date(code.used_at), 'd MMM yyyy', { locale: id }) : '-'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                             <p className="text-center text-muted-foreground">Belum ada kode yang dibuat.</p>
+                        )}
+                    </div>
                 </CardContent>
             </Card>
         </div>
