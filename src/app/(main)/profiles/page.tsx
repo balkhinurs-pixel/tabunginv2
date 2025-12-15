@@ -32,7 +32,7 @@ import type { Student, Profile } from '@/types';
 import { supabase } from '@/lib/supabase';
 import type { AuthUser } from '@supabase/supabase-js';
 
-const AddStudentDialog = ({ userId, onStudentAdded, studentCount, studentQuota }: { userId: string; onStudentAdded: (newStudent: Student) => void, studentCount: number, studentQuota: number }) => {
+const AddStudentDialog = ({ userId, onStudentAdded, studentCount, studentQuota, disabled }: { userId: string; onStudentAdded: (newStudent: Student) => void, studentCount: number, studentQuota: number, disabled?: boolean }) => {
     const { toast } = useToast();
     const [nis, setNis] = useState('');
     const [name, setName] = useState('');
@@ -60,12 +60,6 @@ const AddStudentDialog = ({ userId, onStudentAdded, studentCount, studentQuota }
         }
         
         setLoading(true);
-
-        if (!userId) {
-            toast({ title: 'Gagal', description: 'Anda harus masuk untuk menambahkan siswa.', variant: 'destructive' });
-            setLoading(false);
-            return;
-        }
 
         const { data, error } = await supabase
             .from('students')
@@ -96,7 +90,7 @@ const AddStudentDialog = ({ userId, onStudentAdded, studentCount, studentQuota }
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>
+                <Button disabled={disabled}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Tambah Siswa
                 </Button>
             </DialogTrigger>
@@ -444,7 +438,13 @@ export default function ProfilesPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        {user && <AddStudentDialog userId={user.id} onStudentAdded={handleAddStudent} studentCount={students.length} studentQuota={studentQuota} />}
+        <AddStudentDialog 
+            userId={user?.id || ''} 
+            onStudentAdded={handleAddStudent} 
+            studentCount={students.length} 
+            studentQuota={studentQuota} 
+            disabled={!user}
+        />
         <Button variant="outline" onClick={handleDownloadTemplate}>
             <Download className="mr-2 h-4 w-4" /> Unduh Template
         </Button>
@@ -590,4 +590,3 @@ export default function ProfilesPage() {
     </div>
   );
 }
-
