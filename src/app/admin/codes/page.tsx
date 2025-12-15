@@ -19,6 +19,10 @@ interface ActivationCode {
     is_used: boolean;
     used_by: string | null;
     used_at: string | null;
+    // Joined property
+    profiles: {
+        email: string;
+    } | null;
 }
 
 export default function AdminCodesPage() {
@@ -34,13 +38,18 @@ export default function AdminCodesPage() {
             setLoading(true);
             const { data, error } = await supabase
                 .from('activation_codes')
-                .select('*')
+                .select(`
+                    *,
+                    profiles (
+                        email
+                    )
+                `)
                 .order('created_at', { ascending: false });
             
             if (error) {
                 toast({ title: 'Gagal memuat kode', description: error.message, variant: 'destructive' });
             } else {
-                setCodes(data);
+                setCodes(data as ActivationCode[]);
             }
             setLoading(false);
         };
@@ -54,14 +63,19 @@ export default function AdminCodesPage() {
         const { data, error } = await supabase
             .from('activation_codes')
             .insert({ code: newCode })
-            .select()
+            .select(`
+                *,
+                profiles (
+                    email
+                )
+            `)
             .single();
 
         if (error) {
             toast({ title: 'Gagal membuat kode baru', description: error.message, variant: 'destructive' });
         } else {
             toast({ title: 'Kode baru telah dibuat!', description: newCode });
-            setCodes(prev => [data, ...prev]);
+            setCodes(prev => [data as ActivationCode, ...prev]);
         }
         setGenerating(false);
     };
@@ -71,6 +85,17 @@ export default function AdminCodesPage() {
         setCopiedCode(code);
         toast({ title: 'Kode disalin ke clipboard!' });
         setTimeout(() => setCopiedCode(null), 2000);
+    };
+    
+    const getUsedByDisplay = (code: ActivationCode) => {
+        if (code.profiles?.email) {
+            return code.profiles.email;
+        }
+        if (code.used_by) {
+            // Fallback to UUID if profile is not found
+            return code.used_by;
+        }
+        return '-';
     };
 
     return (
@@ -130,7 +155,7 @@ export default function AdminCodesPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>{format(new Date(code.created_at), 'd MMM yyyy', { locale: id })}</TableCell>
-                                            <TableCell>{code.used_by || '-'}</TableCell>
+                                            <TableCell>{getUsedByDisplay(code)}</TableCell>
                                             <TableCell>{code.used_at ? format(new Date(code.used_at), 'd MMM yyyy', { locale: id }) : '-'}</TableCell>
                                         </TableRow>
                                     ))
@@ -169,11 +194,11 @@ export default function AdminCodesPage() {
                                                 <span>{format(new Date(code.created_at), 'd MMM yyyy', { locale: id })}</span>
                                             </div>
                                              <div className="flex justify-between items-center">
-                                                <span className="text-muted-foreground">Oleh:</span>
-                                                <span>{code.used_by || '-'}</span>
+                                                <span className="text-muted-foreground">Digunakan Oleh:</span>
+                                                <span className="truncate">{getUsedByDisplay(code)}</span>
                                             </div>
                                             <div className="flex justify-between items-center">
-                                                <span className="text-muted-foreground">Digunakan:</span>
+                                                <span className="text-muted-foreground">Digunakan Pada:</span>
                                                 <span>{code.used_at ? format(new Date(code.used_at), 'd MMM yyyy', { locale: id }) : '-'}</span>
                                             </div>
                                         </div>
