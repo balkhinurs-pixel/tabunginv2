@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -22,7 +23,7 @@ import {
     DialogClose,
   } from '@/components/ui/dialog';
 import type { Student, Transaction } from '@/types';
-import { createClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { parseISO, format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -50,14 +51,14 @@ const ActionButton = ({ icon: Icon, label, variant = 'default', href, onClick }:
     };
     
     const content = (
-        <Button onClick={onClick} className={`w-full justify-start text-left h-12 text-base font-medium ${colorClasses[variant]}`}>
+        <Button onClick={onClick} className={`w-full justify-center text-left h-12 text-base font-medium ${colorClasses[variant]}`}>
             <Icon className="mr-3 h-5 w-5" />
             {label}
         </Button>
     );
 
     if (href) {
-        return <Link href={href}>{content}</Link>;
+        return <Link href={href} className="w-full">{content}</Link>;
     }
 
     return content;
@@ -295,8 +296,10 @@ _Dibuat pada: ${format(new Date(), 'd MMM yyyy, HH:mm')}_
       </div>
 
       <div className="space-y-3 pt-4">
-        <ActionButton icon={PlusCircle} label="Setor Tunai" href={`/profiles/${studentId}/deposit`} />
-        <ActionButton icon={MinusCircle} label="Tarik Tunai" variant="destructive" href={`/profiles/${studentId}/withdrawal`} />
+        <div className="grid grid-cols-2 gap-3">
+            <ActionButton icon={PlusCircle} label="Setor" href={`/profiles/${studentId}/deposit`} />
+            <ActionButton icon={MinusCircle} label="Tarik" variant="destructive" href={`/profiles/${studentId}/withdrawal`} />
+        </div>
         <ActionButton icon={FileText} label="Cetak Laporan" variant="secondary" onClick={handlePrintReport} />
         <ActionButton icon={MessageCircle} label="Kirim WA" variant="ghost" onClick={handleSendWA} />
       </div>
@@ -354,9 +357,3 @@ _Dibuat pada: ${format(new Date(), 'd MMM yyyy, HH:mm')}_
     </div>
   );
 }
-
-    
-
-    
-
-    
