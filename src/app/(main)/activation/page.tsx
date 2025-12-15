@@ -38,6 +38,8 @@ export default function ActivationPage() {
          return;
     }
 
+    // The logic to check the code here first is good for a quick UI response,
+    // but the final authority is the RPC function which does it in a transaction.
     const { data: codeData, error: codeError } = await supabase
         .from('activation_codes')
         .select('*')
@@ -64,21 +66,27 @@ export default function ActivationPage() {
         return;
     }
     
-    // Use a transaction to ensure atomicity
-    const { data: profile, error: activationError } = await supabase.rpc('activate_account', {
+    // Call the RPC function to perform the activation securely.
+    const { error: activationError } = await supabase.rpc('activate_account', {
         p_code: activationCode,
         p_user_id: user.id
     });
 
 
     if (activationError) {
-        toast({ title: 'Aktivasi Gagal', description: activationError.message, variant: 'destructive' });
+        const errorMessage = activationError.message.includes('invalid_or_used_code')
+            ? 'Kode aktivasi tidak valid atau sudah digunakan.'
+            : 'Terjadi kesalahan saat aktivasi. Silakan coba lagi.';
+        toast({ title: 'Aktivasi Gagal', description: errorMessage, variant: 'destructive' });
     } else {
         toast({
             title: 'Aktivasi Berhasil!',
             description: 'Akun Anda telah berhasil diaktivasi ke PRO. Semua fitur telah terbuka.',
         });
+        // We can refresh the router or the whole page to make sure
+        // all components re-evaluate the user's new "PRO" status.
         router.push('/dashboard');
+        router.refresh(); 
     }
 
     setLoading(false);
