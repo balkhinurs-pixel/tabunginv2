@@ -12,16 +12,11 @@ import {
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
 import { AppLogo } from '@/components/AppLogo';
+import { ADMIN_NAV_ITEMS } from '@/app/admin/lib/constants';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { LogOut, LayoutDashboard, Users, Key, ArrowLeft } from 'lucide-react';
+import { LogOut, ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
-
-const ADMIN_NAV_ITEMS = [
-  { href: '/admin/dashboard', title: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/users', title: 'Pengguna', icon: Users },
-  { href: '/admin/codes', title: 'Kode Aktivasi', icon: Key },
-];
 
 export default function AdminSidebar() {
   const pathname = usePathname();

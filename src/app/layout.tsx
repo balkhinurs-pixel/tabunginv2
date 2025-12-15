@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Toaster } from '@/components/ui/toaster';
 import { useIsMobile } from '@/hooks/use-mobile';
 import MobileBottomNav from '@/components/layout/MobileBottomNav';
+import AdminMobileBottomNav from '@/app/admin/components/AdminMobileBottomNav';
 import Header from '@/components/layout/Header';
 import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
 import AppSidebar from '@/components/layout/AppSidebar';
@@ -42,6 +43,7 @@ export default function RootLayout({
   }, []);
 
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup');
+  const isAdminPage = pathname.startsWith('/admin');
 
   if (isAuthPage) {
     return (
@@ -63,7 +65,7 @@ export default function RootLayout({
        <html lang="id" suppressHydrationWarning>
         <body className={`font-sans antialiased ${inter.variable}`}>
           <div className="flex min-h-screen w-full bg-background">
-            <MobileBottomNav />
+            {isAdminPage ? <AdminMobileBottomNav /> : <MobileBottomNav />}
             <div className="w-full pb-24">
               <Header />
               {MainContent}
@@ -73,6 +75,18 @@ export default function RootLayout({
         </body>
       </html>
     );
+  }
+
+  // Admin pages have their own sidebar layout
+  if (isAdminPage) {
+     return (
+        <html lang="id" suppressHydrationWarning>
+          <body className={`font-sans antialiased ${inter.variable}`}>
+            {children}
+            <Toaster />
+          </body>
+        </html>
+     )
   }
 
   return (
