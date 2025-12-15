@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
 import AdminSidebar from './components/AdminSidebar';
 import { Loader2 } from 'lucide-react';
+import type { Profile } from '@/types';
 
 export default function AdminLayout({
   children,
@@ -19,15 +20,24 @@ export default function AdminLayout({
 
   useEffect(() => {
     const checkAdmin = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error || !data.user) {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
         router.push('/login');
         return;
       }
       
-      // Simplified admin check: email ends with @admin.com
-      // In a real app, you'd use custom claims or a roles table.
-      if (!data.user.email?.endsWith('@admin.com')) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !profile || (profile as Profile).role !== 'ADMIN') {
+        toast({
+            title: 'Akses Ditolak',
+            description: 'Anda tidak memiliki hak untuk mengakses halaman ini.',
+            variant: 'destructive',
+        });
         router.push('/dashboard');
       } else {
         setLoading(false);

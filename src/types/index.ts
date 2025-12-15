@@ -29,7 +29,7 @@ export interface Profile {
   id: string;
   email?: string;
   plan: 'TRIAL' | 'PRO';
-  // Add other profile fields if needed
+  role: 'ADMIN' | 'USER';
 }
 
     
