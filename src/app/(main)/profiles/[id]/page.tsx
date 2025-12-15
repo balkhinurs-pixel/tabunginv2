@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -23,7 +22,7 @@ import {
     DialogClose,
   } from '@/components/ui/dialog';
 import type { Student, Transaction } from '@/types';
-import { createClient } from '@/lib/utils/supabase/client';
+import { createClient } from '@/lib/supabase';
 import { parseISO, format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -357,5 +356,3 @@ _Dibuat pada: ${format(new Date(), 'd MMM yyyy, HH:mm')}_
     </div>
   );
 }
-
-    

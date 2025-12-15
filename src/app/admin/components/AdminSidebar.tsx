@@ -15,7 +15,7 @@ import { AppLogo } from '@/components/AppLogo';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { LogOut, LayoutDashboard, Users, Key, ArrowLeft } from 'lucide-react';
-import { createClient } from '@/lib/utils/supabase/client';
+import { createClient } from '@/lib/supabase';
 
 const ADMIN_NAV_ITEMS = [
   { href: '/admin/dashboard', title: 'Dashboard', icon: LayoutDashboard },
@@ -69,5 +69,3 @@ export default function AdminSidebar() {
     </>
   );
 }
-
-    

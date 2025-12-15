@@ -593,5 +593,3 @@ export default function ProfilesPage() {
     </div>
   );
 }
-
-    

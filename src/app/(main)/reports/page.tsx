@@ -26,7 +26,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Student } from '@/types';
-import { createClient } from '@/lib/utils/supabase/client';
+import { createClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 interface ReportRow {
@@ -326,5 +326,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-    

@@ -16,7 +16,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import type { Student } from '@/types';
-import { createClient } from '@/lib/utils/supabase/client';
+import { createClient } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
 
 
@@ -205,5 +205,3 @@ export default function WithdrawPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-    
