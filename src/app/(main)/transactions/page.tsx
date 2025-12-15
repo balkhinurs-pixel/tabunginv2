@@ -7,7 +7,7 @@ import { QrCode, ScanLine } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 
 export default function TransactionsPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -16,6 +16,7 @@ export default function TransactionsPage() {
   const [scanResult, setScanResult] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
+  const supabase = createClient();
 
   useEffect(() => {
     const getCameraPermission = async () => {
@@ -110,7 +111,7 @@ export default function TransactionsPage() {
         }
         findStudent();
     }
-  }, [scanResult, router, toast])
+  }, [scanResult, router, toast, supabase])
 
 
   return (

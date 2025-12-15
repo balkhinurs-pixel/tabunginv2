@@ -22,7 +22,7 @@ import {
     DialogClose,
   } from '@/components/ui/dialog';
 import type { Student, Transaction } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { parseISO, format } from 'date-fns';
 
 const StatCard = ({ title, value, colorClass, loading }: { title: string, value: string, colorClass: string, loading?: boolean }) => (
@@ -62,6 +62,7 @@ const ActionButton = ({ icon: Icon, label, variant = 'default', href }: { icon: 
 
 const DeleteTransactionDialog = ({ transactionId, description, onDelete }: { transactionId: string, description: string, onDelete: (id: string) => void }) => {
     const { toast } = useToast();
+    const supabase = createClient();
 
     const handleDelete = async () => {
         const { error } = await supabase.from('transactions').delete().eq('id', transactionId);
@@ -107,6 +108,7 @@ const DeleteTransactionDialog = ({ transactionId, description, onDelete }: { tra
 export default function StudentProfilePage() {
   const params = useParams();
   const studentId = typeof params.id === 'string' ? params.id : '';
+  const supabase = createClient();
   
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
@@ -141,7 +143,7 @@ export default function StudentProfilePage() {
     };
 
     fetchStudent();
-  }, [studentId, toast]);
+  }, [studentId, toast, supabase]);
 
   const handleDeleteTransaction = (transactionId: string) => {
     if (student) {

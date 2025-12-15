@@ -9,10 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 export default function ActivationPage() {
+  const supabase = createClient();
   const [activationCode, setActivationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();

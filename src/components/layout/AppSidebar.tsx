@@ -16,7 +16,7 @@ import { NAV_ITEMS } from '@/lib/constants';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '../ui/button';
 import { LogOut } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { useState, useEffect } from 'react';
 import type { AuthUser } from '@supabase/supabase-js';
 import Image from 'next/image';
@@ -24,6 +24,7 @@ import Image from 'next/image';
 export default function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const supabase = createClient();
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
@@ -32,11 +33,12 @@ export default function AppSidebar() {
       setUser(data.user);
     };
     fetchUser();
-  }, []);
+  }, [supabase]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
+    router.refresh(); // Ensure the page reloads to reflect logged out state
   };
 
   return (

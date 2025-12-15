@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -22,30 +22,30 @@ interface ActivationCode {
 }
 
 export default function AdminCodesPage() {
+    const supabase = createClient();
     const [codes, setCodes] = useState<ActivationCode[]>([]);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const { toast } = useToast();
 
-    const fetchCodes = async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from('activation_codes')
-            .select('*')
-            .order('created_at', { ascending: false });
-        
-        if (error) {
-            toast({ title: 'Gagal memuat kode', description: error.message, variant: 'destructive' });
-        } else {
-            setCodes(data);
-        }
-        setLoading(false);
-    };
-
     useEffect(() => {
+        const fetchCodes = async () => {
+            setLoading(true);
+            const { data, error } = await supabase
+                .from('activation_codes')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            if (error) {
+                toast({ title: 'Gagal memuat kode', description: error.message, variant: 'destructive' });
+            } else {
+                setCodes(data);
+            }
+            setLoading(false);
+        };
         fetchCodes();
-    }, []);
+    }, [supabase, toast]);
 
     const generateNewCode = async () => {
         setGenerating(true);

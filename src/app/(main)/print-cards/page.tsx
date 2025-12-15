@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import type { Student } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 export default function PrintCardsPage() {
+  const supabase = createClient();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudentId, setSelectedStudentId] = useState<string | undefined>(undefined);
@@ -42,7 +43,7 @@ export default function PrintCardsPage() {
         setLoading(false);
     };
     fetchStudents();
-  }, [toast]);
+  }, [toast, supabase]);
 
   const selectedStudent = students.find(s => s.id === selectedStudentId);
 

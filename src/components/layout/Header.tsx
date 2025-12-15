@@ -14,12 +14,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Bell, User, LogOut, Shield, Settings as SettingsIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import type { AuthUser } from '@supabase/supabase-js';
 
 
 export default function Header() {
+  const supabase = createClient();
   const [user, setUser] = useState<AuthUser | null>(null);
   const router = useRouter();
   
@@ -31,11 +32,12 @@ export default function Header() {
       }
     };
     fetchUser();
-  }, []);
+  }, [supabase]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
+    router.refresh();
   };
 
   const isAdmin = user?.email?.endsWith('@admin.com');

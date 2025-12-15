@@ -26,7 +26,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Student } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 interface ReportRow {
@@ -39,6 +39,7 @@ interface ReportRow {
 }
 
 export default function ReportsPage() {
+    const supabase = createClient();
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -63,8 +64,7 @@ export default function ReportsPage() {
                         amount,
                         created_at
                     )
-                `)
-                .eq('user_id', user.id);
+                `);
 
             // This logic is tricky with RLS and joins. 
             // A simpler approach for filtering transactions by date is to fetch them separately
@@ -100,7 +100,7 @@ export default function ReportsPage() {
         };
 
         fetchStudents();
-    }, [dateRange, toast]);
+    }, [dateRange, toast, supabase]);
 
     const filteredStudents = useMemo(() => {
         if (selectedClass === 'all') {

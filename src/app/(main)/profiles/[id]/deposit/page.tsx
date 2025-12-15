@@ -15,12 +15,13 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
 
 export default function AddDepositPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
+  const supabase = createClient();
   
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [amount, setAmount] = useState('');

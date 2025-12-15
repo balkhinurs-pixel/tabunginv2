@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils';
 import { parseISO, format } from 'date-fns';
 import type { Student, Transaction, Profile } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import type { AuthUser } from '@supabase/supabase-js';
 
 const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href?: string }) => {
@@ -47,6 +47,7 @@ const BackpackIcon = (props: React.SVGProps<SVGSVGElement>) => (
 )
 
 export default function DashboardPage() {
+  const supabase = createClient();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [nis, setNis] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
@@ -60,11 +61,11 @@ export default function DashboardPage() {
     const fetchData = async () => {
       setLoading(true);
 
-      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
-      if (userError || !authUser) {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        // This should not happen if middleware is correct, but as a safeguard.
+        console.error("Dashboard: No user found, though it should be protected.");
         setLoading(false);
-        // Middleware should prevent this, but as a fallback, do nothing.
-        // The middleware will redirect to /login if there's no session.
         return;
       }
       setUser(authUser);
@@ -81,8 +82,7 @@ export default function DashboardPage() {
             type,
             amount
           )
-        `)
-        .eq('user_id', authUser.id);
+        `);
 
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
@@ -93,7 +93,6 @@ export default function DashboardPage() {
             name
           )
         `)
-        .eq('user_id', authUser.id)
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -119,7 +118,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [toast]);
+  }, [toast, supabase]);
 
   const totalBalance = useMemo(() => {
     if (loading || !students) return 0;
@@ -162,7 +161,6 @@ export default function DashboardPage() {
       .from('students')
       .select('id')
       .eq('nis', nis)
-      .eq('user_id', user.id)
       .single();
 
     if (student && !error) {
@@ -291,5 +289,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
 import AdminSidebar from './components/AdminSidebar';
 import { Loader2 } from 'lucide-react';
@@ -15,6 +15,7 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const supabase = createClient();
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -33,7 +34,7 @@ export default function AdminLayout({
       }
     };
     checkAdmin();
-  }, [router]);
+  }, [router, supabase]);
 
   if (loading) {
     return (

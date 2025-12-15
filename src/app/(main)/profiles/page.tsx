@@ -29,12 +29,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { Student, Profile } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import type { AuthUser } from '@supabase/supabase-js';
 
 
 const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; onStudentUpdated: (updatedStudent: Student) => void }) => {
     const { toast } = useToast();
+    const supabase = createClient();
     
     const [nis, setNis] = useState(student?.nis || '');
     const [name, setName] = useState(student?.name || '');
@@ -134,6 +135,7 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
 
 const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { studentId: string; studentName: string; onStudentDeleted: (studentId: string) => void; }) => {
     const { toast } = useToast();
+    const supabase = createClient();
 
     const handleDelete = async () => {
         const { error } = await supabase
@@ -181,6 +183,7 @@ const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { stu
 
 
 export default function ProfilesPage() {
+  const supabase = createClient();
   const [students, setStudents] = useState<Student[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -208,7 +211,6 @@ export default function ProfilesPage() {
         const { data, error } = await supabase
             .from('students')
             .select('*')
-            .eq('user_id', authUser.id)
             .order('name', { ascending: true });
         
         const { data: profileData, error: profileError } = await supabase
@@ -228,7 +230,7 @@ export default function ProfilesPage() {
       setLoading(false);
     };
     fetchInitialData();
-  }, [toast]);
+  }, [toast, supabase]);
 
   const studentQuota = profile?.plan === 'PRO' ? 32 : 5;
 

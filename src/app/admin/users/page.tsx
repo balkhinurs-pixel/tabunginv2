@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ interface AppUser {
 }
 
 export default function AdminUsersPage() {
+    const supabase = createClient();
     const [users, setUsers] = useState<AppUser[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -44,7 +45,7 @@ export default function AdminUsersPage() {
             setLoading(false);
         };
         fetchUsers();
-    }, []);
+    }, [supabase]);
 
     return (
         <div className="space-y-6">
