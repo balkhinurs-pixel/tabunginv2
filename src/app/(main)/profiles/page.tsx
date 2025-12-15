@@ -32,7 +32,7 @@ import type { Student, Profile } from '@/types';
 import { supabase } from '@/lib/supabase';
 import type { AuthUser } from '@supabase/supabase-js';
 
-const AddStudentDialog = ({ onStudentAdded, studentCount, studentQuota }: { onStudentAdded: (newStudent: Student) => void, studentCount: number, studentQuota: number }) => {
+const AddStudentDialog = ({ userId, onStudentAdded, studentCount, studentQuota }: { userId: string; onStudentAdded: (newStudent: Student) => void, studentCount: number, studentQuota: number }) => {
     const { toast } = useToast();
     const [nis, setNis] = useState('');
     const [name, setName] = useState('');
@@ -60,9 +60,8 @@ const AddStudentDialog = ({ onStudentAdded, studentCount, studentQuota }: { onSt
         }
         
         setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
 
-        if (!user) {
+        if (!userId) {
             toast({ title: 'Gagal', description: 'Anda harus masuk untuk menambahkan siswa.', variant: 'destructive' });
             setLoading(false);
             return;
@@ -70,7 +69,7 @@ const AddStudentDialog = ({ onStudentAdded, studentCount, studentQuota }: { onSt
 
         const { data, error } = await supabase
             .from('students')
-            .insert({ nis, name, class: studentClass, user_id: user.id })
+            .insert({ nis, name, class: studentClass, user_id: userId })
             .select()
             .single();
         setLoading(false);
@@ -291,6 +290,7 @@ const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { stu
 export default function ProfilesPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
@@ -303,6 +303,7 @@ export default function ProfilesPage() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
+        setUser(user);
         const { data, error } = await supabase
             .from('students')
             .select('*')
@@ -386,7 +387,7 @@ export default function ProfilesPage() {
     if (!file) return;
 
     const reader = new FileReader();
-    const { data: { user } } = await supabase.auth.getUser();
+    
     if (!user) return;
 
     reader.onload = async (e) => {
@@ -443,7 +444,7 @@ export default function ProfilesPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <AddStudentDialog onStudentAdded={handleAddStudent} studentCount={students.length} studentQuota={studentQuota} />
+        {user && <AddStudentDialog userId={user.id} onStudentAdded={handleAddStudent} studentCount={students.length} studentQuota={studentQuota} />}
         <Button variant="outline" onClick={handleDownloadTemplate}>
             <Download className="mr-2 h-4 w-4" /> Unduh Template
         </Button>
@@ -589,3 +590,4 @@ export default function ProfilesPage() {
     </div>
   );
 }
+
