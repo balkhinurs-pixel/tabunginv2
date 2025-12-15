@@ -30,10 +30,14 @@ export default function AdminLayout({
         return;
       }
       
-      // Access the custom claim directly from the session token
-      const userRole = session.user?.user_metadata?.role;
+      // Fetch the user's profile from the 'profiles' table
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
 
-      if (userRole !== 'ADMIN') {
+      if (profileError || !profile || profile.role !== 'ADMIN') {
         toast({
             title: 'Akses Ditolak',
             description: 'Anda tidak memiliki hak untuk mengakses halaman ini.',

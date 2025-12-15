@@ -28,9 +28,8 @@ export async function login(formData: FormData) {
       .eq('id', signInData.user.id)
       .single();
     
-    revalidatePath('/', 'layout');
-
     if (profile && profile.role === 'ADMIN') {
+        revalidatePath('/', 'layout');
         return redirect('/admin/dashboard');
     }
   }
