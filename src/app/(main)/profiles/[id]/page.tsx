@@ -213,16 +213,33 @@ export default function StudentProfilePage() {
 
         const formatCurrency = (val: number) => val.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
+        const recentTransactions = student.transactions.slice(0, 5);
+        
+        let transactionDetails = '';
+        if (recentTransactions.length > 0) {
+            transactionDetails = `\n*5 Transaksi Terakhir:*\n`;
+            recentTransactions.forEach(tx => {
+                const date = format(parseISO(tx.created_at!), 'dd/MM/yy');
+                const sign = tx.type === 'Pemasukan' ? '+' : '-';
+                transactionDetails += `- (${date}) ${tx.description}: ${sign}${formatCurrency(tx.amount)}\n`;
+            });
+        } else {
+            transactionDetails = '\n_Belum ada transaksi_';
+        }
+
         const message = `
 *Laporan Tabungan Siswa*
-Nama: ${student.name}
+Nama: *${student.name}*
 Kelas: ${student.class}
+${transactionDetails}
 
+*Ringkasan Saldo:*
 Total Pemasukan: ${formatCurrency(income)}
 Total Pengeluaran: ${formatCurrency(expense)}
 *Saldo Akhir: ${formatCurrency(balance)}*
 
 Terima kasih.
+_Dibuat pada: ${format(new Date(), 'd MMM yyyy, HH:mm')}_
         `.trim().replace(/^\s+/gm, '');
         
         // Pastikan nomor WA dalam format internasional tanpa +, -, atau spasi
@@ -337,6 +354,8 @@ Terima kasih.
     </div>
   );
 }
+
+    
 
     
 
