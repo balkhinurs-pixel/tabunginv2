@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { createClient } from '@/lib/supabase';
+import { createClient } from '@/lib/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 
 export default function ActivationPage() {
@@ -126,3 +126,5 @@ export default function ActivationPage() {
     </div>
   );
 }
+
+    

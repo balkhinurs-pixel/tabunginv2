@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase';
+import { createClient } from '@/lib/utils/supabase/client';
 import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
 import AdminSidebar from './components/AdminSidebar';
 import { Loader2 } from 'lucide-react';
@@ -56,3 +56,5 @@ export default function AdminLayout({
     </SidebarProvider>
   );
 }
+
+    

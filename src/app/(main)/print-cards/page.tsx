@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import type { Student } from '@/types';
-import { createClient } from '@/lib/supabase';
+import { createClient } from '@/lib/utils/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export default function PrintCardsPage() {
@@ -118,3 +118,5 @@ export default function PrintCardsPage() {
     </div>
   );
 }
+
+    

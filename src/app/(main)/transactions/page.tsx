@@ -7,7 +7,7 @@ import { QrCode, ScanLine } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { createClient } from '@/lib/supabase';
+import { createClient } from '@/lib/utils/supabase/client';
 
 export default function TransactionsPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -141,3 +141,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
