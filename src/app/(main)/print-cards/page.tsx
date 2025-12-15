@@ -14,6 +14,30 @@ import { createClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 
+// Helper function to fetch image as base64
+const getImageAsBase64 = (url: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.onload = function () {
+            const reader = new FileReader();
+            reader.onloadend = function () {
+                if (typeof reader.result === 'string') {
+                    resolve(reader.result);
+                } else {
+                    reject('Failed to convert blob to base64');
+                }
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(xhr.response);
+        };
+        xhr.onerror = reject;
+        xhr.open('GET', url);
+        xhr.responseType = 'blob';
+        xhr.send();
+    });
+};
+
+
 export default function PrintCardsPage() {
   const supabase = createClient();
   const [students, setStudents] = useState<Student[]>([]);
@@ -49,12 +73,26 @@ export default function PrintCardsPage() {
 
   const selectedStudent = students.find(s => s.id === selectedStudentId);
 
-  const drawCard = (doc: jsPDF, x: number, y: number, student: { nis: string, name: string, class: string }) => {
+  const drawCard = async (doc: jsPDF, x: number, y: number, student: { nis: string, name: string, class: string }) => {
     const cardWidth = 85.6;
     const cardHeight = 53.98;
-    const logoUrl = 'https://picsum.photos/seed/burgerking/40/40';
+    const logoUrl = 'https://picsum.photos/seed/logoschool/200/200';
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${student.nis}`;
-  
+    
+    let logoBase64: string | null = null;
+    let qrBase64: string | null = null;
+
+    try {
+        [logoBase64, qrBase64] = await Promise.all([
+            getImageAsBase64(logoUrl),
+            getImageAsBase64(qrUrl)
+        ]);
+    } catch (error) {
+        console.error("Failed to fetch images for PDF:", error);
+        toast({ title: "Gagal memuat gambar kartu", description: "Periksa koneksi internet Anda.", variant: "destructive" });
+        return; // Stop drawing if images can't be loaded
+    }
+
     // Card border
     doc.setDrawColor(224, 224, 224); // light gray
     doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3);
@@ -68,14 +106,15 @@ export default function PrintCardsPage() {
     doc.setFont('helvetica', 'normal');
     doc.text('ribath5', x + 5, y + 10);
     
-    // Logo (placeholder)
-    // Note: jsPDF cannot directly draw from URL without CORS, we'll use a placeholder
-    doc.setFillColor(209, 213, 219); // gray-300
-    doc.circle(x + cardWidth - 8, y + 8, 4, 'F');
+    // Logo
+    if (logoBase64) {
+        doc.addImage(logoBase64, 'PNG', x + cardWidth - 15, y + 5, 10, 10);
+    }
   
     // QR Code & Student Info
-    doc.setFillColor(209, 213, 219); // gray-300
-    doc.rect(x + 5, y + 15, 20, 20, 'F'); // QR placeholder
+    if (qrBase64) {
+        doc.addImage(qrBase64, 'PNG', x + 5, y + 15, 20, 20);
+    }
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -92,7 +131,7 @@ export default function PrintCardsPage() {
     doc.text('Gunakan kartu ini untuk transaksi & login', x + cardWidth / 2, y + cardHeight - 5, { align: 'center' });
   };
   
-  const handlePrintSingleCard = () => {
+  const handlePrintSingleCard = async () => {
     if (!selectedStudent) return;
     setIsGenerating(true);
   
@@ -102,14 +141,15 @@ export default function PrintCardsPage() {
       format: [85.6, 53.98]
     });
   
-    drawCard(doc, 0, 0, selectedStudent);
+    await drawCard(doc, 0, 0, selectedStudent);
     doc.save(`kartu-${selectedStudent.nis}.pdf`);
     setIsGenerating(false);
   };
 
-  const handlePrintAllCards = () => {
+  const handlePrintAllCards = async () => {
     if (students.length === 0) return;
     setIsGenerating(true);
+    toast({ title: "Membuat PDF...", description: "Ini mungkin memakan waktu beberapa saat." });
 
     const doc = new jsPDF({
         orientation: 'p',
@@ -125,7 +165,8 @@ export default function PrintCardsPage() {
     const cardsPerCol = 5;
     const cardsPerPage = cardsPerRow * cardsPerCol;
 
-    students.forEach((student, index) => {
+    for (let index = 0; index < students.length; index++) {
+        const student = students[index];
         const page = Math.floor(index / cardsPerPage);
         if (index > 0 && index % cardsPerPage === 0) {
             doc.addPage();
@@ -138,8 +179,8 @@ export default function PrintCardsPage() {
         const x = marginX + col * (cardWidth + 10);
         const y = marginY + row * (cardHeight + 5);
 
-        drawCard(doc, x, y, student);
-    });
+        await drawCard(doc, x, y, student);
+    }
 
     doc.save('semua-kartu-tabungan.pdf');
     setIsGenerating(false);
@@ -191,7 +232,7 @@ export default function PrintCardsPage() {
                                 <p className="font-bold text-primary text-sm">KARTU TABUNGAN SISWA</p>
                                 <p className="text-xs text-muted-foreground">ribath5</p>
                             </div>
-                            <Image src="https://picsum.photos/seed/burgerking/40/40" width={40} height={40} alt="Logo Sekolah" className="rounded-full" data-ai-hint="company logo" />
+                            <Image src="https://picsum.photos/seed/logoschool/40/40" width={40} height={40} alt="Logo Sekolah" className="rounded-full" data-ai-hint="company logo" />
                         </div>
 
                         <div className="flex items-center gap-4">
