@@ -2,7 +2,7 @@
 'use server';
 
 import { createServerClient } from '@supabase/ssr';
-import { createClient as createAdminClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Profile, Student } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
@@ -13,24 +13,10 @@ interface ActionResult {
   student?: Student;
 }
 
-// Helper function to get the supabase admin client
-// This MUST be called from a server-side only context where process.env is available
-const getSupabaseAdmin = () => {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        throw new Error('Supabase URL or Service Role Key is not configured in environment variables.');
-    }
-    const supabaseAdmin = createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY,
-        { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-    return supabaseAdmin;
-};
-
 // Helper function to get the user-context supabase client
 const getSupabaseUserClient = () => {
     const cookieStore = cookies();
-    const supabase = createServerClient(
+    return createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
@@ -41,13 +27,14 @@ const getSupabaseUserClient = () => {
           },
         }
       );
-    return supabase;
 }
 
 
-export async function addStudentAction(formData: FormData): Promise<ActionResult> {
+export async function addStudentAction(
+  supabaseAdmin: SupabaseClient,
+  formData: FormData
+): Promise<ActionResult> {
   const supabase = getSupabaseUserClient();
-  const supabaseAdmin = getSupabaseAdmin();
 
   // 1. Get current user and their profile using the user's cookie
   const { data: { user } } = await supabase.auth.getUser();
@@ -143,9 +130,11 @@ export async function addStudentAction(formData: FormData): Promise<ActionResult
 }
 
 
-export async function updateStudentAction(formData: FormData): Promise<ActionResult> {
+export async function updateStudentAction(
+  supabaseAdmin: SupabaseClient,
+  formData: FormData
+): Promise<ActionResult> {
     const supabase = getSupabaseUserClient();
-    const supabaseAdmin = getSupabaseAdmin();
 
     const id = formData.get('id') as string;
     const nis = formData.get('nis') as string;
@@ -167,7 +156,10 @@ export async function updateStudentAction(formData: FormData): Promise<ActionRes
         .single();
 
     if (updateStudentError) {
-        return { success: false, message: `Gagal memperbarui profil siswa: ${updateStudentError.message}` };
+        const errorMessage = updateStudentError.code === '23505' 
+            ? 'NIS ini sudah digunakan oleh siswa lain.'
+            : `Gagal memperbarui profil siswa: ${updateStudentError.message}`;
+        return { success: false, message: errorMessage };
     }
 
     // 2. If a new PIN is provided, update the auth user
@@ -192,12 +184,13 @@ export async function updateStudentAction(formData: FormData): Promise<ActionRes
 }
 
 
-export async function deleteStudentAction(studentId: string): Promise<ActionResult> {
+export async function deleteStudentAction(
+  supabaseAdmin: SupabaseClient,
+  studentId: string
+): Promise<ActionResult> {
     if (!studentId) {
         return { success: false, message: 'ID Siswa tidak ditemukan.' };
     }
-
-    const supabaseAdmin = getSupabaseAdmin();
 
     // The student's row in the public.students table will be deleted automatically 
     // by the CASCADE rule on the foreign key relationship to auth.users.
