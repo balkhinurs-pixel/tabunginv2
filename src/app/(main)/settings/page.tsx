@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import type { Profile } from '@/types';
 import type { AuthUser } from '@supabase/supabase-js';
+import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
   const supabase = createClient();
