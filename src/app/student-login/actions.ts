@@ -34,9 +34,8 @@ export async function studentLogin(formData: FormData) {
 
   if (data.user) {
     revalidatePath('/', 'layout');
-    // Redirect to the student's own profile page.
-    // The user ID from auth should match the student's profile ID.
-    return redirect(`/profiles/${data.user.id}`);
+    // Redirect to the student's own dashboard page.
+    return redirect(`/student-dashboard`);
   }
 
   return redirect('/student-login?message=Terjadi kesalahan yang tidak diketahui.');

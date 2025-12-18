@@ -1,15 +1,10 @@
 
 import Link from 'next/link';
-import { ArrowLeft, PlusCircle, MinusCircle, FileText, MessageCircle } from 'lucide-react';
+import { ArrowLeft, PlusCircle, MinusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent } from '@/components/ui/card';
 import type { Student } from '@/types';
 import { createClient } from '@/lib/utils/supabase/server';
-import { parseISO, format } from 'date-fns';
-import { id } from 'date-fns/locale';
 import PrintReportButton from './_components/PrintReportButton';
 import SendWAButton from './_components/SendWAButton';
 import TransactionList from './_components/TransactionList';
@@ -40,7 +35,7 @@ const ActionButton = ({ icon: Icon, label, variant = 'default', href, onClick }:
     };
     
     const content = (
-        <Button onClick={onClick} variant={variant} className={`w-full justify-center text-left h-12 text-base font-medium ${colorClasses[variant]}`}>
+        <Button onClick={onClick} className={`w-full justify-center text-left h-12 text-base font-medium ${colorClasses[variant]}`}>
             <Icon className="mr-3 h-5 w-5" />
             {label}
         </Button>
@@ -67,8 +62,8 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
 
   if (error || !studentData) {
     return (
-      <div className="text-center">
-        <p className='text-destructive font-semibold'>Siswa tidak ditemukan atau gagal memuat data.</p>
+      <div className="text-center py-10">
+        <p className='text-destructive font-semibold mb-2'>Siswa tidak ditemukan atau gagal memuat data.</p>
         <Button asChild variant="link">
           <Link href="/profiles">Kembali ke Daftar Siswa</Link>
         </Button>
@@ -94,7 +89,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
   );
   
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-6 pb-24">
       <Button variant="ghost" asChild className="pl-0">
         <Link href="/profiles">
           <ArrowLeft className="mr-2 h-4 w-4" />
