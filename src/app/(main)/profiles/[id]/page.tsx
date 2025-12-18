@@ -28,6 +28,10 @@ import { id } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+interface StudentProfilePageProps {
+    params: { id: string };
+}
+
 const StatCard = ({ title, value, colorClass, loading }: { title: string, value: string, colorClass: string, loading?: boolean }) => (
     <Card className={`text-center shadow-md ${colorClass}`}>
         <CardContent className="p-4">
@@ -108,9 +112,8 @@ const DeleteTransactionDialog = ({ transactionId, description, onDelete }: { tra
     );
 }
 
-export default function StudentProfilePage() {
-  const params = useParams();
-  const studentId = typeof params.id === 'string' ? params.id : '';
+export default function StudentProfilePage({ params }: StudentProfilePageProps) {
+  const studentId = params.id;
   const supabase = createClient();
   
   const [student, setStudent] = useState<Student | null>(null);
