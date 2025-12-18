@@ -15,7 +15,7 @@ export function AppLogo({ variant = 'default', className = '' }: AppLogoProps) {
         src="/logo.png"
         alt="Tabungin Logo"
         width={isCompact ? 100 : 150}
-        height={isCompact ? 20 : 30}
+        height={isCompact ? 25 : 30}
         className="object-contain"
         priority // Preload the logo as it's likely important for LCP
       />
