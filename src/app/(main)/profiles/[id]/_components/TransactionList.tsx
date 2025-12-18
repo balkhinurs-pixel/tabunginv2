@@ -70,14 +70,19 @@ const DeleteTransactionDialog = ({ transactionId, description, onDelete }: { tra
 
 interface TransactionListProps {
     initialTransactions: Transaction[];
+    isStudentView?: boolean;
 }
 
-export default function TransactionList({ initialTransactions }: TransactionListProps) {
+export default function TransactionList({ initialTransactions, isStudentView = false }: TransactionListProps) {
     const [transactions, setTransactions] = useState(initialTransactions);
 
     const handleDeleteTransaction = (transactionId: string) => {
         setTransactions(prev => prev.filter(tx => tx.id !== transactionId));
     };
+
+    const tableHeaders = isStudentView
+        ? ['TANGGAL', 'JENIS', 'KETERANGAN', 'JUMLAH']
+        : ['TANGGAL', 'JENIS', 'KETERANGAN', 'JUMLAH', 'AKSI'];
 
     return (
          <Card className="shadow-lg">
@@ -89,17 +94,23 @@ export default function TransactionList({ initialTransactions }: TransactionList
                 <Table className="whitespace-nowrap">
                     <TableHeader>
                         <TableRow>
-                            <TableHead>TANGGAL</TableHead>
-                            <TableHead>JENIS</TableHead>
-                            <TableHead>KETERANGAN</TableHead>
-                            <TableHead className="text-right">JUMLAH</TableHead>
-                            <TableHead className="text-center">AKSI</TableHead>
+                            {tableHeaders.map((header, index) => (
+                                <TableHead 
+                                    key={index}
+                                    className={cn(
+                                        (header === 'JUMLAH' || header === 'AKSI') && 'text-center',
+                                        header === 'JUMLAH' && 'text-right'
+                                    )}
+                                >
+                                    {header}
+                                </TableHead>
+                            ))}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {transactions.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                                <TableCell colSpan={tableHeaders.length} className="text-center text-muted-foreground py-8">
                                     Belum ada transaksi.
                                 </TableCell>
                             </TableRow>
@@ -116,13 +127,15 @@ export default function TransactionList({ initialTransactions }: TransactionList
                                 <TableCell className={cn("text-right font-medium", tx.type === 'Pemasukan' ? 'text-green-600' : 'text-red-600')}>
                                     {tx.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                                 </TableCell>
-                                <TableCell className="text-center">
-                                    <DeleteTransactionDialog 
-                                        transactionId={tx.id}
-                                        description={tx.description}
-                                        onDelete={handleDeleteTransaction}
-                                    />
-                                </TableCell>
+                                {!isStudentView && (
+                                    <TableCell className="text-center">
+                                        <DeleteTransactionDialog 
+                                            transactionId={tx.id}
+                                            description={tx.description}
+                                            onDelete={handleDeleteTransaction}
+                                        />
+                                    </TableCell>
+                                )}
                             </TableRow>
                         ))}
                     </TableBody>

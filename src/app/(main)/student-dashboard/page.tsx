@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useEffect } from 'react';
@@ -47,7 +46,7 @@ export default function StudentDashboardPage() {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="ml-4">Memuat data...</p>
             </div>
         )
@@ -88,7 +87,7 @@ export default function StudentDashboardPage() {
                 <StatCard title="Saldo Akhir" value={balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-blue-100/50 border-blue-200 text-blue-700" />
             </div>
 
-            <TransactionList initialTransactions={student.transactions} />
+            <TransactionList initialTransactions={student.transactions} isStudentView={true} />
         </div>
     );
 }

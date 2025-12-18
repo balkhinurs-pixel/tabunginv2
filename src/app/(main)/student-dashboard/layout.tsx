@@ -22,7 +22,7 @@ export default function StudentDashboardLayout({
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-gray-50">
+    <div className="flex min-h-screen w-full flex-col bg-gray-50 dark:bg-gray-900">
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-lg sm:px-6">
             <AppLogo />
             <Button variant="ghost" size="sm" onClick={handleLogout}>
