@@ -1,8 +1,11 @@
 'use server';
 
-import { createClient } from '@/lib/utils/supabase/server';
+import { createServerClient } from '@supabase/ssr';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import type { Profile, Student } from '@/types';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
+import 'dotenv/config';
 
 interface AddStudentResult {
   success: boolean;
@@ -11,9 +14,20 @@ interface AddStudentResult {
 }
 
 export async function addStudentAction(formData: FormData): Promise<AddStudentResult> {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+      },
+    }
+  );
 
-  // 1. Get current user and their profile
+  // 1. Get current user and their profile using the user's cookie
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return { success: false, message: 'Anda harus masuk untuk menambahkan siswa.' };
@@ -40,7 +54,7 @@ export async function addStudentAction(formData: FormData): Promise<AddStudentRe
   }
 
   const studentQuota = profile.plan === 'PRO' ? 100 : 32;
-  if (studentCount >= studentQuota) {
+  if (studentCount != null && studentCount >= studentQuota) {
     return { success: false, message: `Kuota siswa penuh. Batas untuk akun Anda adalah ${studentQuota} siswa.` };
   }
 
@@ -54,10 +68,17 @@ export async function addStudentAction(formData: FormData): Promise<AddStudentRe
   if (!newNis || !newName || !newStudentClass || !newPin) {
     return { success: false, message: 'Data tidak lengkap. Mohon isi NIS, Nama, Kelas, dan PIN.' };
   }
+  
+  // 4. Create an admin client with the SERVICE_ROLE_KEY for privileged operations
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
 
-  // 4. Create Supabase Auth user (shadow email)
+  // 5. Create Supabase Auth user (shadow email) using the admin client
   const shadowEmail = `${newNis}@${profile.school_code}.supabase.user`;
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: shadowEmail,
     password: newPin,
     email_confirm: true, // Auto-confirm the shadow email
@@ -66,11 +87,15 @@ export async function addStudentAction(formData: FormData): Promise<AddStudentRe
   if (authError) {
     const errorMessage = authError.message.includes('unique')
       ? 'Kombinasi NIS dan Kode Sekolah ini sudah terdaftar.'
-      : authError.message;
-    return { success: false, message: `Gagal membuat akun siswa: ${errorMessage}` };
+      : `Gagal membuat akun siswa: ${authError.message}`;
+    return { success: false, message: errorMessage };
+  }
+  
+  if (!authData.user) {
+    return { success: false, message: 'Gagal membuat pengguna di sistem autentikasi.' };
   }
 
-  // 5. Create student profile in 'students' table
+  // 6. Create student profile in 'students' table using the standard client
   const { data: studentData, error: studentError } = await supabase
     .from('students')
     .insert({
@@ -78,7 +103,7 @@ export async function addStudentAction(formData: FormData): Promise<AddStudentRe
       nis: newNis,
       name: newName,
       class: newStudentClass,
-      user_id: user.id, // The admin user_id
+      user_id: user.id, // The admin/teacher user_id who created the student
       whatsapp_number: newWhatsappNumber,
     })
     .select()
@@ -86,14 +111,14 @@ export async function addStudentAction(formData: FormData): Promise<AddStudentRe
 
   if (studentError) {
     // IMPORTANT: If student insert fails, we must delete the created auth user to avoid orphans
-    await supabase.auth.admin.deleteUser(authData.user.id);
+    await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
     const errorMessage = studentError.code === '23505'
         ? 'NIS ini sudah digunakan. Mohon gunakan NIS yang lain.'
-        : studentError.message;
-    return { success: false, message: `Gagal menambahkan siswa: ${errorMessage}` };
+        : `Gagal menyimpan profil siswa: ${studentError.message}`;
+    return { success: false, message: errorMessage };
   }
 
-  // 6. Success! Revalidate the path and return success
+  // 7. Success! Revalidate the path and return success
   revalidatePath('/profiles');
   return {
     success: true,
