@@ -1,11 +1,13 @@
--- Drop existing policies on students and transactions to redefine them.
+-- Rework RLS policies for students and transactions to be simpler and avoid recursion.
+-- This is the definitive fix for the "infinite recursion" error on the dashboard.
+
+-- Drop all relevant policies first to ensure the script is re-runnable.
 DROP POLICY IF EXISTS "Users can manage their own students." ON public.students;
-DROP POLICY IF EXISTS "Users can view transactions in their own school." ON public.transactions;
-DROP POLICY IF EXISTS "Users can create transactions for students in their school." ON public.transactions;
+DROP POLICY IF EXISTS "Users can manage their own transactions." ON public.transactions;
 
-
--- POLICY: Users can manage students that belong to them.
--- This is the main simplification. Instead of checking school_code, we just check if the student's user_id (the teacher/admin who created them) matches the current user.
+-- === STUDENTS ===
+-- A user can see/edit/delete students that are linked to their own user_id.
+-- This is direct and doesn't require checking other tables in the policy.
 CREATE POLICY "Users can manage their own students."
 ON public.students
 FOR ALL
@@ -13,8 +15,9 @@ USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
 
 
--- POLICY: Users can manage transactions that belong to them.
--- Similarly, a transaction is owned by the user who created it.
+-- === TRANSACTIONS ===
+-- A user can see/edit/delete transactions that are linked to their own user_id.
+-- This is also direct and avoids complex joins in the security layer.
 CREATE POLICY "Users can manage their own transactions."
 ON public.transactions
 FOR ALL
