@@ -94,34 +94,24 @@ const EditStudentDialog = ({ student, schoolCode, onStudentUpdated }: { student:
 
         // Only update auth if PIN is changed from the placeholder
         if (pin && pin !== '******') {
-             const shadowEmail = `${nis}@${schoolCode}.supabase.user`;
-             const { data: { users }, error: getUserError } = await supabase.auth.admin.listUsers({ email: shadowEmail });
-            
-            if (getUserError || users.length === 0) {
+            const { error: updateUserError } = await supabase.auth.admin.updateUserById(
+                student.id, // The student.id is the auth user's ID
+                { password: pin }
+            );
+
+            if (updateUserError) {
                  toast({
-                    title: 'Gagal Menemukan Pengguna Auth',
-                    description: 'Tidak dapat memperbarui PIN siswa. Profil diperbarui.',
+                    title: 'Gagal Memperbarui PIN',
+                    description: `Profil siswa diperbarui, tetapi gagal mereset PIN: ${updateUserError.message}`,
                     variant: 'destructive',
                 });
-            } else {
-                const studentAuthUser = users[0];
-                 const { error: updateUserError } = await supabase.auth.admin.updateUserById(
-                    studentAuthUser.id,
-                    { password: pin }
-                );
-
-                if (updateUserError) {
-                     toast({
-                        title: 'Gagal Memperbarui PIN',
-                        description: updateUserError.message,
-                        variant: 'destructive',
-                    });
-                }
             }
         }
         
         setLoading(false);
-        onStudentUpdated(updatedStudentData as Student);
+        if (updatedStudentData) {
+          onStudentUpdated(updatedStudentData as Student);
+        }
         toast({
             title: 'Siswa Diperbarui',
             description: `Data siswa ${name} berhasil diperbarui.`,
@@ -669,5 +659,3 @@ export default function ProfilesPage() {
     </div>
   );
 }
-
-    
