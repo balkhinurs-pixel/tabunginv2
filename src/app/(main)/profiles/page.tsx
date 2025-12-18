@@ -32,6 +32,7 @@ import type { Student, Profile } from '@/types';
 import { createClient } from '@/lib/supabase';
 import type { AuthUser } from '@supabase/supabase-js';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { addStudentAction } from './actions';
 
 
 const EditStudentDialog = ({ student, schoolCode, onStudentUpdated }: { student: Student; schoolCode: string; onStudentUpdated: (updatedStudent: Student) => void }) => {
@@ -244,14 +245,10 @@ export default function ProfilesPage() {
   const [selectedClass, setSelectedClass] = useState('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const formRef = useRef<HTMLFormElement>(null);
 
   // State for AddStudentDialog
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [newNis, setNewNis] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newStudentClass, setNewStudentClass] = useState('');
-  const [newWhatsappNumber, setNewWhatsappNumber] = useState('');
-  const [newPin, setNewPin] = useState('123456');
   const [addLoading, setAddLoading] = useState(false);
 
 
@@ -288,10 +285,6 @@ export default function ProfilesPage() {
 
   const studentQuota = profile?.plan === 'PRO' ? 100 : 32;
 
-  const handleAddStudent = (newStudent: Student) => {
-    setStudents(prev => [...prev, newStudent].sort((a,b) => a.name.localeCompare(b.name)));
-  };
-
   const handleUpdateStudent = (updatedStudent: Student) => {
     setStudents(prev =>
       prev.map(student =>
@@ -304,96 +297,27 @@ export default function ProfilesPage() {
     setStudents(prev => prev.filter(student => student.id !== studentId));
   };
   
-  const handleAddStudentSubmit = async () => {
-    if (!profile?.school_code) {
-        toast({
-            title: 'Kode Sekolah Belum Diatur',
-            description: 'Mohon atur kode unik sekolah Anda di halaman Pengaturan terlebih dahulu.',
-            variant: 'destructive',
-        });
-        return;
-    }
-    if (students.length >= studentQuota) {
-        toast({
-            title: 'Kuota Siswa Penuh',
-            description: `Anda telah mencapai batas ${studentQuota} siswa untuk akun Anda.`,
-            variant: 'destructive',
-        });
-        return;
-    }
-
-    if (!newNis || !newName || !newStudentClass || !newPin) {
-        toast({
-            title: 'Data Tidak Lengkap',
-            description: 'Mohon isi semua kolom yang wajib diisi (NIS, Nama, Kelas, PIN).',
-            variant: 'destructive',
-        });
-        return;
-    }
-    
-    if (!user) {
-        toast({
-            title: 'Anda harus masuk untuk menambahkan siswa',
-            variant: 'destructive',
-        });
-        return;
-    }
-    
+  const handleAddStudentSubmit = async (formData: FormData) => {
     setAddLoading(true);
-
-    // Create Supabase Auth user first (shadow email)
-    const shadowEmail = `${newNis}@${profile.school_code}.supabase.user`;
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: shadowEmail,
-        password: newPin,
-        email_confirm: true, // Auto-confirm the shadow email
-    });
-
-    if (authError) {
-        setAddLoading(false);
-        toast({
-            title: 'Gagal Membuat Akun Siswa',
-            description: authError.message.includes('unique') ? 'Kombinasi NIS dan Kode Sekolah ini sudah terdaftar.' : authError.message,
-            variant: 'destructive'
-        });
-        return;
-    }
-
-    const { data: studentData, error: studentError } = await supabase
-        .from('students')
-        .insert({ 
-            id: authData.user.id, // Use the auth user ID as the student ID
-            nis: newNis, 
-            name: newName, 
-            class: newStudentClass, 
-            user_id: user.id, // The admin user_id
-            whatsapp_number: newWhatsappNumber 
-        })
-        .select()
-        .single();
-    
+    const result = await addStudentAction(formData);
     setAddLoading(false);
 
-    if (studentError) {
-        // If student insert fails, we should delete the created auth user
-        await supabase.auth.admin.deleteUser(authData.user.id);
-        toast({
-            title: 'Gagal Menambahkan Siswa',
-            description: studentError.code === '23505' ? 'NIS ini sudah digunakan. Mohon gunakan NIS yang lain.' : studentError.message,
-            variant: 'destructive'
-        });
-    } else {
-        handleAddStudent(studentData as Student);
+    if (result.success) {
         toast({
             title: 'Siswa Ditambahkan',
-            description: `Siswa baru dengan nama ${newName} berhasil ditambahkan.`,
+            description: result.message,
         });
-        setNewNis('');
-        setNewName('');
-        setNewStudentClass('');
-        setNewWhatsappNumber('');
-        setNewPin('123456');
+        if (result.student) {
+             setStudents(prev => [...prev, result.student!].sort((a,b) => a.name.localeCompare(b.name)));
+        }
+        formRef.current?.reset();
         setAddDialogOpen(false);
+    } else {
+        toast({
+            title: 'Gagal Menambahkan Siswa',
+            description: result.message,
+            variant: 'destructive',
+        });
     }
   }
 
@@ -502,41 +426,43 @@ export default function ProfilesPage() {
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
+              <form action={handleAddStudentSubmit} ref={formRef}>
                 <DialogHeader>
-                <DialogTitle>Tambah Siswa Baru</DialogTitle>
-                <DialogDescription>Akun login untuk siswa akan dibuat secara otomatis menggunakan kode sekolah Anda.</DialogDescription>
+                  <DialogTitle>Tambah Siswa Baru</DialogTitle>
+                  <DialogDescription>Akun login untuk siswa akan dibuat secara otomatis menggunakan kode sekolah Anda.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
                       <Label htmlFor="nis">NIS (Nomor Induk Siswa)</Label>
-                      <Input id="nis" value={newNis} onChange={(e) => setNewNis(e.target.value)} />
+                      <Input id="nis" name="nis" required />
                   </div>
                   <div className="space-y-2">
                       <Label htmlFor="fullName">Nama Lengkap</Label>
-                      <Input id="fullName" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                      <Input id="fullName" name="name" required />
                   </div>
                    <div className="space-y-2">
                       <Label htmlFor="class">Kelas</Label>
-                      <Input id="class" value={newStudentClass} onChange={(e) => setNewStudentClass(e.target.value)} />
+                      <Input id="class" name="class" required />
                   </div>
                    <div className="space-y-2">
                       <Label htmlFor="whatsapp">Nomor WhatsApp Wali (Opsional)</Label>
-                      <Input id="whatsapp" value={newWhatsappNumber} onChange={(e) => setNewWhatsappNumber(e.target.value)} placeholder="Contoh: 6281234567890" />
+                      <Input id="whatsapp" name="whatsapp_number" placeholder="Contoh: 6281234567890" />
                   </div>
                   <div className="space-y-2">
                       <Label htmlFor="pin">PIN Awal Siswa (untuk Login)</Label>
-                      <Input id="pin" value={newPin} onChange={(e) => setNewPin(e.target.value)} />
+                      <Input id="pin" name="pin" defaultValue="123456" required />
                   </div>
                 </div>
                 <DialogFooter className="grid grid-cols-2 gap-2">
                   <DialogClose asChild>
-                    <Button variant="outline">Batal</Button>
+                    <Button variant="outline" type="button">Batal</Button>
                   </DialogClose>
-                  <Button onClick={handleAddStudentSubmit} disabled={addLoading}>
+                  <Button type="submit" disabled={addLoading}>
                     {addLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Simpan Siswa
                   </Button>
                 </DialogFooter>
+              </form>
             </DialogContent>
         </Dialog>
 
