@@ -4,7 +4,7 @@
 import type { Student } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/utils/supabase/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 interface ActionResult {
   success: boolean;
@@ -16,6 +16,7 @@ export async function addStudentAction(
   formData: FormData
 ): Promise<ActionResult> {
   const supabase = createClient();
+  const supabaseAdmin = getSupabaseAdmin();
 
   // 1. Get current user and their profile using the user's cookie
   const { data: { user } } = await supabase.auth.getUser();
@@ -115,6 +116,7 @@ export async function updateStudentAction(
   formData: FormData
 ): Promise<ActionResult> {
     const supabase = createClient();
+    const supabaseAdmin = getSupabaseAdmin();
 
     const id = formData.get('id') as string;
     const nis = formData.get('nis') as string;
@@ -167,6 +169,8 @@ export async function updateStudentAction(
 export async function deleteStudentAction(
   studentId: string
 ): Promise<ActionResult> {
+    const supabaseAdmin = getSupabaseAdmin();
+
     if (!studentId) {
         return { success: false, message: 'ID Siswa tidak ditemukan.' };
     }
