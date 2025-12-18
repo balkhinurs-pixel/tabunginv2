@@ -21,15 +21,16 @@ export default function StudentDashboardPage() {
     const supabase = createClient();
     const [student, setStudent] = useState<Student | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchStudentData = async () => {
             setLoading(true);
+            setError(null);
             const { data: { user } } = await supabase.auth.getUser();
 
             if (user) {
-                // More specific query
-                const { data, error } = await supabase
+                const { data, error: fetchError } = await supabase
                     .from('students')
                     .select(`
                         id, nis, name, class,
@@ -38,13 +39,19 @@ export default function StudentDashboardPage() {
                     .eq('id', user.id)
                     .single();
                 
-                if (data && !error) {
+                if (fetchError) {
+                    console.error("Error fetching student data:", fetchError);
+                    setError("Gagal memuat data. Ini bisa terjadi jika kebijakan RLS (Row Level Security) di Supabase belum diatur. Silakan periksa konsol untuk detailnya dan hubungi admin.");
+                } else if (data) {
                     const typedStudent = data as Student;
+                    // Pastikan transaksi adalah array sebelum di-sort
                     typedStudent.transactions = (typedStudent.transactions || []).sort((a,b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
                     setStudent(typedStudent);
                 } else {
-                    console.error("Error fetching student data:", error?.message || 'No data returned, RLS might be missing.');
+                    setError("Profil siswa tidak ditemukan.");
                 }
+            } else {
+                setError("Sesi pengguna tidak ditemukan. Silakan login kembali.");
             }
             setLoading(false);
         };
@@ -60,8 +67,8 @@ export default function StudentDashboardPage() {
         )
     }
 
-    if (!student) {
-        return <p className="text-center text-destructive">Gagal memuat data siswa. Silakan coba login kembali.</p>
+    if (error || !student) {
+        return <p className="text-center text-destructive bg-destructive/10 p-4 rounded-md">{error || "Terjadi kesalahan yang tidak diketahui."}</p>
     }
 
     const { income, expense, balance } = (student.transactions || []).reduce(
