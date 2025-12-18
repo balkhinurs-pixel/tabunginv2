@@ -18,7 +18,7 @@ import { SubmitButton } from '@/components/SubmitButton';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Loader2, Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Mail, Lock, ArrowRight, User } from 'lucide-react';
 import { useState } from 'react';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -141,6 +141,15 @@ function LoginContent() {
           Sign up here
         </Link>
       </div>
+
+       <div className="mt-4 text-center text-sm">
+        <Link 
+          href="/student-login" 
+          className="text-primary hover:text-primary/80 font-medium transition-colors hover:underline flex items-center justify-center gap-2"
+        >
+          <User className="h-4 w-4" /> Login sebagai Siswa
+        </Link>
+      </div>
     </>
   );
 }
@@ -163,13 +172,13 @@ export default function LoginPage() {
         <Card className="backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50 shadow-2xl shadow-black/10 dark:shadow-black/50">
           <CardHeader className="text-center pb-6">
             <div className="mb-6 flex justify-center">
-              <AppLogo variant="light" />
+              <AppLogo />
             </div>
             <CardTitle className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
               Welcome Back
             </CardTitle>
             <CardDescription className="text-gray-600 dark:text-gray-400 mt-2">
-              Sign in to your account to continue your financial journey
+              Sign in to your admin account to continue
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
@@ -193,3 +202,5 @@ export default function LoginPage() {
     </main>
   );
 }
+
+    

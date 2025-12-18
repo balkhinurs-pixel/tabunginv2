@@ -1,0 +1,117 @@
+
+'use client';
+
+import Link from 'next/link';
+import { Suspense } from 'react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { AppLogo } from '@/components/AppLogo';
+import { studentLogin } from './actions';
+import { SubmitButton } from '@/components/SubmitButton';
+import { useSearchParams } from 'next/navigation';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, KeyRound, User, ArrowRight } from 'lucide-react';
+
+function StudentLoginContent() {
+  const searchParams = useSearchParams();
+  const errorMessage = searchParams.get('message');
+
+  return (
+    <>
+      <form action={studentLogin} className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="nis">NIS (Nomor Induk Siswa)</Label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input
+              id="nis"
+              name="nis"
+              type="text"
+              placeholder="Masukkan NIS Anda"
+              className="pl-10 h-12"
+              required
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="pin">PIN</Label>
+          <div className="relative">
+            <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input 
+              id="pin" 
+              name="pin" 
+              type="password"
+              placeholder="Masukkan PIN Anda"
+              className="pl-10 h-12"
+              required 
+            />
+          </div>
+        </div>
+
+        {errorMessage && (
+            <Alert variant="destructive">
+                <AlertDescription>
+                  {errorMessage}
+                </AlertDescription>
+            </Alert>
+        )}
+        
+        <SubmitButton className="w-full h-12 bg-primary text-white font-medium group">
+          <span className="flex items-center justify-center gap-2">
+            Masuk
+            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+          </span>
+        </SubmitButton>
+      </form>
+      
+      <div className="mt-6 text-center text-sm">
+        <Link 
+          href="/login" 
+          className="text-primary hover:text-primary/80 font-medium transition-colors hover:underline"
+        >
+          Login sebagai Guru/Admin
+        </Link>
+      </div>
+    </>
+  );
+}
+  
+export default function StudentLoginPage() {
+  return (
+    <main className="min-h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+      <div className="relative z-10 w-full max-w-md">
+        <Card>
+          <CardHeader className="text-center pb-6">
+             <div className="mb-4 flex justify-center">
+              <AppLogo />
+            </div>
+            <CardTitle className="text-2xl font-bold">
+              Login Siswa
+            </CardTitle>
+            <CardDescription className="text-muted-foreground mt-2">
+              Lihat riwayat tabungan dan saldo Anda.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Suspense fallback={
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            }>
+              <StudentLoginContent />
+            </Suspense>
+          </CardContent>
+        </Card>
+      </div>
+    </main>
+  );
+}
+
+    

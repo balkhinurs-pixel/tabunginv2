@@ -24,13 +24,14 @@ import {
   } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2, Save, Loader2 } from 'lucide-react';
+import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2, Save, Loader2, Info } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { Student, Profile } from '@/types';
 import { createClient } from '@/lib/supabase';
 import type { AuthUser } from '@supabase/supabase-js';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 
 const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; onStudentUpdated: (updatedStudent: Student) => void }) => {
@@ -41,15 +42,17 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
     const [name, setName] = useState(student?.name || '');
     const [studentClass, setStudentClass] = useState(student?.class || '');
     const [whatsappNumber, setWhatsappNumber] = useState(student?.whatsapp_number || '');
+    const [pin, setPin] = useState('******'); // Don't show real pin
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (student) {
+        if (student && open) {
             setNis(student.nis);
             setName(student.name);
             setStudentClass(student.class);
             setWhatsappNumber(student.whatsapp_number || '');
+            setPin('******'); // Reset on open
         }
     }, [student, open]);
 
@@ -57,35 +60,72 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
         if (!nis || !name || !studentClass) {
             toast({
                 title: 'Data Tidak Lengkap',
-                description: 'Mohon isi semua kolom yang wajib diisi.',
+                description: 'Mohon isi NIS, Nama, dan Kelas.',
                 variant: 'destructive',
             });
             return;
         }
 
         setLoading(true);
-        const { data, error } = await supabase
+
+        const studentUpdateData = {
+            nis,
+            name,
+            class: studentClass,
+            whatsapp_number: whatsappNumber,
+        };
+
+        const { data: updatedStudentData, error: updateStudentError } = await supabase
           .from('students')
-          .update({ nis, name, class: studentClass, whatsapp_number: whatsappNumber })
+          .update(studentUpdateData)
           .eq('id', student.id)
           .select()
           .single();
-        setLoading(false);
 
-        if (error) {
+        if (updateStudentError) {
+            setLoading(false);
             toast({
                 title: 'Gagal Memperbarui Siswa',
-                description: error.message,
+                description: updateStudentError.message,
                 variant: 'destructive',
             });
-        } else {
-            onStudentUpdated(data as Student);
-            toast({
-                title: 'Siswa Diperbarui',
-                description: `Data siswa ${name} berhasil diperbarui.`,
-            });
-            setOpen(false);
+            return;
         }
+
+        // Only update auth if PIN is changed from the placeholder
+        if (pin && pin !== '******') {
+             const { data: { users }, error: getUserError } = await supabase.auth.admin.listUsers({ email: `${student.nis}@ribath5.supabase.user` });
+            
+            if (getUserError || users.length === 0) {
+                 toast({
+                    title: 'Gagal Menemukan Pengguna Auth',
+                    description: 'Tidak dapat memperbarui PIN siswa. Profil diperbarui.',
+                    variant: 'destructive',
+                });
+            } else {
+                const studentAuthUser = users[0];
+                 const { error: updateUserError } = await supabase.auth.admin.updateUserById(
+                    studentAuthUser.id,
+                    { password: pin }
+                );
+
+                if (updateUserError) {
+                     toast({
+                        title: 'Gagal Memperbarui PIN',
+                        description: updateUserError.message,
+                        variant: 'destructive',
+                    });
+                }
+            }
+        }
+        
+        setLoading(false);
+        onStudentUpdated(updatedStudentData as Student);
+        toast({
+            title: 'Siswa Diperbarui',
+            description: `Data siswa ${name} berhasil diperbarui.`,
+        });
+        setOpen(false);
     }
 
     return (
@@ -118,7 +158,13 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="edit-pin">PIN Siswa (untuk Login)</Label>
-                        <Input id="edit-pin" defaultValue="123456" />
+                        <Input id="edit-pin" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Biarkan untuk tidak mengubah" />
+                         <Alert variant="default" className="mt-2 text-blue-800 bg-blue-50 border-blue-200">
+                           <Info className="h-4 w-4 !text-blue-800" />
+                           <AlertDescription>
+                            Isi hanya jika Anda ingin mereset PIN siswa. Biarkan kosong jika tidak ada perubahan.
+                           </AlertDescription>
+                        </Alert>
                     </div>
                 </div>
                 <DialogFooter className="grid grid-cols-2 gap-2">
@@ -201,6 +247,7 @@ export default function ProfilesPage() {
   const [newName, setNewName] = useState('');
   const [newStudentClass, setNewStudentClass] = useState('');
   const [newWhatsappNumber, setNewWhatsappNumber] = useState('');
+  const [newPin, setNewPin] = useState('123456');
   const [addLoading, setAddLoading] = useState(false);
 
 
@@ -235,7 +282,7 @@ export default function ProfilesPage() {
     fetchInitialData();
   }, [toast, supabase]);
 
-  const studentQuota = profile?.plan === 'PRO' ? 32 : 5;
+  const studentQuota = profile?.plan === 'PRO' ? 100 : 32;
 
   const handleAddStudent = (newStudent: Student) => {
     setStudents(prev => [...prev, newStudent].sort((a,b) => a.name.localeCompare(b.name)));
@@ -263,10 +310,10 @@ export default function ProfilesPage() {
         return;
     }
 
-    if (!newNis || !newName || !newStudentClass) {
+    if (!newNis || !newName || !newStudentClass || !newPin) {
         toast({
             title: 'Data Tidak Lengkap',
-            description: 'Mohon isi semua kolom yang wajib diisi.',
+            description: 'Mohon isi semua kolom yang wajib diisi (NIS, Nama, Kelas, PIN).',
             variant: 'destructive',
         });
         return;
@@ -282,21 +329,49 @@ export default function ProfilesPage() {
     
     setAddLoading(true);
 
-    const { data, error } = await supabase
+    // Create Supabase Auth user first (shadow email)
+    const shadowEmail = `${newNis}@ribath5.supabase.user`;
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: shadowEmail,
+        password: newPin,
+        email_confirm: true, // Auto-confirm the shadow email
+    });
+
+    if (authError) {
+        setAddLoading(false);
+        toast({
+            title: 'Gagal Membuat Akun Siswa',
+            description: authError.message.includes('unique') ? 'NIS ini sudah terdaftar sebagai pengguna.' : authError.message,
+            variant: 'destructive'
+        });
+        return;
+    }
+
+    const { data: studentData, error: studentError } = await supabase
         .from('students')
-        .insert({ nis: newNis, name: newName, class: newStudentClass, user_id: user.id, whatsapp_number: newWhatsappNumber })
+        .insert({ 
+            id: authData.user.id, // Use the auth user ID as the student ID
+            nis: newNis, 
+            name: newName, 
+            class: newStudentClass, 
+            user_id: user.id, // The admin user_id
+            whatsapp_number: newWhatsappNumber 
+        })
         .select()
         .single();
+    
     setAddLoading(false);
 
-    if (error) {
+    if (studentError) {
+        // If student insert fails, we should delete the created auth user
+        await supabase.auth.admin.deleteUser(authData.user.id);
         toast({
             title: 'Gagal Menambahkan Siswa',
-            description: error.code === '23505' ? 'NIS ini sudah digunakan. Mohon gunakan NIS yang lain.' : error.message,
+            description: studentError.code === '23505' ? 'NIS ini sudah digunakan. Mohon gunakan NIS yang lain.' : studentError.message,
             variant: 'destructive'
         });
     } else {
-        handleAddStudent(data as Student);
+        handleAddStudent(studentData as Student);
         toast({
             title: 'Siswa Ditambahkan',
             description: `Siswa baru dengan nama ${newName} berhasil ditambahkan.`,
@@ -305,6 +380,7 @@ export default function ProfilesPage() {
         setNewName('');
         setNewStudentClass('');
         setNewWhatsappNumber('');
+        setNewPin('123456');
         setAddDialogOpen(false);
     }
   }
@@ -413,6 +489,7 @@ export default function ProfilesPage() {
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                 <DialogTitle>Tambah Siswa Baru</DialogTitle>
+                <DialogDescription>Akun login untuk siswa akan dibuat secara otomatis.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
@@ -432,8 +509,8 @@ export default function ProfilesPage() {
                       <Input id="whatsapp" value={newWhatsappNumber} onChange={(e) => setNewWhatsappNumber(e.target.value)} placeholder="Contoh: 6281234567890" />
                   </div>
                   <div className="space-y-2">
-                      <Label htmlFor="pin">PIN Siswa (untuk Login)</Label>
-                      <Input id="pin" defaultValue="123456" />
+                      <Label htmlFor="pin">PIN Awal Siswa (untuk Login)</Label>
+                      <Input id="pin" value={newPin} onChange={(e) => setNewPin(e.target.value)} />
                   </div>
                 </div>
                 <DialogFooter className="grid grid-cols-2 gap-2">
@@ -502,7 +579,7 @@ export default function ProfilesPage() {
                   </div>
                 </div>
                 <h3 className="font-semibold">Aktivasi Akun PRO Anda</h3>
-                <p className="text-muted-foreground text-sm">Buka kuota hingga 32 siswa dan dapatkan akses penuh.</p>
+                <p className="text-muted-foreground text-sm">Buka kuota hingga {studentQuota} siswa dan dapatkan akses penuh.</p>
                 <Button asChild>
                   <Link href="/activation">
                       Aktivasi Sekarang
@@ -547,32 +624,6 @@ export default function ProfilesPage() {
                         <TableCell>{student.class}</TableCell>
                         <TableCell>
                             <div className='flex items-center gap-2'>
-                                <Dialog>
-                                    <DialogTrigger asChild>
-                                        <Button variant="outline" size="icon" className='h-8 w-8 border-blue-500 text-blue-500 hover:bg-blue-50 hover:text-blue-600'>
-                                            <KeyRound className="h-4 w-4" />
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Reset Kata Sandi</DialogTitle>
-                                            <DialogDescription>
-                                                Masukkan kata sandi baru untuk siswa {student.name}.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="grid gap-4 py-4">
-                                            <div className="grid grid-cols-4 items-center gap-4">
-                                                <Label htmlFor="new-password" className="text-right">
-                                                Sandi Baru
-                                                </Label>
-                                                <Input id="new-password" type="password" className="col-span-3" />
-                                            </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button type="submit">Reset Kata Sandi</Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
                                 <EditStudentDialog student={student} onStudentUpdated={handleUpdateStudent} />
                                 <DeleteStudentDialog studentId={student.id} studentName={student.name} onStudentDeleted={handleDeleteStudent} />
                             </div>
@@ -593,3 +644,5 @@ export default function ProfilesPage() {
     </div>
   );
 }
+
+    
