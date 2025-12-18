@@ -14,10 +14,14 @@ interface ActionResult {
 }
 
 // Helper function to get the supabase admin client
+// This MUST be called from a server-side only context where process.env is available
 const getSupabaseAdmin = () => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        throw new Error('Supabase URL or Service Role Key is not configured in environment variables.');
+    }
     const supabaseAdmin = createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
         { auth: { autoRefreshToken: false, persistSession: false } }
     );
     return supabaseAdmin;
@@ -43,6 +47,7 @@ const getSupabaseUserClient = () => {
 
 export async function addStudentAction(formData: FormData): Promise<ActionResult> {
   const supabase = getSupabaseUserClient();
+  const supabaseAdmin = getSupabaseAdmin();
 
   // 1. Get current user and their profile using the user's cookie
   const { data: { user } } = await supabase.auth.getUser();
@@ -86,10 +91,7 @@ export async function addStudentAction(formData: FormData): Promise<ActionResult
     return { success: false, message: 'Data tidak lengkap. Mohon isi NIS, Nama, Kelas, dan PIN.' };
   }
   
-  // 4. Create an admin client for privileged operations
-  const supabaseAdmin = getSupabaseAdmin();
-
-  // 5. Create Supabase Auth user (shadow email) using the admin client
+  // 4. Create Supabase Auth user (shadow email) using the admin client
   const shadowEmail = `${newNis}@${profile.school_code}.supabase.user`;
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: shadowEmail,
@@ -108,7 +110,7 @@ export async function addStudentAction(formData: FormData): Promise<ActionResult
     return { success: false, message: 'Gagal membuat pengguna di sistem autentikasi.' };
   }
 
-  // 6. Create student profile in 'students' table using the standard client
+  // 5. Create student profile in 'students' table using the standard client
   const { data: studentData, error: studentError } = await supabase
     .from('students')
     .insert({
@@ -131,7 +133,7 @@ export async function addStudentAction(formData: FormData): Promise<ActionResult
     return { success: false, message: errorMessage };
   }
 
-  // 7. Success! Revalidate the path and return success
+  // 6. Success! Revalidate the path and return success
   revalidatePath('/profiles');
   return {
     success: true,
@@ -212,5 +214,3 @@ export async function deleteStudentAction(studentId: string): Promise<ActionResu
         message: 'Siswa telah dihapus secara permanen.'
     };
 }
-
-    
