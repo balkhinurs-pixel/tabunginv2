@@ -1,161 +1,131 @@
--- Drop the function if it exists to prevent signature mismatch errors
-DROP FUNCTION IF EXISTS public.activate_account(p_code text, p_user_id uuid);
+-- Drop function if it exists to prevent conflict
+DROP FUNCTION IF EXISTS public.activate_account(text, uuid);
+DROP FUNCTION IF EXISTS public.handle_new_user();
 
--- Drop existing policies if they exist, to prevent "already exists" errors.
--- This makes the script re-runnable.
-DROP POLICY IF EXISTS "Users can manage their own profiles." ON public.profiles;
-DROP POLICY IF EXISTS "Users can manage their own students." ON public.students;
-DROP POLICY IF EXISTS "Users can manage their own transactions." ON public.transactions;
-DROP POLICY IF EXISTS "Users can see activation codes." ON public.activation_codes;
-DROP POLICY IF EXISTS "Admins can do anything." ON public.profiles;
-DROP POLICY IF EXISTS "Admins can do anything." ON public.students;
-DROP POLICY IF EXISTS "Admins can do anything." ON public.transactions;
-DROP POLICY IF EXISTS "Admins can do anything." ON public.activation_codes;
-
-
--- Ensure RLS is enabled on all tables
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.activation_codes ENABLE ROW LEVEL SECURITY;
-
--- 1. PROFILES TABLE
--- Stores user profile data, separate from auth.users.
-CREATE TABLE public.profiles (
-    id uuid NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    email text,
-    plan public.user_plan DEFAULT 'TRIAL'::public.user_plan NOT NULL,
-    role public.user_role DEFAULT 'USER'::public.user_role NOT NULL,
-    school_name text,
-    school_code text
+-- 1. Create profiles table
+create table if not exists public.profiles (
+    id uuid not null,
+    plan text not null default 'TRIAL'::text,
+    role text not null default 'USER'::text,
+    school_name text null,
+    school_code text null,
+    email text null,
+    constraint profiles_pkey primary key (id),
+    constraint profiles_id_fkey foreign key (id) references auth.users (id) on delete cascade,
+    constraint school_code_unique unique (school_code)
 );
+alter table public.profiles enable row level security;
 
--- Add a unique constraint to school_code
-ALTER TABLE public.profiles ADD CONSTRAINT profiles_school_code_key UNIQUE (school_code);
-
--- Create a trigger function to automatically copy the new user's email to the profiles table.
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email)
-  VALUES (new.id, new.email);
-  RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create the trigger that fires after a new user is inserted into auth.users.
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
-
--- 2. STUDENTS TABLE
--- Stores student data, linked to a user (teacher/admin).
-CREATE TABLE public.students (
-    id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-    nis text NOT NULL,
-    name text NOT NULL,
-    class text NOT NULL,
-    whatsapp_number text,
-    created_at timestamptz DEFAULT now(),
-    user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE
+-- 2. Create students table
+create table if not exists public.students (
+    id uuid not null,
+    nis text not null,
+    name text not null,
+    class text not null,
+    whatsapp_number text null,
+    created_at timestamp with time zone not null default now(),
+    user_id uuid not null,
+    constraint students_pkey primary key (id),
+    constraint students_id_fkey foreign key (id) references auth.users (id) on delete cascade,
+    constraint students_user_id_fkey foreign key (user_id) references auth.users (id) on delete cascade,
+    constraint students_nis_user_id_key unique (nis, user_id)
 );
+alter table public.students enable row level security;
 
--- Add a unique constraint on nis per user
-ALTER TABLE public.students ADD CONSTRAINT students_user_id_nis_key UNIQUE (user_id, nis);
-
--- Add indexes for performance
-CREATE INDEX idx_students_user_id ON public.students(user_id);
-CREATE INDEX idx_students_nis ON public.students(nis);
-
-
--- 3. TRANSACTIONS TABLE
--- Stores all financial transactions for each student.
-CREATE TABLE public.transactions (
-    id uuid NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-    created_at timestamptz DEFAULT now(),
-    type public.transaction_type NOT NULL,
-    description text NOT NULL,
-    amount numeric NOT NULL,
-    student_id uuid NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
-    user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE
+-- 3. Create transactions table
+create table if not exists public.transactions (
+    id uuid not null default gen_random_uuid(),
+    created_at timestamp with time zone not null default now(),
+    type text not null,
+    description text not null,
+    amount real not null,
+    student_id uuid not null,
+    user_id uuid not null,
+    constraint transactions_pkey primary key (id),
+    constraint transactions_student_id_fkey foreign key (student_id) references public.students (id) on delete cascade,
+    constraint transactions_user_id_fkey foreign key (user_id) references auth.users (id) on delete cascade
 );
+alter table public.transactions enable row level security;
 
--- Add indexes for performance
-CREATE INDEX idx_transactions_student_id ON public.transactions(student_id);
-CREATE INDEX idx_transactions_user_id ON public.transactions(user_id);
-
-
--- 4. ACTIVATION_CODES TABLE
--- Stores codes for upgrading to PRO plan.
-CREATE TABLE public.activation_codes (
-    id bigint PRIMARY KEY GENERATED BY DEFAULT AS IDENTITY,
-    code text NOT NULL UNIQUE,
-    created_at timestamptz DEFAULT now(),
-    is_used boolean DEFAULT false,
-    used_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
-    used_at timestamptz
+-- 4. Create activation_codes table
+create table if not exists public.activation_codes (
+    id bigint generated by default as identity,
+    created_at timestamp with time zone not null default now(),
+    code text not null,
+    is_used boolean not null default false,
+    used_by uuid null,
+    used_at timestamp with time zone null,
+    constraint activation_codes_pkey primary key (id),
+    constraint activation_codes_code_key unique (code),
+    constraint activation_codes_used_by_fkey foreign key (used_by) references auth.users (id) on delete set null
 );
+alter table public.activation_codes enable row level security;
 
--- Add index for performance
-CREATE INDEX idx_activation_codes_code ON public.activation_codes(code);
-
-
--- ROW LEVEL SECURITY POLICIES --
+-- RLS Policies
 
 -- Profiles
-CREATE POLICY "Users can manage their own profiles." ON public.profiles
-    FOR ALL USING (auth.uid() = id);
+create policy "Users can manage their own profile." on public.profiles for all
+    using (auth.uid() = id);
 
 -- Students
-CREATE POLICY "Users can manage their own students." ON public.students
-    FOR ALL USING (auth.uid() = user_id);
+create policy "Users can manage their own students." on public.students for all
+    using (auth.uid() = user_id);
 
 -- Transactions
-CREATE POLICY "Users can manage their own transactions." ON public.transactions
-    FOR ALL USING (auth.uid() = user_id);
+create policy "Users can manage their own transactions." on public.transactions for all
+    using (auth.uid() = user_id);
 
--- Activation Codes (Allow read for all authenticated users, but restrict write)
-CREATE POLICY "Users can see activation codes." ON public.activation_codes
-    FOR SELECT USING (auth.role() = 'authenticated');
-    
--- Give admin full access to everything
-CREATE POLICY "Admins can do anything." ON public.profiles FOR ALL TO service_role;
-CREATE POLICY "Admins can do anything." ON public.students FOR ALL TO service_role;
-CREATE POLICY "Admins can do anything." ON public.transactions FOR ALL TO service_role;
-CREATE POLICY "Admins can do anything." ON public.activation_codes FOR ALL TO service_role;
+-- Activation Codes
+create policy "Admins can manage activation codes." on public.activation_codes for all
+    using ((select role from public.profiles where id = auth.uid()) = 'ADMIN');
 
 
--- RPC FUNCTION for activation
-CREATE OR REPLACE FUNCTION public.activate_account(p_code text, p_user_id uuid)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
+-- Functions & Triggers (MOVED TO THE END)
+
+-- Function to handle new user and insert into profiles
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, email)
+  values (new.id, new.email);
+  return new;
+end;
+$$;
+
+-- Trigger to call handle_new_user on new user creation
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- Function for account activation
+create or replace function public.activate_account(p_code text, p_user_id uuid)
+returns void
+language plpgsql
+as $$
+declare
   v_code_id bigint;
-BEGIN
-  -- Find the code and lock the row to prevent race conditions
-  SELECT id INTO v_code_id FROM public.activation_codes WHERE code = p_code AND is_used = false FOR UPDATE;
+begin
+  -- Find the code and lock the row
+  select id into v_code_id from public.activation_codes where code = p_code and is_used = false for update;
 
-  -- If the code doesn't exist or is already used, raise an exception.
-  IF v_code_id IS NULL THEN
-    RAISE EXCEPTION 'invalid_or_used_code';
-  END IF;
+  -- If code is not found or already used, raise an exception
+  if v_code_id is null then
+    raise exception 'invalid_or_used_code';
+  end if;
 
   -- Mark the code as used
-  UPDATE public.activation_codes
-  SET 
-    is_used = true,
-    used_by = p_user_id,
-    used_at = now()
-  WHERE id = v_code_id;
+  update public.activation_codes
+  set is_used = true,
+      used_by = p_user_id,
+      used_at = now()
+  where id = v_code_id;
 
-  -- Upgrade the user's plan to PRO
-  UPDATE public.profiles
-  SET plan = 'PRO'
-  WHERE id = p_user_id;
-
-END;
+  -- Update the user's profile to PRO
+  update public.profiles
+  set plan = 'PRO'
+  where id = p_user_id;
+end;
 $$;
