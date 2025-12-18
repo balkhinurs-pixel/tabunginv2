@@ -42,7 +42,7 @@ export default function RootLayout({
     }
   }, []);
 
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup');
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/student-login');
   const isAdminPage = pathname.startsWith('/admin');
 
   if (isAuthPage) {
