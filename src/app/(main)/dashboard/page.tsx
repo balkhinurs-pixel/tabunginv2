@@ -55,8 +55,8 @@ async function DashboardData() {
     { data: transactionsData, error: transactionsError },
     { data: profileData, error: profileError }
   ] = await Promise.all([
-    supabase.from('students').select(`id, nis, name, class, transactions (id, type, amount)`),
-    supabase.from('transactions').select(`*, students (id, name)`).order('created_at', { ascending: false }).limit(5),
+    supabase.from('students').select(`id, nis, name, class, transactions (id, type, amount)`).eq('user_id', user.id),
+    supabase.from('transactions').select(`*, students (id, name)`).eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
     supabase.from('profiles').select('id, email, plan').eq('id', user.id).single()
   ]);
 
@@ -213,3 +213,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
