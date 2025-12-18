@@ -33,16 +33,14 @@ const StatCard = ({ title, value, colorClass, loading }: { title: string, value:
     </Card>
 );
 
-const ActionButton = ({ icon: Icon, label, variant = 'default', href, onClick }: { icon: React.ElementType, label: string, variant?: 'default' | 'destructive' | 'secondary' | 'ghost', href?: string, onClick?: () => void }) => {
+const ActionButton = ({ icon: Icon, label, variant = 'default', href, onClick }: { icon: React.ElementType, label: string, variant?: 'default' | 'destructive', href?: string, onClick?: () => void }) => {
     const colorClasses = {
         default: 'bg-green-500 hover:bg-green-600 text-white',
         destructive: 'bg-red-600 hover:bg-red-700 text-white',
-        secondary: 'bg-white hover:bg-gray-100 text-gray-800 border border-gray-200',
-        ghost: 'bg-green-100 hover:bg-green-200 text-green-700'
     };
     
     const content = (
-        <Button onClick={onClick} className={`w-full justify-center text-left h-12 text-base font-medium ${colorClasses[variant]}`}>
+        <Button onClick={onClick} variant={variant} className={`w-full justify-center text-left h-12 text-base font-medium ${colorClasses[variant]}`}>
             <Icon className="mr-3 h-5 w-5" />
             {label}
         </Button>

@@ -24,6 +24,7 @@ export default async function ProfilesPage() {
         console.error("Error fetching students data for ProfilesPage:", studentsError);
     }
     if (profileError) {
+        // This is not a fatal error, user might not have a profile yet if they just signed up
         console.error("Error fetching profile data for ProfilesPage:", profileError);
     }
 
@@ -31,7 +32,7 @@ export default async function ProfilesPage() {
         <ProfilesClientPage
             initialStudents={studentsData as Student[] || []}
             initialProfile={profileData as Profile | null}
-            initialUser={user as AuthUser | null}
+            initialUser={user}
             addStudentAction={addStudentAction}
             updateStudentAction={updateStudentAction}
             deleteStudentAction={deleteStudentAction}

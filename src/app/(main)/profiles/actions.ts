@@ -107,7 +107,7 @@ export async function addStudentAction(
   return {
     success: true,
     message: `Siswa baru dengan nama ${newName} berhasil ditambahkan.`,
-    student: studentData as Student
+    student: { ...studentData, transactions: [] } // Add empty transactions to match type
   };
 }
 
@@ -161,14 +161,14 @@ export async function updateStudentAction(
     return {
         success: true,
         message: `Data siswa ${name} berhasil diperbarui.`,
-        student: updatedStudentData as Student
+        student: { ...updatedStudentData, transactions: [] }
     };
 }
 
 
 export async function deleteStudentAction(
   studentId: string
-): Promise<ActionResult> {
+): Promise<{success: boolean; message: string;}> {
     const supabaseAdmin = getSupabaseAdmin();
 
     if (!studentId) {
