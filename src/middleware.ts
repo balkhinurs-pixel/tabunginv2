@@ -78,17 +78,18 @@ export async function middleware(request: NextRequest) {
 
     if (isStudent) {
       // Student is logged in
+      const studentProfilePath = `/profiles/${session.user.id}`;
+      // If student is on a login/signup page, redirect to their profile
       if (isAuthPage) {
-        // If student is on a login/signup page, redirect to their profile
-        return NextResponse.redirect(new URL(`/profiles/${session.user.id}`, request.url));
+        return NextResponse.redirect(new URL(studentProfilePath, request.url));
       }
-      // Allow access to their own profile page and its sub-routes
-      if (pathname.startsWith(`/profiles/${session.user.id}`)) {
+      // Allow access to their own profile page and its sub-routes (deposit, withdrawal, etc.)
+      if (pathname.startsWith(studentProfilePath)) {
         return response;
       }
       // For any other page, redirect them back to their own profile.
       // This prevents them from accessing dashboard, other student profiles, etc.
-      return NextResponse.redirect(new URL(`/profiles/${session.user.id}`, request.url));
+      return NextResponse.redirect(new URL(studentProfilePath, request.url));
 
     } else {
         // This is a regular user (admin/teacher), not a student.
