@@ -1,7 +1,7 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { Users, QrCode, FileText, ShieldCheck, Search, ArrowRight, EyeOff } from 'lucide-react';
+import { Users, QrCode, FileText, ShieldCheck, Search, ArrowRight, EyeOff, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { parseISO, format } from 'date-fns';
 import type { Student, Transaction, Profile } from '@/types';
 import { createClient } from '@/lib/utils/supabase/server';
 import SearchStudent from './_components/SearchStudent';
+import { revalidatePath } from 'next/cache';
 
 const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href?: string }) => {
   const content = (
@@ -49,19 +50,36 @@ async function DashboardData() {
     // This should be handled by middleware, but as a safeguard.
     return <p>User not found.</p>;
   }
+  
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, email, plan')
+    .eq('id', user.id)
+    .limit(1)
+    .maybeSingle();
+
+  // This handles the race condition where the user lands on the dashboard
+  // before the on-signup trigger has created their profile.
+  if (!profileData) {
+    revalidatePath('/dashboard', 'layout');
+    return (
+        <div className="flex flex-col items-center justify-center text-center gap-4 py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Memuat data pengguna...</p>
+        </div>
+    );
+  }
 
   const [
     { data: studentsData, error: studentsError },
     { data: transactionsData, error: transactionsError },
-    { data: profileData, error: profileError }
   ] = await Promise.all([
     supabase.from('students').select(`id, nis, name, class, transactions (id, type, amount)`).eq('user_id', user.id),
     supabase.from('transactions').select(`*, students (id, name)`).eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
-    supabase.from('profiles').select('id, email, plan').eq('id', user.id).limit(1).maybeSingle()
   ]);
 
-  if (studentsError || transactionsError || profileError || !profileData) {
-    const errorMessage = studentsError?.message || transactionsError?.message || profileError?.message || 'Profil pengguna tidak ditemukan.';
+  if (studentsError || transactionsError || profileError) {
+    const errorMessage = studentsError?.message || transactionsError?.message || profileError?.message || 'Terjadi kesalahan tidak diketahui.';
     return <p className="text-destructive">Gagal memuat data: {errorMessage}</p>;
   }
 
@@ -214,5 +232,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
