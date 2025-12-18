@@ -13,28 +13,27 @@ interface ActionResult {
   student?: Student;
 }
 
-// Helper function to get the user-context supabase client
-const getSupabaseUserClient = () => {
-    const cookieStore = cookies();
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          cookies: {
-            get(name: string) {
-              return cookieStore.get(name)?.value
-            },
-          },
-        }
-      );
+// Helper to get a user-context Supabase client
+function createSupabaseUserClient() {
+  const cookieStore = cookies();
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+      },
+    }
+  );
 }
-
 
 export async function addStudentAction(
   supabaseAdmin: SupabaseClient,
   formData: FormData
 ): Promise<ActionResult> {
-  const supabase = getSupabaseUserClient();
+  const supabase = createSupabaseUserClient();
 
   // 1. Get current user and their profile using the user's cookie
   const { data: { user } } = await supabase.auth.getUser();
@@ -134,7 +133,7 @@ export async function updateStudentAction(
   supabaseAdmin: SupabaseClient,
   formData: FormData
 ): Promise<ActionResult> {
-    const supabase = getSupabaseUserClient();
+    const supabase = createSupabaseUserClient();
 
     const id = formData.get('id') as string;
     const nis = formData.get('nis') as string;
