@@ -1,26 +1,14 @@
 
-import { createServerClient } from '@supabase/ssr';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 import type { Student, Profile } from '@/types';
 import { addStudentAction, updateStudentAction, deleteStudentAction } from './actions';
 import ProfilesClientPage from './ProfilesClientPage';
 import type { AuthUser } from '@supabase/supabase-js';
+import { createClient } from '@/lib/utils/supabase/server';
 
 // This is now a Server Component
 export default async function ProfilesPage() {
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          cookies: {
-            get(name: string) {
-              return cookieStore.get(name)?.value
-            },
-          },
-        }
-    );
+    const supabase = createClient();
 
     // Fetch initial data on the server
     const { data: { user } } = await supabase.auth.getUser();
@@ -33,9 +21,11 @@ export default async function ProfilesPage() {
         user ? supabase.from('profiles').select('*').eq('id', user.id).single() : Promise.resolve({ data: null, error: null })
     ]);
 
-    if (studentsError || profileError) {
-        console.error("Error fetching initial data for ProfilesPage:", studentsError || profileError);
-        // We can pass the error to the client component to display it
+    if (studentsError) {
+        console.error("Error fetching students data for ProfilesPage:", studentsError);
+    }
+    if (profileError) {
+        console.error("Error fetching profile data for ProfilesPage:", profileError);
     }
 
     // Safely create the admin client on the server
