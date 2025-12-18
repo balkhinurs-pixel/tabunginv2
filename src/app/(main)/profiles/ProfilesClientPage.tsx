@@ -32,6 +32,7 @@ import type { Student, Profile } from '@/types';
 import type { AuthUser } from '@supabase/supabase-js';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
+// These types define the shape of the Server Actions that will be passed as props.
 type BoundAddStudentAction = (formData: FormData) => Promise<{success: boolean; message: string; student?: Student;}>;
 type BoundUpdateStudentAction = (formData: FormData) => Promise<{success: boolean; message: string; student?: Student;}>;
 type BoundDeleteStudentAction = (studentId: string) => Promise<{success: boolean; message: string;}>;

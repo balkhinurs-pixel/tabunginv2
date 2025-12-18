@@ -5,7 +5,7 @@ import ProfilesClientPage from './ProfilesClientPage';
 import type { AuthUser } from '@supabase/supabase-js';
 import { createClient } from '@/lib/utils/supabase/server';
 
-// This is now a Server Component
+// This is now a pure Server Component
 export default async function ProfilesPage() {
     const supabase = createClient();
 
@@ -25,7 +25,7 @@ export default async function ProfilesPage() {
     }
     if (profileError) {
         // This is not a fatal error, user might not have a profile yet if they just signed up
-        console.error("Error fetching profile data for ProfilesPage:", profileError);
+        console.warn("Could not fetch profile for ProfilesPage:", profileError.message);
     }
 
     return (
