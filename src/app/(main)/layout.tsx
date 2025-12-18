@@ -3,6 +3,7 @@
 
 import Header from '@/components/layout/Header';
 import AppSidebar from '@/components/layout/AppSidebar';
+import MobileBottomNav from '@/components/layout/MobileBottomNav';
 import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
 
 export default function MainLayout({
@@ -10,19 +11,33 @@ export default function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-
-  // This layout is now simplified to correctly wrap the main app content
-  // with the appropriate sidebar for desktop and let the root layout handle mobile.
+  const MainContent = (
+    <main className="p-4 sm:p-6 lg:p-8 pb-24 sm:pb-6">{children}</main>
+  );
 
   return (
-    <SidebarProvider>
-      <Sidebar>
-        <AppSidebar />
-      </Sidebar>
-      <SidebarInset>
-        <Header />
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
-      </SidebarInset>
-    </SidebarProvider>
+    <>
+      {/* Mobile View with bottom nav */}
+      <div className="sm:hidden">
+        <div className="flex min-h-screen w-full flex-col">
+          <Header />
+          {MainContent}
+          <MobileBottomNav />
+        </div>
+      </div>
+
+      {/* Desktop View with sidebar */}
+      <div className="hidden sm:block">
+        <SidebarProvider>
+          <Sidebar>
+            <AppSidebar />
+          </Sidebar>
+          <SidebarInset>
+            <Header />
+            {MainContent}
+          </SidebarInset>
+        </SidebarProvider>
+      </div>
+    </>
   );
 }
