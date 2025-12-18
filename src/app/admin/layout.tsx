@@ -7,8 +7,9 @@ import { createClient } from '@/lib/supabase';
 import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
 import AdminSidebar from './components/AdminSidebar';
 import { Loader2 } from 'lucide-react';
-import type { Profile } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import AdminMobileBottomNav from './components/AdminMobileBottomNav';
+import Header from '@/components/layout/Header';
 
 
 export default function AdminLayout({
@@ -60,14 +61,33 @@ export default function AdminLayout({
     );
   }
 
+  const MainContent = (
+    <main className="p-4 sm:p-6 lg:p-8 pb-24 sm:pb-6">{children}</main>
+  );
+
   return (
-    <SidebarProvider>
-      <Sidebar>
-        <AdminSidebar />
-      </Sidebar>
-      <SidebarInset>
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
-      </SidebarInset>
-    </SidebarProvider>
+    <>
+      {/* Mobile View with bottom nav */}
+      <div className="sm:hidden">
+        <div className="flex min-h-screen w-full flex-col">
+          <Header />
+          {MainContent}
+          <AdminMobileBottomNav />
+        </div>
+      </div>
+
+      {/* Desktop View with sidebar */}
+      <div className="hidden sm:block">
+        <SidebarProvider>
+          <Sidebar>
+            <AdminSidebar />
+          </Sidebar>
+          <SidebarInset>
+            <Header />
+            {MainContent}
+          </SidebarInset>
+        </SidebarProvider>
+      </div>
+    </>
   );
 }
