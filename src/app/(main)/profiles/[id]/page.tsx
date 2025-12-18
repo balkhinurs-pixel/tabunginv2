@@ -64,6 +64,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
     .from('students')
     .select('*, transactions (*)')
     .eq('id', studentId)
+    .limit(1)
     .single();
 
   if (error || !studentData) {

@@ -50,7 +50,10 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
 
         const { data, error } = await supabase
             .from('students')
-            .select(`*, transactions(*)`).eq('id', studentId).single();
+            .select(`*, transactions(*)`)
+            .eq('id', studentId)
+            .limit(1)
+            .single();
         
         if (error) {
             toast({ title: 'Siswa tidak ditemukan', variant: 'destructive' });
