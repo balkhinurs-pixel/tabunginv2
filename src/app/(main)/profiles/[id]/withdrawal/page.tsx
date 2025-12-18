@@ -19,7 +19,13 @@ import type { Student } from '@/types';
 import { createClient } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
 
-export default function WithdrawPage({ params }: { params: { id: string } }) {
+interface WithdrawPageProps {
+    params: {
+        id: string;
+    };
+}
+
+export default function WithdrawPage({ params }: WithdrawPageProps) {
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();

@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -27,6 +26,12 @@ import { parseISO, format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+interface StudentProfilePageProps {
+    params: {
+        id: string;
+    };
+}
 
 const StatCard = ({ title, value, colorClass, loading }: { title: string, value: string, colorClass: string, loading?: boolean }) => (
     <Card className={`text-center shadow-md ${colorClass}`}>
@@ -108,7 +113,7 @@ const DeleteTransactionDialog = ({ transactionId, description, onDelete }: { tra
     );
 }
 
-export default function StudentProfilePage({ params }: { params: { id: string } }) {
+export default function StudentProfilePage({ params }: StudentProfilePageProps) {
   const studentId = params.id;
   const supabase = createClient();
   
@@ -216,14 +221,18 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
         
         let transactionDetails = '';
         if (recentTransactions.length > 0) {
-            transactionDetails = `\n*5 Transaksi Terakhir:*\n`;
+            transactionDetails = `
+*5 Transaksi Terakhir:*
+`;
             recentTransactions.forEach(tx => {
                 const date = format(parseISO(tx.created_at!), 'dd/MM/yy');
                 const sign = tx.type === 'Pemasukan' ? '+' : '-';
-                transactionDetails += `- (${date}) ${tx.description}: ${sign}${formatCurrency(tx.amount)}\n`;
+                transactionDetails += `- (${date}) ${tx.description}: ${sign}${formatCurrency(tx.amount)}
+`;
             });
         } else {
-            transactionDetails = '\n_Belum ada transaksi_';
+            transactionDetails = `
+_Belum ada transaksi_`;
         }
 
         const message = `
