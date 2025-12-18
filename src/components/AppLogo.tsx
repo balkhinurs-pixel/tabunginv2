@@ -1,4 +1,4 @@
-import { Landmark } from 'lucide-react';
+import Image from 'next/image';
 
 interface AppLogoProps {
   variant?: 'default' | 'light' | 'compact';
@@ -6,23 +6,19 @@ interface AppLogoProps {
 }
 
 export function AppLogo({ variant = 'default', className = '' }: AppLogoProps) {
-  const isLight = variant === 'light';
   const isCompact = variant === 'compact';
-  
+
+  // The user will place a logo.png in the /public folder.
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <Landmark className={`${
-        isCompact ? 'h-5 w-5' : 'h-6 w-6'
-      } ${
-        isLight ? 'text-white' : 'text-primary'
-      }`} />
-      <h1 className={`${
-        isCompact ? 'text-lg' : 'text-xl'
-      } font-bold ${
-        isLight ? 'text-white' : 'text-foreground'
-      }`}>
-        Tabungin
-      </h1>
+      <Image
+        src="/logo.png"
+        alt="Tabungin Logo"
+        width={isCompact ? 100 : 150}
+        height={isCompact ? 20 : 30}
+        className="object-contain"
+        priority // Preload the logo as it's likely important for LCP
+      />
     </div>
   );
 }
