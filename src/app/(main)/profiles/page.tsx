@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
@@ -32,20 +31,20 @@ import type { Student, Profile } from '@/types';
 import { createClient } from '@/lib/supabase';
 import type { AuthUser } from '@supabase/supabase-js';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { addStudentAction } from './actions';
+import { addStudentAction, updateStudentAction, deleteStudentAction } from './actions';
 
 
-const EditStudentDialog = ({ student, schoolCode, onStudentUpdated }: { student: Student; schoolCode: string; onStudentUpdated: (updatedStudent: Student) => void }) => {
+const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; onStudentUpdated: (updatedStudent: Student) => void }) => {
     const { toast } = useToast();
-    const supabase = createClient();
     
     const [nis, setNis] = useState(student?.nis || '');
     const [name, setName] = useState(student?.name || '');
     const [studentClass, setStudentClass] = useState(student?.class || '');
     const [whatsappNumber, setWhatsappNumber] = useState(student?.whatsapp_number || '');
-    const [pin, setPin] = useState('******'); // Don't show real pin
+    const [pin, setPin] = useState(''); // Empty string for placeholder
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const formRef = useRef<HTMLFormElement>(null);
 
     useEffect(() => {
         if (student && open) {
@@ -53,71 +52,31 @@ const EditStudentDialog = ({ student, schoolCode, onStudentUpdated }: { student:
             setName(student.name);
             setStudentClass(student.class);
             setWhatsappNumber(student.whatsapp_number || '');
-            setPin('******'); // Reset on open
+            setPin(''); // Reset pin field on open
         }
     }, [student, open]);
 
-    const handleSubmit = async () => {
-        if (!nis || !name || !studentClass) {
-            toast({
-                title: 'Data Tidak Lengkap',
-                description: 'Mohon isi NIS, Nama, dan Kelas.',
-                variant: 'destructive',
-            });
-            return;
-        }
-
+    const handleSubmit = async (formData: FormData) => {
         setLoading(true);
 
-        const studentUpdateData = {
-            nis,
-            name,
-            class: studentClass,
-            whatsapp_number: whatsappNumber,
-        };
+        const result = await updateStudentAction(formData);
 
-        const { data: updatedStudentData, error: updateStudentError } = await supabase
-          .from('students')
-          .update(studentUpdateData)
-          .eq('id', student.id)
-          .select()
-          .single();
+        setLoading(false);
 
-        if (updateStudentError) {
-            setLoading(false);
+        if (result.success && result.student) {
+            onStudentUpdated(result.student);
             toast({
+                title: 'Siswa Diperbarui',
+                description: result.message,
+            });
+            setOpen(false);
+        } else {
+             toast({
                 title: 'Gagal Memperbarui Siswa',
-                description: updateStudentError.message,
+                description: result.message,
                 variant: 'destructive',
             });
-            return;
         }
-
-        // Only update auth if PIN is changed from the placeholder
-        if (pin && pin !== '******') {
-            const { error: updateUserError } = await supabase.auth.admin.updateUserById(
-                student.id, // The student.id is the auth user's ID
-                { password: pin }
-            );
-
-            if (updateUserError) {
-                 toast({
-                    title: 'Gagal Memperbarui PIN',
-                    description: `Profil siswa diperbarui, tetapi gagal mereset PIN: ${updateUserError.message}`,
-                    variant: 'destructive',
-                });
-            }
-        }
-        
-        setLoading(false);
-        if (updatedStudentData) {
-          onStudentUpdated(updatedStudentData as Student);
-        }
-        toast({
-            title: 'Siswa Diperbarui',
-            description: `Data siswa ${name} berhasil diperbarui.`,
-        });
-        setOpen(false);
     }
 
     return (
@@ -128,29 +87,31 @@ const EditStudentDialog = ({ student, schoolCode, onStudentUpdated }: { student:
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
+              <form action={handleSubmit} ref={formRef}>
                 <DialogHeader>
                     <DialogTitle>Ubah Profil Siswa</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
+                    <input type="hidden" name="id" value={student.id} />
                     <div className="space-y-2">
                         <Label htmlFor="edit-nis">NIS (Nomor Induk Siswa)</Label>
-                        <Input id="edit-nis" value={nis} onChange={(e) => setNis(e.target.value)} />
+                        <Input id="edit-nis" name="nis" value={nis} onChange={(e) => setNis(e.target.value)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="edit-fullName">Nama Lengkap</Label>
-                        <Input id="edit-fullName" value={name} onChange={(e) => setName(e.target.value)} />
+                        <Input id="edit-fullName" name="name" value={name} onChange={(e) => setName(e.target.value)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="edit-class">Kelas</Label>
-                        <Input id="edit-class" value={studentClass} onChange={(e) => setStudentClass(e.target.value)} />
+                        <Input id="edit-class" name="class" value={studentClass} onChange={(e) => setStudentClass(e.target.value)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="edit-whatsapp">Nomor WhatsApp Wali (Opsional)</Label>
-                        <Input id="edit-whatsapp" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="Contoh: 6281234567890" />
+                        <Input id="edit-whatsapp" name="whatsapp_number" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="Contoh: 6281234567890" />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="edit-pin">PIN Siswa (untuk Login)</Label>
-                        <Input id="edit-pin" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Biarkan untuk tidak mengubah" />
+                        <Input id="edit-pin" name="pin" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Biarkan untuk tidak mengubah" />
                          <Alert variant="default" className="mt-2 text-blue-800 bg-blue-50 border-blue-200">
                            <Info className="h-4 w-4 !text-blue-800" />
                            <AlertDescription>
@@ -161,13 +122,14 @@ const EditStudentDialog = ({ student, schoolCode, onStudentUpdated }: { student:
                 </div>
                 <DialogFooter className="grid grid-cols-2 gap-2">
                     <DialogClose asChild>
-                        <Button variant="outline">Batal</Button>
+                        <Button variant="outline" type="button">Batal</Button>
                     </DialogClose>
-                    <Button onClick={handleSubmit} disabled={loading}>
+                    <Button type="submit" disabled={loading}>
                         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                         Simpan Perubahan
                     </Button>
                 </DialogFooter>
+              </form>
             </DialogContent>
         </Dialog>
     )
@@ -175,44 +137,32 @@ const EditStudentDialog = ({ student, schoolCode, onStudentUpdated }: { student:
 
 const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { studentId: string; studentName: string; onStudentDeleted: (studentId: string) => void; }) => {
     const { toast } = useToast();
-    const supabase = createClient();
+    const [loading, setLoading] = useState(false);
+    const [open, setOpen] = useState(false);
 
     const handleDelete = async () => {
-        // First, delete the Supabase Auth user
-        const { error: authError } = await supabase.auth.admin.deleteUser(studentId);
-        if (authError) {
-            toast({
-                title: 'Gagal Menghapus Akun Auth Siswa',
-                description: authError.message,
-                variant: 'destructive'
-            });
-            // Stop if we can't delete the auth user, to avoid orphaned data.
-            return;
-        }
+        setLoading(true);
+        const result = await deleteStudentAction(studentId);
+        setLoading(false);
 
-        // If auth user is deleted, proceed to delete the student profile and related transactions (handled by cascade)
-        const { error } = await supabase
-          .from('students')
-          .delete()
-          .eq('id', studentId);
-
-        if (error) {
-             toast({
-                title: 'Gagal Menghapus Siswa',
-                description: error.message,
-                variant: 'destructive',
-            });
-        } else {
+        if (result.success) {
             onStudentDeleted(studentId);
             toast({
                 title: 'Siswa Dihapus',
-                description: `Data siswa ${studentName} dan akun login terkait telah dihapus.`,
+                description: result.message,
+            });
+            setOpen(false);
+        } else {
+            toast({
+                title: 'Gagal Menghapus Siswa',
+                description: result.message,
+                variant: 'destructive'
             });
         }
     }
 
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline" size="icon" className='h-8 w-8 border-destructive text-destructive hover:bg-destructive/10'>
                     <Trash2 className="h-4 w-4" />
@@ -226,8 +176,11 @@ const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { stu
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                    <DialogClose asChild><Button variant="ghost">Batal</Button></DialogClose>
-                    <Button variant="destructive" onClick={handleDelete}>Ya, Hapus Secara Permanen</Button>
+                    <DialogClose asChild><Button variant="ghost" disabled={loading}>Batal</Button></DialogClose>
+                    <Button variant="destructive" onClick={handleDelete} disabled={loading}>
+                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Ya, Hapus Secara Permanen
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -565,7 +518,7 @@ export default function ProfilesPage() {
                         <TableCell>{student.class}</TableCell>
                         <TableCell>
                             <div className='flex items-center gap-2'>
-                                <EditStudentDialog student={student} schoolCode={profile?.school_code || ''} onStudentUpdated={handleUpdateStudent} />
+                                <EditStudentDialog student={student} onStudentUpdated={handleUpdateStudent} />
                                 <DeleteStudentDialog studentId={student.id} studentName={student.name} onStudentDeleted={handleDeleteStudent} />
                             </div>
                         </TableCell>
@@ -585,3 +538,5 @@ export default function ProfilesPage() {
     </div>
   );
 }
+
+    

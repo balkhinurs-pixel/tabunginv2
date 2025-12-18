@@ -6,25 +6,42 @@ import type { Profile, Student } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
-interface AddStudentResult {
+interface ActionResult {
   success: boolean;
   message: string;
   student?: Student;
 }
 
-export async function addStudentAction(formData: FormData): Promise<AddStudentResult> {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
-  );
+// Helper function to get the supabase admin client
+const getSupabaseAdmin = () => {
+    const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    return supabaseAdmin;
+};
+
+// Helper function to get the user-context supabase client
+const getSupabaseUserClient = () => {
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            get(name: string) {
+              return cookieStore.get(name)?.value
+            },
+          },
+        }
+      );
+    return supabase;
+}
+
+
+export async function addStudentAction(formData: FormData): Promise<ActionResult> {
+  const supabase = getSupabaseUserClient();
 
   // 1. Get current user and their profile using the user's cookie
   const { data: { user } } = await supabase.auth.getUser();
@@ -68,12 +85,8 @@ export async function addStudentAction(formData: FormData): Promise<AddStudentRe
     return { success: false, message: 'Data tidak lengkap. Mohon isi NIS, Nama, Kelas, dan PIN.' };
   }
   
-  // 4. Create an admin client with the SERVICE_ROLE_KEY for privileged operations
-  const supabaseAdmin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  // 4. Create an admin client for privileged operations
+  const supabaseAdmin = getSupabaseAdmin();
 
   // 5. Create Supabase Auth user (shadow email) using the admin client
   const shadowEmail = `${newNis}@${profile.school_code}.supabase.user`;
@@ -125,3 +138,78 @@ export async function addStudentAction(formData: FormData): Promise<AddStudentRe
     student: studentData as Student
   };
 }
+
+
+export async function updateStudentAction(formData: FormData): Promise<ActionResult> {
+    const supabase = getSupabaseUserClient();
+    const supabaseAdmin = getSupabaseAdmin();
+
+    const id = formData.get('id') as string;
+    const nis = formData.get('nis') as string;
+    const name = formData.get('name') as string;
+    const studentClass = formData.get('class') as string;
+    const whatsapp_number = formData.get('whatsapp_number') as string | null;
+    const pin = formData.get('pin') as string;
+
+    if (!id || !nis || !name || !studentClass) {
+        return { success: false, message: 'Data tidak lengkap. Mohon isi NIS, Nama, dan Kelas.' };
+    }
+
+    // 1. Update the public student profile
+    const { data: updatedStudentData, error: updateStudentError } = await supabase
+        .from('students')
+        .update({ nis, name, class: studentClass, whatsapp_number })
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (updateStudentError) {
+        return { success: false, message: `Gagal memperbarui profil siswa: ${updateStudentError.message}` };
+    }
+
+    // 2. If a new PIN is provided, update the auth user
+    if (pin) {
+        const { error: updateUserError } = await supabaseAdmin.auth.admin.updateUserById(
+            id, { password: pin }
+        );
+
+        if (updateUserError) {
+            return { success: false, message: `Profil siswa diperbarui, tetapi gagal mereset PIN: ${updateUserError.message}` };
+        }
+    }
+
+    // 3. Success
+    revalidatePath('/profiles');
+    revalidatePath(`/profiles/${id}`);
+    return {
+        success: true,
+        message: `Data siswa ${name} berhasil diperbarui.`,
+        student: updatedStudentData as Student
+    };
+}
+
+
+export async function deleteStudentAction(studentId: string): Promise<ActionResult> {
+    if (!studentId) {
+        return { success: false, message: 'ID Siswa tidak ditemukan.' };
+    }
+
+    const supabaseAdmin = getSupabaseAdmin();
+
+    // The student's row in the public.students table will be deleted automatically 
+    // by the CASCADE rule on the foreign key relationship to auth.users.
+    // So we only need to delete the auth user.
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(studentId);
+
+    if (authError) {
+        return { success: false, message: `Gagal menghapus akun siswa: ${authError.message}` };
+    }
+    
+    revalidatePath('/profiles');
+    return {
+        success: true,
+        message: 'Siswa telah dihapus secara permanen.'
+    };
+}
+
+    
