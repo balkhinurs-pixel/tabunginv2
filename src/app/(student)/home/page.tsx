@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
-import type { Student } from '@/types';
+import type { Student, Transaction } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import TransactionList from '@/app/(main)/profiles/[id]/_components/TransactionList';
@@ -28,17 +28,22 @@ export default function StudentDashboardPage() {
             const { data: { user } } = await supabase.auth.getUser();
 
             if (user) {
+                // More specific query
                 const { data, error } = await supabase
                     .from('students')
-                    .select('*, transactions(*)')
+                    .select(`
+                        id, nis, name, class,
+                        transactions ( id, created_at, type, description, amount )
+                    `)
                     .eq('id', user.id)
                     .single();
                 
                 if (data && !error) {
-                    data.transactions = data.transactions.sort((a,b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
-                    setStudent(data as Student);
-                } else if (error) {
-                    console.error("Error fetching student data:", error);
+                    const typedStudent = data as Student;
+                    typedStudent.transactions = (typedStudent.transactions || []).sort((a,b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
+                    setStudent(typedStudent);
+                } else {
+                    console.error("Error fetching student data:", error?.message || 'No data returned, RLS might be missing.');
                 }
             }
             setLoading(false);
@@ -59,7 +64,7 @@ export default function StudentDashboardPage() {
         return <p className="text-center text-destructive">Gagal memuat data siswa. Silakan coba login kembali.</p>
     }
 
-    const { income, expense, balance } = student.transactions.reduce(
+    const { income, expense, balance } = (student.transactions || []).reduce(
         (acc, tx) => {
           if (tx.type === 'Pemasukan') {
             acc.income += tx.amount;
@@ -90,7 +95,7 @@ export default function StudentDashboardPage() {
                 <StatCard title="Saldo Akhir" value={balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-blue-100/50 border-blue-200 text-blue-700" />
             </div>
 
-            <TransactionList initialTransactions={student.transactions} isStudentView={true} />
+            <TransactionList initialTransactions={student.transactions as Transaction[]} isStudentView={true} />
         </div>
     );
 }
