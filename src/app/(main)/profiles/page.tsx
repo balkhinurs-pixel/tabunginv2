@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import type { Student, Profile } from '@/types';
 import { addStudentAction, updateStudentAction, deleteStudentAction } from './actions';
 import ProfilesClientPage from './ProfilesClientPage';
+import type { AuthUser } from '@supabase/supabase-js';
 
 // This is now a Server Component
 export default async function ProfilesPage() {
@@ -61,7 +62,7 @@ export default async function ProfilesPage() {
         <ProfilesClientPage
             initialStudents={studentsData as Student[] || []}
             initialProfile={profileData as Profile | null}
-            initialUser={user}
+            initialUser={user as AuthUser | null}
             addStudentAction={boundAddStudentAction}
             updateStudentAction={boundUpdateStudentAction}
             deleteStudentAction={boundDeleteStudentAction}

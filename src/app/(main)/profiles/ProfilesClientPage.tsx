@@ -29,7 +29,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { Student, Profile } from '@/types';
-import { createClient } from '@/lib/supabase';
 import type { AuthUser } from '@supabase/supabase-js';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -258,7 +257,7 @@ export default function ProfilesClientPage({
   }
 
 
-  const uniqueClasses = useMemo(() => [...new Set(students.map(s => s.class))], [students]);
+  const uniqueClasses = useMemo(() => [...new Set(initialStudents.map(s => s.class))], [initialStudents]);
 
   const filteredStudents = useMemo(() => {
     return students
@@ -478,4 +477,3 @@ export default function ProfilesClientPage({
     </div>
   );
 }
-
