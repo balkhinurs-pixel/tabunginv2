@@ -21,7 +21,7 @@ import {
     DialogTrigger,
     DialogClose,
   } from '@/components/ui/dialog';
-import type { Student, Transaction } from '@/types';
+import type { Student } from '@/types';
 import { createClient } from '@/lib/supabase';
 import { parseISO, format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -191,7 +191,7 @@ export default function StudentProfilePage() {
             [{ content: 'Total Pengeluaran', colSpan: 3, styles: { fontStyle: 'bold' } }, { content: expense.toLocaleString('id-ID'), styles: { halign: 'right', fontStyle: 'bold' } }],
             [{ content: 'Saldo Akhir', colSpan: 3, styles: { fontStyle: 'bold' } }, { content: balance.toLocaleString('id-ID'), styles: { halign: 'right', fontStyle: 'bold' } }]
         ],
-        headStyles: { fillColor: [22, 163, 74] },
+        headStyles: { fillColor: [29, 78, 133] },
         footStyles: { fillColor: [241, 245, 249] },
         theme: 'grid'
     });

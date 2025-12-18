@@ -18,7 +18,12 @@ import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
 
-export default function AddDepositPage({ params }: { params: { id: string } }) {
+interface AddDepositPageProps {
+    params: { id: string };
+    searchParams: { [key: string]: string | string[] | undefined };
+}
+
+export default function AddDepositPage({ params }: AddDepositPageProps) {
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
