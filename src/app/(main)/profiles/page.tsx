@@ -16,7 +16,7 @@ export default async function ProfilesPage() {
         { data: studentsData, error: studentsError },
         { data: profileData, error: profileError }
     ] = await Promise.all([
-        supabase.from('students').select('*').order('name', { ascending: true }),
+        user ? supabase.from('students').select('*').eq('user_id', user.id).order('name', { ascending: true }) : Promise.resolve({ data: [], error: null }),
         user ? supabase.from('profiles').select('*').eq('id', user.id).single() : Promise.resolve({ data: null, error: null })
     ]);
 

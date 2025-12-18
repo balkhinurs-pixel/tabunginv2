@@ -16,9 +16,8 @@ export async function addStudentAction(
   formData: FormData
 ): Promise<ActionResult> {
   const supabase = createClient();
-  const supabaseAdmin = getSupabaseAdmin();
 
-  // 1. Get current user and their profile using the user's cookie
+  // 1. Get current user and their profile using the user's cookie-based client
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return { success: false, message: 'Anda harus masuk untuk menambahkan siswa.' };
@@ -60,8 +59,10 @@ export async function addStudentAction(
     return { success: false, message: 'Data tidak lengkap. Mohon isi NIS, Nama, Kelas, dan PIN.' };
   }
   
-  // 4. Create Supabase Auth user (shadow email) using the admin client
+  // 4. Get Admin client ONLY when needed
+  const supabaseAdmin = getSupabaseAdmin();
   const shadowEmail = `${newNis}@${profile.school_code}.supabase.user`;
+  
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: shadowEmail,
     password: newPin,
@@ -116,8 +117,6 @@ export async function updateStudentAction(
   formData: FormData
 ): Promise<ActionResult> {
     const supabase = createClient();
-    const supabaseAdmin = getSupabaseAdmin();
-
     const id = formData.get('id') as string;
     const nis = formData.get('nis') as string;
     const name = formData.get('name') as string;
@@ -146,6 +145,7 @@ export async function updateStudentAction(
 
     // 2. If a new PIN is provided, update the auth user
     if (pin) {
+        const supabaseAdmin = getSupabaseAdmin();
         const { error: updateUserError } = await supabaseAdmin.auth.admin.updateUserById(
             id, { password: pin }
         );
@@ -169,12 +169,11 @@ export async function updateStudentAction(
 export async function deleteStudentAction(
   studentId: string
 ): Promise<{success: boolean; message: string;}> {
-    const supabaseAdmin = getSupabaseAdmin();
-
     if (!studentId) {
         return { success: false, message: 'ID Siswa tidak ditemukan.' };
     }
-
+    
+    const supabaseAdmin = getSupabaseAdmin();
     // The student's row in the public.students table will be deleted automatically 
     // by the CASCADE rule on the foreign key relationship to auth.users.
     // So we only need to delete the auth user.
