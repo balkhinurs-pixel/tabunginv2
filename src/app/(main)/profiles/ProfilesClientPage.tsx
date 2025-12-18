@@ -31,6 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Student, Profile } from '@/types';
 import type { AuthUser } from '@supabase/supabase-js';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { addStudentAction, updateStudentAction, deleteStudentAction } from './actions';
 
 type BoundAddStudentAction = (formData: FormData) => Promise<{success: boolean; message: string; student?: Student;}>;
 type BoundUpdateStudentAction = (formData: FormData) => Promise<{success: boolean; message: string; student?: Student;}>;
@@ -201,10 +202,7 @@ export default function ProfilesClientPage({
     initialStudents,
     initialProfile,
     initialUser,
-    addStudentAction,
-    updateStudentAction,
-    deleteStudentAction,
-}: ProfilesClientPageProps) {
+}: Omit<ProfilesClientPageProps, 'addStudentAction' | 'updateStudentAction' | 'deleteStudentAction'>) {
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
   const [loading, setLoading] = useState(false); // Can be used for client-side loading if needed
