@@ -5,7 +5,6 @@ import { createClient as createAdminClient } from '@supabase/supabase-js';
 import type { Profile, Student } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import 'dotenv/config';
 
 interface AddStudentResult {
   success: boolean;
