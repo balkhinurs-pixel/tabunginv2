@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useEffect } from 'react';
@@ -5,7 +6,7 @@ import { createClient } from '@/lib/supabase';
 import type { Student } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import TransactionList from '../profiles/[id]/_components/TransactionList';
+import TransactionList from '@/app/(main)/profiles/[id]/_components/TransactionList';
 
 const StatCard = ({ title, value, colorClass }: { title: string, value: string, colorClass: string }) => (
     <Card className={`text-center shadow-md ${colorClass}`}>
@@ -36,6 +37,8 @@ export default function StudentDashboardPage() {
                 if (data && !error) {
                     data.transactions = data.transactions.sort((a,b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
                     setStudent(data as Student);
+                } else if (error) {
+                    console.error("Error fetching student data:", error);
                 }
             }
             setLoading(false);
@@ -53,7 +56,7 @@ export default function StudentDashboardPage() {
     }
 
     if (!student) {
-        return <p className="text-center text-destructive">Gagal memuat data siswa.</p>
+        return <p className="text-center text-destructive">Gagal memuat data siswa. Silakan coba login kembali.</p>
     }
 
     const { income, expense, balance } = student.transactions.reduce(

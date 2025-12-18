@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   // if "next" is in param, use it as the redirect URL
-  const next = searchParams.get('next') ?? '';
+  const next = searchParams.get('next') ?? '/dashboard';
 
   if (code) {
     const supabase = createClient();
@@ -26,11 +26,7 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}/admin/dashboard`);
       }
 
-      if (next) {
-        return NextResponse.redirect(`${origin}${next}`);
-      }
-
-      return NextResponse.redirect(`${origin}/dashboard`);
+      return NextResponse.redirect(`${origin}${next}`);
     }
   }
 

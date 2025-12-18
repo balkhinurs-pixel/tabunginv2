@@ -35,7 +35,7 @@ export async function studentLogin(formData: FormData) {
   if (data.user) {
     revalidatePath('/', 'layout');
     // Redirect to the student's own dashboard page.
-    return redirect(`/student-dashboard`);
+    return redirect(`/dashboard`);
   }
 
   return redirect('/student-login?message=Terjadi kesalahan yang tidak diketahui.');

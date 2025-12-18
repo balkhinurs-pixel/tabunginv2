@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
 import { AppLogo } from '@/components/AppLogo';
 
-export default function StudentDashboardLayout({
+export default function StudentLayout({
   children,
 }: {
   children: React.ReactNode;

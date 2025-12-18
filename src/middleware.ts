@@ -61,70 +61,57 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Define public routes
-  const publicRoutes = ['/login', '/signup', '/student-login', '/auth/callback', '/welcome'];
+  const isAuthRoute = ['/login', '/signup', '/student-login'].includes(pathname);
+  const isPublicRoute = ['/login', '/signup', '/student-login', '/auth/callback', '/welcome'].includes(pathname);
 
-  // If there's no session and the route is not public, redirect to login
-  if (!session && !publicRoutes.some(route => pathname.startsWith(route))) {
+  // If no session, and not a public route, redirect to login
+  if (!session && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
-  
-  // If there is a session, handle redirects
-  if (session) {
-    const isAuthPage = ['/login', '/signup', '/student-login'].some(route => pathname.startsWith(route));
 
-    // Determine if the logged-in user is a student based on email format
+  // If there is a session
+  if (session) {
     const isStudent = session.user.email?.endsWith('.supabase.user');
 
     if (isStudent) {
-      // Student is logged in
-      const studentDashboardPath = `/student-dashboard`;
-      
-      // If student is on a login/signup page, redirect to their dashboard
-      if (isAuthPage) {
+      // Logic for students
+      const studentDashboardPath = '/dashboard'; 
+      // If student is trying to access auth pages, redirect to their dashboard
+      if (isAuthRoute) {
         return NextResponse.redirect(new URL(studentDashboardPath, request.url));
       }
-      
-      // Allow access only to their own dashboard.
-      // If they try to access anything else, redirect them.
-      if (!pathname.startsWith(studentDashboardPath)) {
-        return NextResponse.redirect(new URL(studentDashboardPath, request.url));
+      // If student is trying to access any page outside of the student group (which is just /dashboard for them), redirect them back.
+      if (!pathname.startsWith(studentDashboardPath) && pathname !== '/dashboard') {
+         return NextResponse.redirect(new URL(studentDashboardPath, request.url));
       }
-
     } else {
-        // This is a regular user (admin/teacher), not a student.
-        // Fetch profile to check for role and setup status
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role, school_code')
-            .eq('id', session.user.id)
-            .single();
+      // Logic for regular users (teachers/admins)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, school_code')
+        .eq('id', session.user.id)
+        .single();
+      
+      // If profile setup is not complete
+      if (profile && !profile.school_code && pathname !== '/welcome') {
+        return NextResponse.redirect(new URL('/welcome', request.url));
+      }
 
-        // If school info is not set up, redirect to welcome page
-        if (profile && !profile.school_code && pathname !== '/welcome') {
-            return NextResponse.redirect(new URL('/welcome', request.url));
-        }
+      // If profile is set up, but they are on the welcome page
+      if (profile && profile.school_code && pathname === '/welcome') {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
 
-        // If school info IS set up and user is on welcome page, redirect to dashboard
-        if (profile && profile.school_code && pathname === '/welcome') {
-            return NextResponse.redirect(new URL('/dashboard', request.url));
-        }
+      // If user is on an auth page, redirect to their respective dashboard
+      if (isAuthRoute) {
+        const destination = profile?.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
+        return NextResponse.redirect(new URL(destination, request.url));
+      }
 
-        if (profile?.role === 'ADMIN') {
-            // Admin is logged in
-            if (isAuthPage) {
-                return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-            }
-        } else {
-            // Regular user (teacher/staff) is logged in
-            if (isAuthPage) {
-                return NextResponse.redirect(new URL('/dashboard', request.url));
-            }
-            // Prevent non-admin from accessing admin routes
-            if (pathname.startsWith('/admin')) {
-                 return NextResponse.redirect(new URL('/dashboard', request.url));
-            }
-        }
+      // Prevent non-admins from accessing admin routes
+      if (profile?.role !== 'ADMIN' && pathname.startsWith('/admin')) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
     }
   }
 
