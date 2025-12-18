@@ -11,7 +11,6 @@ import { parseISO, format } from 'date-fns';
 import type { Student, Transaction, Profile } from '@/types';
 import { createClient } from '@/lib/utils/supabase/server';
 import SearchStudent from './_components/SearchStudent';
-import { revalidatePath } from 'next/cache';
 
 const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href?: string }) => {
   const content = (
@@ -55,20 +54,14 @@ async function DashboardData() {
     .from('profiles')
     .select('id, email, plan')
     .eq('id', user.id)
-    .limit(1)
     .maybeSingle();
-
-  // This handles the race condition where the user lands on the dashboard
-  // before the on-signup trigger has created their profile.
-  if (!profileData) {
-    revalidatePath('/dashboard', 'layout');
-    return (
-        <div className="flex flex-col items-center justify-center text-center gap-4 py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">Memuat data pengguna...</p>
-        </div>
-    );
+  
+  if (profileError || !profileData) {
+      // This case should rarely happen now because the middleware redirects
+      // to /welcome if the profile isn't fully set up.
+      return <p className="text-destructive text-center p-4">Gagal memuat data: Profil pengguna tidak ditemukan. Coba segarkan halaman.</p>;
   }
+
 
   const [
     { data: studentsData, error: studentsError },
@@ -78,8 +71,8 @@ async function DashboardData() {
     supabase.from('transactions').select(`*, students (id, name)`).eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
   ]);
 
-  if (studentsError || transactionsError || profileError) {
-    const errorMessage = studentsError?.message || transactionsError?.message || profileError?.message || 'Terjadi kesalahan tidak diketahui.';
+  if (studentsError || transactionsError) {
+    const errorMessage = studentsError?.message || transactionsError?.message || 'Terjadi kesalahan tidak diketahui.';
     return <p className="text-destructive">Gagal memuat data: {errorMessage}</p>;
   }
 

@@ -62,7 +62,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Define public routes
-  const publicRoutes = ['/login', '/signup', '/student-login', '/auth/callback'];
+  const publicRoutes = ['/login', '/signup', '/student-login', '/auth/callback', '/welcome'];
 
   // If there's no session and the route is not public, redirect to login
   if (!session && !publicRoutes.some(route => pathname.startsWith(route))) {
