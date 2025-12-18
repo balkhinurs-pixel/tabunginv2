@@ -20,7 +20,7 @@ export interface Student {
   nis: string;
   name: string;
   class: string;
-  whatsapp_number?: string;
+  whatsapp_number?: string | null;
   created_at?: string;
   user_id?: string;
   transactions: Transaction[];
@@ -31,8 +31,8 @@ export interface Profile {
   email?: string;
   plan: 'TRIAL' | 'PRO';
   role: 'ADMIN' | 'USER';
-  school_name?: string;
-  school_code?: string;
+  school_name?: string | null;
+  school_code?: string | null;
 }
 
     

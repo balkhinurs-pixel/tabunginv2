@@ -93,12 +93,22 @@ export async function middleware(request: NextRequest) {
 
     } else {
         // This is a regular user (admin/teacher), not a student.
-        // Fetch profile to check for ADMIN role.
+        // Fetch profile to check for role and setup status
         const { data: profile } = await supabase
             .from('profiles')
-            .select('role')
+            .select('role, school_code')
             .eq('id', session.user.id)
             .single();
+
+        // If school info is not set up, redirect to welcome page
+        if (profile && !profile.school_code && pathname !== '/welcome') {
+            return NextResponse.redirect(new URL('/welcome', request.url));
+        }
+
+        // If school info IS set up and user is on welcome page, redirect to dashboard
+        if (profile && profile.school_code && pathname === '/welcome') {
+            return NextResponse.redirect(new URL('/dashboard', request.url));
+        }
 
         if (profile?.role === 'ADMIN') {
             // Admin is logged in
