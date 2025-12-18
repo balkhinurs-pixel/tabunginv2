@@ -163,9 +163,7 @@ export default function LoginPage() {
         <Card className="backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50 shadow-2xl shadow-black/10 dark:shadow-black/50">
           <CardHeader className="text-center pb-6">
             <div className="mb-6 flex justify-center">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25">
-                <AppLogo variant="light" />
-              </div>
+              <AppLogo variant="light" />
             </div>
             <CardTitle className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
               Welcome Back
