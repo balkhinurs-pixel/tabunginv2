@@ -17,7 +17,7 @@ import { studentLogin } from './actions';
 import { SubmitButton } from '@/components/SubmitButton';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, KeyRound, User, ArrowRight } from 'lucide-react';
+import { Loader2, KeyRound, User, ArrowRight, Shield } from 'lucide-react';
 
 function StudentLoginContent() {
   const searchParams = useSearchParams();
@@ -26,6 +26,21 @@ function StudentLoginContent() {
   return (
     <>
       <form action={studentLogin} className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="school_code">Kode Sekolah</Label>
+          <div className="relative">
+            <Shield className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input
+              id="school_code"
+              name="school_code"
+              type="text"
+              placeholder="Masukkan kode unik sekolah"
+              className="pl-10 h-12"
+              required
+            />
+          </div>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="nis">NIS (Nomor Induk Siswa)</Label>
           <div className="relative">
@@ -89,8 +104,8 @@ export default function StudentLoginPage() {
       <div className="relative z-10 w-full max-w-md">
         <Card>
           <CardHeader className="text-center pb-6">
-             <div className="mb-4 flex justify-center">
-              <AppLogo />
+             <div className="mb-6 flex justify-center">
+                <AppLogo />
             </div>
             <CardTitle className="text-2xl font-bold">
               Login Siswa

@@ -1,3 +1,4 @@
+
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
@@ -61,7 +62,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Define public routes
-  const publicRoutes = ['/login', '/signup', '/student-login'];
+  const publicRoutes = ['/login', '/signup', '/student-login', '/auth/callback'];
 
   // If there's no session and the route is not public, redirect to login
   if (!session && !publicRoutes.some(route => pathname.startsWith(route))) {
@@ -70,16 +71,10 @@ export async function middleware(request: NextRequest) {
   
   // If there is a session, handle redirects based on role
   if (session) {
-    const isAuthPage = publicRoutes.some(route => pathname.startsWith(route));
+    const isAuthPage = ['/login', '/signup', '/student-login'].some(route => pathname.startsWith(route));
 
-    // Fetch user profile to check role
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
-
-    const isStudent = session.user.email?.endsWith('@ribath5.supabase.user');
+    // Determine if the logged-in user is a student based on email format
+    const isStudent = session.user.email?.endsWith('.supabase.user');
 
     if (isStudent) {
       // Student is logged in
@@ -87,28 +82,37 @@ export async function middleware(request: NextRequest) {
         // If student is on a login/signup page, redirect to their profile
         return NextResponse.redirect(new URL(`/profiles/${session.user.id}`, request.url));
       }
-      // Allow access to their own profile page
+      // Allow access to their own profile page and its sub-routes
       if (pathname.startsWith(`/profiles/${session.user.id}`)) {
         return response;
       }
-      // Block access to all other main app pages
-      if (!pathname.startsWith('/auth/callback')) {
-         return NextResponse.redirect(new URL(`/profiles/${session.user.id}`, request.url));
-      }
+      // For any other page, redirect them back to their own profile.
+      // This prevents them from accessing dashboard, other student profiles, etc.
+      return NextResponse.redirect(new URL(`/profiles/${session.user.id}`, request.url));
 
-    } else if (profile?.role === 'ADMIN') {
-        // Admin is logged in
-        if (isAuthPage) {
-            return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-        }
     } else {
-        // Regular user (teacher/staff) is logged in
-        if (isAuthPage) {
-            return NextResponse.redirect(new URL('/dashboard', request.url));
-        }
-        // Prevent non-admin from accessing admin routes
-        if (pathname.startsWith('/admin')) {
-             return NextResponse.redirect(new URL('/dashboard', request.url));
+        // This is a regular user (admin/teacher), not a student.
+        // Fetch profile to check for ADMIN role.
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+
+        if (profile?.role === 'ADMIN') {
+            // Admin is logged in
+            if (isAuthPage) {
+                return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+            }
+        } else {
+            // Regular user (teacher/staff) is logged in
+            if (isAuthPage) {
+                return NextResponse.redirect(new URL('/dashboard', request.url));
+            }
+            // Prevent non-admin from accessing admin routes
+            if (pathname.startsWith('/admin')) {
+                 return NextResponse.redirect(new URL('/dashboard', request.url));
+            }
         }
     }
   }
@@ -129,5 +133,3 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|logo.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
-
-    

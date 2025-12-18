@@ -34,7 +34,7 @@ import type { AuthUser } from '@supabase/supabase-js';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 
-const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; onStudentUpdated: (updatedStudent: Student) => void }) => {
+const EditStudentDialog = ({ student, schoolCode, onStudentUpdated }: { student: Student; schoolCode: string; onStudentUpdated: (updatedStudent: Student) => void }) => {
     const { toast } = useToast();
     const supabase = createClient();
     
@@ -94,7 +94,8 @@ const EditStudentDialog = ({ student, onStudentUpdated }: { student: Student; on
 
         // Only update auth if PIN is changed from the placeholder
         if (pin && pin !== '******') {
-             const { data: { users }, error: getUserError } = await supabase.auth.admin.listUsers({ email: `${student.nis}@ribath5.supabase.user` });
+             const shadowEmail = `${nis}@${schoolCode}.supabase.user`;
+             const { data: { users }, error: getUserError } = await supabase.auth.admin.listUsers({ email: shadowEmail });
             
             if (getUserError || users.length === 0) {
                  toast({
@@ -186,6 +187,19 @@ const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { stu
     const supabase = createClient();
 
     const handleDelete = async () => {
+        // First, delete the Supabase Auth user
+        const { error: authError } = await supabase.auth.admin.deleteUser(studentId);
+        if (authError) {
+            toast({
+                title: 'Gagal Menghapus Akun Auth Siswa',
+                description: authError.message,
+                variant: 'destructive'
+            });
+            // Stop if we can't delete the auth user, to avoid orphaned data.
+            return;
+        }
+
+        // If auth user is deleted, proceed to delete the student profile and related transactions (handled by cascade)
         const { error } = await supabase
           .from('students')
           .delete()
@@ -201,7 +215,7 @@ const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { stu
             onStudentDeleted(studentId);
             toast({
                 title: 'Siswa Dihapus',
-                description: `Data siswa ${studentName} telah dihapus.`,
+                description: `Data siswa ${studentName} dan akun login terkait telah dihapus.`,
             });
         }
     }
@@ -217,12 +231,12 @@ const DeleteStudentDialog = ({ studentId, studentName, onStudentDeleted }: { stu
                 <DialogHeader>
                     <DialogTitle>Hapus Siswa?</DialogTitle>
                     <DialogDescription>
-                        Tindakan ini tidak dapat dibatalkan. Ini akan menghapus profil dan semua data transaksi terkait untuk {studentName}.
+                        Tindakan ini tidak dapat dibatalkan. Ini akan menghapus profil, semua data transaksi, dan akun login siswa untuk {studentName}.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="ghost">Batal</Button></DialogClose>
-                    <Button variant="destructive" onClick={handleDelete}>Ya, Hapus</Button>
+                    <Button variant="destructive" onClick={handleDelete}>Ya, Hapus Secara Permanen</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -265,7 +279,7 @@ export default function ProfilesPage() {
         
         const { data: profileData, error: profileError } = await supabase
             .from('profiles')
-            .select('id, email, plan')
+            .select('*') // Select all to get school_code
             .eq('id', authUser.id)
             .single();
 
@@ -301,6 +315,14 @@ export default function ProfilesPage() {
   };
   
   const handleAddStudentSubmit = async () => {
+    if (!profile?.school_code) {
+        toast({
+            title: 'Kode Sekolah Belum Diatur',
+            description: 'Mohon atur kode unik sekolah Anda di halaman Pengaturan terlebih dahulu.',
+            variant: 'destructive',
+        });
+        return;
+    }
     if (students.length >= studentQuota) {
         toast({
             title: 'Kuota Siswa Penuh',
@@ -330,7 +352,7 @@ export default function ProfilesPage() {
     setAddLoading(true);
 
     // Create Supabase Auth user first (shadow email)
-    const shadowEmail = `${newNis}@ribath5.supabase.user`;
+    const shadowEmail = `${newNis}@${profile.school_code}.supabase.user`;
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: shadowEmail,
         password: newPin,
@@ -341,7 +363,7 @@ export default function ProfilesPage() {
         setAddLoading(false);
         toast({
             title: 'Gagal Membuat Akun Siswa',
-            description: authError.message.includes('unique') ? 'NIS ini sudah terdaftar sebagai pengguna.' : authError.message,
+            description: authError.message.includes('unique') ? 'Kombinasi NIS dan Kode Sekolah ini sudah terdaftar.' : authError.message,
             variant: 'destructive'
         });
         return;
@@ -455,13 +477,16 @@ export default function ProfilesPage() {
                 toast({ title: 'Import Gagal', description: `Import akan melebihi kuota siswa Anda (${studentQuota}).`, variant: 'destructive' });
                 return;
             }
-            const { data: insertedData, error } = await supabase.from('students').insert(newStudentsData as any).select();
-            if (error) {
-                toast({ title: 'Import Gagal', description: error.message, variant: 'destructive' });
-            } else {
-                setStudents(prev => [...prev, ...insertedData].sort((a,b) => a.name.localeCompare(b.name)));
-                toast({ title: 'Import Berhasil', description: `${insertedData.length} siswa berhasil diimpor.` });
-            }
+            // Note: This bulk import doesn't create auth users. It's a limitation of this simplified import.
+            // For a production app, this would need to call a serverless function to create auth users one by one.
+            toast({ title: 'Fungsi Import Belum Sempurna', description: 'Import saat ini tidak membuat akun login untuk siswa. Tambahkan siswa satu per satu untuk membuat akun login.', variant: 'destructive' });
+            // const { data: insertedData, error } = await supabase.from('students').insert(newStudentsData as any).select();
+            // if (error) {
+            //     toast({ title: 'Import Gagal', description: error.message, variant: 'destructive' });
+            // } else {
+            //     setStudents(prev => [...prev, ...insertedData].sort((a,b) => a.name.localeCompare(b.name)));
+            //     toast({ title: 'Import Berhasil', description: `${insertedData.length} siswa berhasil diimpor.` });
+            // }
         } else {
              toast({ title: 'Tidak Ada Data Ditambahkan', description: 'Pastikan file CSV memiliki data yang valid.', variant: 'destructive' });
         }
@@ -489,7 +514,7 @@ export default function ProfilesPage() {
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                 <DialogTitle>Tambah Siswa Baru</DialogTitle>
-                <DialogDescription>Akun login untuk siswa akan dibuat secara otomatis.</DialogDescription>
+                <DialogDescription>Akun login untuk siswa akan dibuat secara otomatis menggunakan kode sekolah Anda.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
@@ -624,7 +649,7 @@ export default function ProfilesPage() {
                         <TableCell>{student.class}</TableCell>
                         <TableCell>
                             <div className='flex items-center gap-2'>
-                                <EditStudentDialog student={student} onStudentUpdated={handleUpdateStudent} />
+                                <EditStudentDialog student={student} schoolCode={profile?.school_code || ''} onStudentUpdated={handleUpdateStudent} />
                                 <DeleteStudentDialog studentId={student.id} studentName={student.name} onStudentDeleted={handleDeleteStudent} />
                             </div>
                         </TableCell>
