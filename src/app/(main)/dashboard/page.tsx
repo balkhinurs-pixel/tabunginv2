@@ -1,21 +1,16 @@
 
-'use client';
-
-import { useMemo, useState, useEffect } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Users, QrCode, FileText, ShieldCheck, Search, ArrowRight, EyeOff } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { parseISO, format } from 'date-fns';
 import type { Student, Transaction, Profile } from '@/types';
-import { createClient } from '@/lib/supabase';
-import type { AuthUser } from '@supabase/supabase-js';
+import { createClient } from '@/lib/utils/supabase/server';
+import SearchStudent from './_components/SearchStudent';
 
 const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href?: string }) => {
   const content = (
@@ -46,143 +41,60 @@ const BackpackIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 )
 
-export default function DashboardPage() {
+async function DashboardData() {
   const supabase = createClient();
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [nis, setNis] = useState('');
-  const [students, setStudents] = useState<Student[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const { toast } = useToast();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+  if (!user) {
+    // This should be handled by middleware, but as a safeguard.
+    return <p>User not found.</p>;
+  }
 
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) {
-        // This should not happen if middleware is correct, but as a safeguard.
-        console.error("Dashboard: No user found, though it should be protected.");
-        setLoading(false);
-        return;
-      }
-      setUser(authUser);
-      
-      const { data: studentsData, error: studentsError } = await supabase
-        .from('students')
-        .select(`
-          id,
-          nis,
-          name,
-          class,
-          transactions (
-            id,
-            type,
-            amount
-          )
-        `);
+  const [
+    { data: studentsData, error: studentsError },
+    { data: transactionsData, error: transactionsError },
+    { data: profileData, error: profileError }
+  ] = await Promise.all([
+    supabase.from('students').select(`id, nis, name, class, transactions (id, type, amount)`),
+    supabase.from('transactions').select(`*, students (id, name)`).order('created_at', { ascending: false }).limit(5),
+    supabase.from('profiles').select('id, email, plan').eq('id', user.id).single()
+  ]);
 
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('transactions')
-        .select(`
-          *,
-          students (
-            id,
-            name
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(5);
+  if (studentsError || transactionsError || profileError) {
+    return <p className="text-destructive">Gagal memuat data: {studentsError?.message || transactionsError?.message || profileError?.message}</p>;
+  }
 
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, email, plan')
-        .eq('id', authUser.id)
-        .single();
-
-
-      if (studentsError || transactionsError || profileError) {
-        toast({
-          title: 'Gagal memuat data',
-          description: studentsError?.message || transactionsError?.message || profileError?.message,
-          variant: 'destructive',
-        });
-      } else {
-        setStudents(studentsData as Student[]);
-        setTransactions(transactionsData as Transaction[]);
-        setProfile(profileData as Profile);
-      }
-      setLoading(false);
-    };
-
-    fetchData();
-  }, [toast, supabase]);
-
-  const totalBalance = useMemo(() => {
-    if (loading || !students) return 0;
-    return students.reduce((total, student) => {
-      const studentBalance = student.transactions.reduce((acc, tx) => {
-        return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
-      }, 0);
-      return total + studentBalance;
+  const students = studentsData as Student[];
+  const transactions = transactionsData as Transaction[];
+  const profile = profileData as Profile;
+  
+  const totalBalance = students.reduce((total, student) => {
+    const studentBalance = student.transactions.reduce((acc, tx) => {
+      return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
     }, 0);
-  }, [students, loading]);
-  
-  const studentQuota = profile?.plan === 'PRO' ? 32 : 5;
+    return total + studentBalance;
+  }, 0);
 
-  const recentTransactions = useMemo(() => {
-    if (!transactions) return [];
-    return transactions.map(tx => ({
-        id: tx.id,
-        date: format(parseISO(tx.created_at!), 'dd/MM/yy'),
-        type: tx.type,
-        amount: tx.amount,
-        studentId: tx.student_id,
-        studentName: tx.students!.name,
-    }));
-  }, [transactions]);
-  
-  const handleSearch = async () => {
-    if (!nis) {
-      toast({
-        title: 'NIS Kosong',
-        description: 'Silakan masukkan NIS siswa untuk mencari.',
-        variant: 'destructive',
-      });
-      return;
-    }
+  const studentQuota = profile.plan === 'PRO' ? 32 : 5;
 
-    if (!user) return;
+  const recentTransactions = transactions.map(tx => ({
+      id: tx.id,
+      date: format(parseISO(tx.created_at!), 'dd/MM/yy'),
+      type: tx.type,
+      amount: tx.amount,
+      studentId: tx.student_id,
+      studentName: tx.students!.name,
+  }));
 
-
-    const { data: student, error } = await supabase
-      .from('students')
-      .select('id')
-      .eq('nis', nis)
-      .single();
-
-    if (student && !error) {
-      router.push(`/profiles/${student.id}`);
-    } else {
-      toast({
-        title: 'Siswa Tidak Ditemukan',
-        description: `Tidak ada siswa dengan NIS "${nis}".`,
-        variant: 'destructive',
-      });
-    }
-  };
-  
   return (
-    <div className="space-y-6">
-      <Card className="bg-primary text-primary-foreground shadow-lg">
+    <>
+       <Card className="bg-primary text-primary-foreground shadow-lg">
         <CardContent className="p-6">
           <div className="flex justify-between items-start">
             <div className="bg-white/20 p-2 rounded-lg">
                 <BackpackIcon className="h-6 w-6 text-white"/>
             </div>
-            {profile?.plan === 'TRIAL' ? (
+            {profile.plan === 'TRIAL' ? (
               <Badge variant="secondary" className="bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90">TRIAL</Badge>
             ) : (
               <Badge variant="secondary" className="bg-green-400 text-green-900 hover:bg-green-400/90">PRO</Badge>
@@ -193,38 +105,15 @@ export default function DashboardPage() {
               <span className="text-sm opacity-80">Total Saldo Semua Siswa</span>
               <EyeOff className="h-4 w-4 opacity-80" />
             </div>
-            {loading ? (
-                <div className="h-[36px] w-48 mt-1 rounded-md animate-pulse bg-white/20" />
-            ) : (
-                <p className="text-4xl font-bold tracking-tight">
-                {totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
-                </p>
-            )}
+            <p className="text-4xl font-bold tracking-tight">
+              {totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+            </p>
             <p className="text-xs opacity-80 mt-1">Kuota Siswa Digunakan: {students.length} / {studentQuota}</p>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-4 space-y-3">
-          <p className="font-semibold text-sm">Cari Siswa (via NIS)</p>
-          <div className="flex gap-2">
-            <Input 
-              placeholder="Masukkan NIS siswa..." 
-              value={nis}
-              onChange={(e) => setNis(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleSearch();
-                }
-              }}
-            />
-            <Button onClick={handleSearch}>
-              <Search className="mr-2 h-4 w-4" /> Cari
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <SearchStudent />
       
       <Card>
         <CardContent className="p-4 flex justify-around">
@@ -245,9 +134,7 @@ export default function DashboardPage() {
                     </Link>
                 </Button>
             </div>
-            {loading ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">Memuat transaksi...</div>
-            ) : recentTransactions.length > 0 ? (
+            {recentTransactions.length > 0 ? (
                 <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
@@ -286,6 +173,43 @@ export default function DashboardPage() {
             )}
           </CardContent>
       </Card>
+    </>
+  );
+}
+
+function DashboardLoading() {
+  return (
+    <>
+      <Card className="bg-primary text-primary-foreground shadow-lg">
+        <CardContent className="p-6">
+          <div className="h-[125px] w-full" />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="p-4 space-y-3">
+           <div className="h-[76px] w-full" />
+        </CardContent>
+      </Card>
+       <Card>
+        <CardContent className="p-4 flex justify-around">
+            <div className="h-[76px] w-full" />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="p-4">
+          <div className="text-center py-8 text-muted-foreground text-sm">Memuat transaksi...</div>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <div className="space-y-6">
+      <Suspense fallback={<DashboardLoading />}>
+        <DashboardData />
+      </Suspense>
     </div>
   );
 }

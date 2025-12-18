@@ -1,7 +1,5 @@
 
-'use client';
-
-import { useState, useMemo, useEffect } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -13,21 +11,11 @@ import {
   TableFooter,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Download, Calendar as CalendarIcon, ArrowLeft, Filter, FileSpreadsheet } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
-import { id } from 'date-fns/locale';
-import { DateRange } from 'react-day-picker';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { ArrowLeft, FileSpreadsheet, Download } from 'lucide-react';
+import { format } from 'date-fns';
 import type { Student } from '@/types';
-import { createClient } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
+import { createClient } from '@/lib/utils/supabase/server';
+import FilterControls from './_components/FilterControls';
 
 interface ReportRow {
   nis: string;
@@ -38,241 +26,91 @@ interface ReportRow {
   balance: number;
 }
 
-export default function ReportsPage() {
+interface ReportsPageProps {
+    searchParams: {
+        from?: string;
+        to?: string;
+        class?: string;
+    }
+}
+
+async function ReportsData({ searchParams }: ReportsPageProps) {
     const supabase = createClient();
-    const [students, setStudents] = useState<Student[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [dateRange, setDateRange] = useState<DateRange | undefined>();
-    const [selectedClass, setSelectedClass] = useState<string>('all');
-    const { toast } = useToast();
-
-    useEffect(() => {
-        const fetchStudents = async () => {
-            setLoading(true);
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                setLoading(false);
-                return;
-            }
-
-            let query = supabase
-                .from('students')
-                .select(`
-                    id, nis, name, class,
-                    transactions (
-                        type,
-                        amount,
-                        created_at
-                    )
-                `);
-
-            // This logic is tricky with RLS and joins. 
-            // A simpler approach for filtering transactions by date is to fetch them separately
-            // or use a database function (RPC). For now, we filter on the client side after fetching all transactions.
-            // This is not ideal for large datasets but works for this scenario.
-
-            const { data, error } = await query;
-
-            if (error) { 
-                 toast({
-                    title: 'Gagal memuat data laporan',
-                    description: error.message,
-                    variant: 'destructive',
-                });
-            } else {
-                // Filter transactions by date range on the client side
-                const filteredData = data.map(student => ({
-                    ...student,
-                    transactions: student.transactions.filter(tx => {
-                        const txDate = startOfDay(parseISO(tx.created_at!));
-                        if (dateRange?.from && dateRange.to) {
-                            return txDate >= startOfDay(dateRange.from) && txDate <= endOfDay(dateRange.to);
-                        }
-                        if (dateRange?.from) {
-                            return txDate >= startOfDay(dateRange.from);
-                        }
-                        return true;
-                    })
-                }));
-                setStudents(filteredData as Student[]);
-            }
-            setLoading(false);
-        };
-
-        fetchStudents();
-    }, [dateRange, toast, supabase]);
-
-    const filteredStudents = useMemo(() => {
-        if (selectedClass === 'all') {
-            return students;
-        }
-        return students.filter(s => s.class === selectedClass);
-    }, [students, selectedClass]);
+    const { from, to, class: selectedClass = 'all' } = searchParams;
     
-    const reportData: ReportRow[] = useMemo(() => {
-        return filteredStudents.map(student => {
-            const { income, expense } = student.transactions.reduce(
-                (acc, tx) => {
-                    if (tx.type === 'Pemasukan') acc.income += tx.amount;
-                    else acc.expense += tx.amount;
-                    return acc;
-                },
-                { income: 0, expense: 0 }
-            );
-            return {
-                nis: student.nis,
-                name: student.name,
-                class: student.class,
-                income,
-                outcome: expense,
-                balance: income - expense,
-            };
-        });
-    }, [filteredStudents]);
+    let studentsQuery = supabase
+        .from('students')
+        .select(`
+            id, nis, name, class,
+            transactions (
+                type,
+                amount,
+                created_at
+            )
+        `);
 
-    const { totalIncome, totalOutcome, totalBalance } = useMemo(() => {
-        return reportData.reduce(
-            (acc, item) => {
-                acc.totalIncome += item.income;
-                acc.totalOutcome += item.outcome;
-                acc.totalBalance += item.balance;
+    if (selectedClass !== 'all') {
+        studentsQuery = studentsQuery.eq('class', selectedClass);
+    }
+    
+    const { data: students, error } = await studentsQuery;
+
+    if (error) {
+        return <p className="text-destructive text-center">Gagal memuat data: {error.message}</p>
+    }
+
+    const filteredStudentsByDate = (students as Student[]).map(student => ({
+        ...student,
+        transactions: student.transactions.filter(tx => {
+            const txDate = new Date(tx.created_at!).getTime();
+            const fromDate = from ? new Date(from).getTime() : 0;
+            const toDate = to ? new Date(to).setHours(23, 59, 59, 999) : Date.now();
+            return txDate >= fromDate && txDate <= toDate;
+        })
+    }));
+
+
+    const reportData: ReportRow[] = filteredStudentsByDate.map(student => {
+        const { income, expense } = student.transactions.reduce(
+            (acc, tx) => {
+                if (tx.type === 'Pemasukan') acc.income += tx.amount;
+                else acc.expense += tx.amount;
                 return acc;
             },
-            { totalIncome: 0, totalOutcome: 0, totalBalance: 0 }
+            { income: 0, expense: 0 }
         );
-    }, [reportData]);
+        return {
+            nis: student.nis,
+            name: student.name,
+            class: student.class,
+            income,
+            outcome: expense,
+            balance: income - expense,
+        };
+    }).filter(data => data.income > 0 || data.outcome > 0); // Only show students with transactions in the period
 
-    const handlePrintPdf = () => {
-        const doc = new jsPDF();
-        
-        const schoolName = "ribath5";
-        const period = dateRange?.from ? `${format(dateRange.from, 'd MMM yyyy', {locale: id})} - ${dateRange.to ? format(dateRange.to, 'd MMM yyyy', {locale: id}) : 'Sekarang'}` : 'Semua Periode';
-        
-        doc.setFontSize(16);
-        doc.text(`Laporan Tabungan Siswa - ${schoolName}`, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
-        doc.setFontSize(10);
-        doc.text(`Periode: ${period}`, doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
-        
-        autoTable(doc, {
-            startY: 30,
-            head: [['NO', 'NIS', 'NAMA SISWA', 'KELAS', 'PEMASUKAN (RP)', 'PENGELUARAN (RP)', 'SALDO AKHIR (RP)']],
-            body: reportData.map((item, index) => [
-                index + 1,
-                item.nis,
-                item.name,
-                item.class,
-                { content: item.income.toLocaleString('id-ID'), styles: { halign: 'right' } },
-                { content: item.outcome.toLocaleString('id-ID'), styles: { halign: 'right' } },
-                { content: item.balance.toLocaleString('id-ID'), styles: { halign: 'right' } },
-            ]),
-            foot: [
-                [{ content: 'GRAND TOTAL', colSpan: 4, styles: { halign: 'center', fontStyle: 'bold' } },
-                { content: totalIncome.toLocaleString('id-ID'), styles: { halign: 'right', fontStyle: 'bold' } },
-                { content: totalOutcome.toLocaleString('id-ID'), styles: { halign: 'right', fontStyle: 'bold' } },
-                { content: totalBalance.toLocaleString('id-ID'), styles: { halign: 'right', fontStyle: 'bold' } }]
-            ],
-            headStyles: { fillColor: [29, 78, 133], textColor: 255, fontStyle: 'bold' },
-            footStyles: { fillColor: [241, 245, 249], fontStyle: 'bold' },
-            theme: 'grid',
-            didDrawPage: (data) => {
-                doc.setFontSize(8);
-                doc.text(`Halaman ${data.pageNumber}`, data.settings.margin.left, doc.internal.pageSize.getHeight() - 10);
-            }
-        });
 
-        doc.save(`laporan-tabungan-${format(new Date(), 'yyyyMMdd')}.pdf`);
-    };
+    const { totalIncome, totalOutcome, totalBalance } = reportData.reduce(
+        (acc, item) => {
+            acc.totalIncome += item.income;
+            acc.totalOutcome += item.outcome;
+            acc.totalBalance += item.balance;
+            return acc;
+        },
+        { totalIncome: 0, totalOutcome: 0, totalBalance: 0 }
+    );
 
-    const uniqueClasses = [...new Set(students.map(s => s.class))];
+    const period = from ? `${format(new Date(from), 'd MMM yyyy')} - ${to ? format(new Date(to), 'd MMM yyyy') : 'Sekarang'}` : 'Semua Periode';
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
-          <Link href="/dashboard">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <h2 className="text-xl font-bold tracking-tight">Laporan Tabungan Siswa</h2>
-      </div>
-
-      <Card>
-        <CardContent className="p-4 space-y-4">
-            <div className="space-y-2">
-                <Label>Filter Kelas:</Label>
-                <Select value={selectedClass} onValueChange={setSelectedClass}>
-                    <SelectTrigger>
-                        <div className='flex items-center gap-2'>
-                            <Filter className="h-4 w-4 text-muted-foreground" />
-                            <SelectValue placeholder="Semua Kelas" />
-                        </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Kelas</SelectItem>
-                        {uniqueClasses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    </SelectContent>
-                </Select>
+    return (
+        <>
+            <div className='space-y-2'>
+                <FilterControls reportData={reportData} period={period} totals={{ totalIncome, totalOutcome, totalBalance }} />
+                <Button variant="secondary" className="w-full" disabled>
+                    <FileSpreadsheet className="mr-2 h-4 w-4" /> Ekspor ke CSV (Segera Hadir)
+                </Button>
             </div>
-            <div className="space-y-2">
-                <Label>Filter Rentang Tanggal:</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="date"
-                      variant={"outline"}
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !dateRange && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateRange?.from ? (
-                        dateRange.to ? (
-                          <>
-                            {format(dateRange.from, "d MMM yyyy", { locale: id })} - {format(dateRange.to, "d MMM yyyy", { locale: id })}
-                          </>
-                        ) : (
-                          format(dateRange.from, "d MMMM yyyy", { locale: id })
-                        )
-                      ) : (
-                        <span>Pilih rentang tanggal</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      defaultMonth={dateRange?.from}
-                      selected={dateRange}
-                      onSelect={setDateRange}
-                      numberOfMonths={2}
-                      locale={id}
-                    />
-                  </PopoverContent>
-                </Popover>
-            </div>
-        </CardContent>
-      </Card>
-      
-      <div className='space-y-2'>
-        <Button className="w-full" onClick={handlePrintPdf}>
-            <Download className="mr-2 h-4 w-4" /> Cetak Laporan (PDF)
-        </Button>
-        <Button variant="secondary" className="w-full" disabled>
-            <FileSpreadsheet className="mr-2 h-4 w-4" /> Ekspor ke CSV (Segera Hadir)
-        </Button>
-      </div>
-
-      <Card>
-        <CardHeader>
-            <CardTitle className="text-center text-lg">Preview Laporan</CardTitle>
-            <p className="text-center text-sm text-muted-foreground">
-                Periode: {dateRange?.from ? `${format(dateRange.from, 'd MMM yyyy', {locale: id})} - ${dateRange.to ? format(dateRange.to, 'd MMM yyyy', {locale: id}) : 'Sekarang'}` : 'Semua Periode'}
-            </p>
-        </CardHeader>
-        <CardContent className="p-0">
-            <div className="overflow-x-auto">
+             <div className="overflow-x-auto rounded-lg border">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -286,13 +124,7 @@ export default function ReportsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {loading ? (
-                             <TableRow>
-                                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                                    Memuat data...
-                                </TableCell>
-                            </TableRow>
-                        ) : reportData.length > 0 ? reportData.map((item, index) => (
+                        {reportData.length > 0 ? reportData.map((item, index) => (
                             <TableRow key={item.nis}>
                                 <TableCell className="text-center">{index + 1}</TableCell>
                                 <TableCell>{item.nis}</TableCell>
@@ -305,7 +137,7 @@ export default function ReportsPage() {
                         )) : (
                            <TableRow>
                                 <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                                    Tidak ada data untuk ditampilkan pada periode ini.
+                                    Tidak ada data untuk ditampilkan pada filter ini.
                                 </TableCell>
                             </TableRow>
                         )}
@@ -320,9 +152,27 @@ export default function ReportsPage() {
                     </TableFooter>
                 </Table>
             </div>
-        </CardContent>
-      </Card>
+        </>
+    )
+}
 
+
+export default function ReportsPage({ searchParams }: ReportsPageProps) {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" asChild>
+          <Link href="/dashboard">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <h2 className="text-xl font-bold tracking-tight">Laporan Tabungan Siswa</h2>
+      </div>
+
+      <Suspense fallback={<div className="text-center text-muted-foreground">Memuat laporan...</div>}>
+        <ReportsData searchParams={searchParams} />
+      </Suspense>
     </div>
   );
 }
+
