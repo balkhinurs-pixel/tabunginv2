@@ -10,7 +10,7 @@ export function AppLogo({ variant = 'default', className = '' }: AppLogoProps) {
 
   // The user will place a logo.png in the /public folder.
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={className}>
       <Image
         src="/logo.png"
         alt="Tabungin Logo"
