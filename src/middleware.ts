@@ -62,7 +62,11 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isAuthRoute = ['/login', '/signup', '/student-login'].includes(pathname);
-  const isPublicRoute = ['/login', '/signup', '/student-login', '/auth/callback', '/welcome'].includes(pathname);
+  // Student routes are now separate
+  const isStudentRoute = pathname.startsWith('/home');
+  // Public routes are auth routes and callback
+  const isPublicRoute = isAuthRoute || pathname === '/auth/callback' || pathname === '/welcome';
+
 
   // If no session, and not a public route, redirect to login
   if (!session && !isPublicRoute) {
@@ -74,18 +78,20 @@ export async function middleware(request: NextRequest) {
     const isStudent = session.user.email?.endsWith('.supabase.user');
 
     if (isStudent) {
-      // Logic for students
-      const studentDashboardPath = '/dashboard'; 
-      // If student is trying to access auth pages, redirect to their dashboard
+      // If a student is on an auth page, redirect them to their dashboard
       if (isAuthRoute) {
-        return NextResponse.redirect(new URL(studentDashboardPath, request.url));
+        return NextResponse.redirect(new URL('/home', request.url));
       }
-      // If student is trying to access any page outside of the student group (which is just /dashboard for them), redirect them back.
-      if (!pathname.startsWith(studentDashboardPath) && pathname !== '/dashboard') {
-         return NextResponse.redirect(new URL(studentDashboardPath, request.url));
+      // If a student tries to access any non-student page, redirect them to their dashboard
+      if (!isStudentRoute) {
+        return NextResponse.redirect(new URL('/home', request.url));
       }
-    } else {
-      // Logic for regular users (teachers/admins)
+    } else { // This is a teacher/admin
+      // If a teacher is on the student dashboard, redirect them to their own.
+      if(isStudentRoute){
+         return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('role, school_code')

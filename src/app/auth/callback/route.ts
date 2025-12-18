@@ -22,6 +22,10 @@ export async function GET(request: Request) {
         .eq('id', session.user.id)
         .single();
       
+      if (session.user.email?.endsWith('.supabase.user')) {
+        return NextResponse.redirect(`${origin}/home`);
+      }
+      
       if (profile && profile.role === 'ADMIN') {
         return NextResponse.redirect(`${origin}/admin/dashboard`);
       }
