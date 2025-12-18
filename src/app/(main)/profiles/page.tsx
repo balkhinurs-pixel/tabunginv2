@@ -1,5 +1,4 @@
 
-import { createClient as createAdminClient } from '@supabase/supabase-js';
 import type { Student, Profile } from '@/types';
 import { addStudentAction, updateStudentAction, deleteStudentAction } from './actions';
 import ProfilesClientPage from './ProfilesClientPage';
@@ -28,34 +27,14 @@ export default async function ProfilesPage() {
         console.error("Error fetching profile data for ProfilesPage:", profileError);
     }
 
-    // Safely create the admin client on the server
-    const getSupabaseAdmin = () => {
-        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-            // This will now correctly throw an error during server-side rendering if variables are missing
-            throw new Error('Server Error: Supabase URL or Service Role Key is not configured in environment variables.');
-        }
-        return createAdminClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL,
-            process.env.SUPABASE_SERVICE_ROLE_KEY,
-            { auth: { autoRefreshToken: false, persistSession: false } }
-        );
-    };
-
-    const supabaseAdmin = getSupabaseAdmin();
-
-    // Bind the admin client to the server actions
-    const boundAddStudentAction = addStudentAction.bind(null, supabaseAdmin);
-    const boundUpdateStudentAction = updateStudentAction.bind(null, supabaseAdmin);
-    const boundDeleteStudentAction = deleteStudentAction.bind(null, supabaseAdmin);
-
     return (
         <ProfilesClientPage
             initialStudents={studentsData as Student[] || []}
             initialProfile={profileData as Profile | null}
             initialUser={user as AuthUser | null}
-            addStudentAction={boundAddStudentAction}
-            updateStudentAction={boundUpdateStudentAction}
-            deleteStudentAction={boundDeleteStudentAction}
+            addStudentAction={addStudentAction}
+            updateStudentAction={updateStudentAction}
+            deleteStudentAction={deleteStudentAction}
         />
     );
 }

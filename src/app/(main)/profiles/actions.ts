@@ -1,11 +1,10 @@
 
 'use server';
 
-import { createServerClient } from '@supabase/ssr';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Profile, Student } from '@/types';
+import type { Student } from '@/types';
 import { revalidatePath } from 'next/cache';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/utils/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 interface ActionResult {
   success: boolean;
@@ -13,27 +12,10 @@ interface ActionResult {
   student?: Student;
 }
 
-// Helper to get a user-context Supabase client
-function createSupabaseUserClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
-  );
-}
-
 export async function addStudentAction(
-  supabaseAdmin: SupabaseClient,
   formData: FormData
 ): Promise<ActionResult> {
-  const supabase = createSupabaseUserClient();
+  const supabase = createClient();
 
   // 1. Get current user and their profile using the user's cookie
   const { data: { user } } = await supabase.auth.getUser();
@@ -45,7 +27,7 @@ export async function addStudentAction(
     .from('profiles')
     .select('school_code, plan')
     .eq('id', user.id)
-    .single<Profile>();
+    .single();
 
   if (!profile || !profile.school_code) {
     return { success: false, message: 'Kode sekolah Anda belum diatur. Mohon atur di halaman Pengaturan.' };
@@ -130,10 +112,9 @@ export async function addStudentAction(
 
 
 export async function updateStudentAction(
-  supabaseAdmin: SupabaseClient,
   formData: FormData
 ): Promise<ActionResult> {
-    const supabase = createSupabaseUserClient();
+    const supabase = createClient();
 
     const id = formData.get('id') as string;
     const nis = formData.get('nis') as string;
@@ -184,7 +165,6 @@ export async function updateStudentAction(
 
 
 export async function deleteStudentAction(
-  supabaseAdmin: SupabaseClient,
   studentId: string
 ): Promise<ActionResult> {
     if (!studentId) {
