@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Loader2, Eye, EyeOff, Mail, Lock, ArrowRight, User } from 'lucide-react';
 import { useState } from 'react';
+import { Separator } from '@/components/ui/separator';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>
@@ -38,7 +39,7 @@ function LoginContent() {
       <form action={login} className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Email Address
+            Alamat Email (Guru/Admin)
           </Label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -46,7 +47,7 @@ function LoginContent() {
               id="email"
               name="email"
               type="email"
-              placeholder="Enter your email address"
+              placeholder="Masukkan alamat email Anda"
               className="pl-10 h-12 border-gray-200 dark:border-gray-700 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200"
               required
             />
@@ -54,7 +55,7 @@ function LoginContent() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Password
+            Kata Sandi
           </Label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -62,7 +63,7 @@ function LoginContent() {
               id="password" 
               name="password" 
               type={showPassword ? "text" : "password"} 
-              placeholder="Enter your password"
+              placeholder="Masukkan kata sandi Anda"
               className="pl-10 pr-10 h-12 border-gray-200 dark:border-gray-700 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200"
               required 
             />
@@ -84,14 +85,14 @@ function LoginContent() {
               className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
             />
             <Label htmlFor="remember" className="text-sm text-gray-600 dark:text-gray-400">
-              Remember me
+              Ingat saya
             </Label>
           </div>
           <Link
             href="/forgot-password"
             className="text-sm text-primary hover:text-primary/80 transition-colors"
           >
-            Forgot password?
+            Lupa kata sandi?
           </Link>
         </div>
 
@@ -105,7 +106,7 @@ function LoginContent() {
         
         <SubmitButton className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 group">
           <span className="flex items-center justify-center gap-2">
-            Sign In
+            Masuk
             <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
           </span>
         </SubmitButton>
@@ -117,7 +118,7 @@ function LoginContent() {
         </div>
         <div className="relative flex justify-center text-xs uppercase">
             <span className="bg-white dark:bg-gray-900 px-4 text-gray-500 dark:text-gray-400 font-medium">
-            Or continue with
+            Atau lanjutkan dengan
             </span>
         </div>
       </div>
@@ -128,28 +129,25 @@ function LoginContent() {
             className="w-full h-12 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 group"
           >
               <GoogleIcon className="mr-3 h-5 w-5 group-hover:scale-110 transition-transform" />
-              Continue with Google
+              Lanjutkan dengan Google
           </Button>
       </form>
       
-      <div className="mt-6 text-center text-sm">
-        <span className="text-gray-600 dark:text-gray-400">Don't have an account?</span>{' '}
-        <Link 
-          href="/signup" 
-          className="text-primary hover:text-primary/80 font-medium transition-colors hover:underline"
-        >
-          Sign up here
-        </Link>
+      <Separator className="my-8" />
+      
+      <div className="space-y-4 text-center">
+         <Button variant="secondary" className="w-full h-12" asChild>
+            <Link href="/student-login">
+                <User className="mr-2 h-4 w-4" /> Login sebagai Siswa
+            </Link>
+         </Button>
+         <p className="text-sm text-muted-foreground">Belum punya akun guru?{' '}
+            <Link href="/signup" className="text-primary hover:underline">
+                Daftar di sini
+            </Link>
+         </p>
       </div>
 
-       <div className="mt-4 text-center text-sm">
-        <Link 
-          href="/student-login" 
-          className="text-primary hover:text-primary/80 font-medium transition-colors hover:underline flex items-center justify-center gap-2"
-        >
-          <User className="h-4 w-4" /> Login sebagai Siswa
-        </Link>
-      </div>
     </>
   );
 }
@@ -175,10 +173,10 @@ export default function LoginPage() {
               <AppLogo />
             </div>
             <CardTitle className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-              Welcome Back
+              Selamat Datang
             </CardTitle>
             <CardDescription className="text-gray-600 dark:text-gray-400 mt-2">
-              Sign in to your admin account to continue
+              Masuk ke akun guru/admin Anda untuk melanjutkan.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
@@ -195,12 +193,10 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Protected by industry-standard encryption
+            Dilindungi oleh enkripsi standar industri
           </p>
         </div>
       </div>
     </main>
   );
 }
-
-    
