@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { LogOut, User } from 'lucide-react';
 import type { AuthUser } from '@supabase/supabase-js';
+import type { Student } from '@/types';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export default function StudentLayout({
@@ -17,13 +18,24 @@ export default function StudentLayout({
   const router = useRouter();
   const supabase = createClient();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [student, setStudent] = useState<Student | null>(null);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      setUser(data.user);
+    const fetchUserAndStudent = async () => {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      setUser(authUser);
+      if (authUser) {
+        const { data: studentData } = await supabase
+            .from('students')
+            .select('name')
+            .eq('id', authUser.id)
+            .single();
+        if (studentData) {
+            setStudent(studentData as Student);
+        }
+      }
     };
-    fetchUser();
+    fetchUserAndStudent();
   }, [supabase]);
 
   const handleLogout = async () => {
@@ -31,6 +43,11 @@ export default function StudentLayout({
     router.push('/student-login');
     router.refresh();
   };
+  
+  const getInitials = (name?: string) => {
+    if (!name) return user?.email?.charAt(0).toUpperCase() || <User className="h-4 w-4" />;
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-gray-50 dark:bg-gray-900">
@@ -38,11 +55,11 @@ export default function StudentLayout({
             <div className='flex items-center gap-3'>
                 <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-primary text-primary-foreground">
-                        {user?.email ? user.email.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
+                        {getInitials(student?.name)}
                     </AvatarFallback>
                 </Avatar>
                 <div className='flex flex-col'>
-                    <span className='text-sm font-semibold text-foreground'>Siswa</span>
+                    <span className='text-sm font-semibold text-foreground'>{student?.name || 'Siswa'}</span>
                     <span className='text-xs text-muted-foreground -mt-1'>{user?.email?.split('@')[0]}</span>
                 </div>
             </div>
