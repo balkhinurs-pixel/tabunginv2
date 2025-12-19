@@ -18,21 +18,32 @@ import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import type { AuthUser } from '@supabase/supabase-js';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import type { Profile } from '@/types';
 
 
 export default function Header() {
   const supabase = createClient();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const router = useRouter();
   
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) {
-        setUser(data.user);
+    const fetchUserAndProfile = async () => {
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+      if (authUser && !userError) {
+        setUser(authUser);
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+        
+        if (profileData && !profileError) {
+          setProfile(profileData);
+        }
       }
     };
-    fetchUser();
+    fetchUserAndProfile();
   }, [supabase]);
 
   const handleLogout = async () => {
@@ -41,8 +52,7 @@ export default function Header() {
     router.refresh();
   };
 
-  const { data: { user: authUser } } = supabase.auth.getUser();
-  const isAdmin = authUser?.user_metadata?.role === 'ADMIN' || (profile?.role === 'ADMIN');
+  const isAdmin = profile?.role === 'ADMIN';
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-lg sm:px-6">
