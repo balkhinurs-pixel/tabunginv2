@@ -15,11 +15,11 @@ import { AppLogo } from '@/components/AppLogo';
 import { NAV_ITEMS } from '@/lib/constants';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '../ui/button';
-import { LogOut } from 'lucide-react';
+import { LogOut, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useState, useEffect } from 'react';
 import type { AuthUser } from '@supabase/supabase-js';
-import Image from 'next/image';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export default function AppSidebar() {
   const pathname = usePathname();
@@ -70,13 +70,11 @@ export default function AppSidebar() {
         <Separator className="my-2" />
         {user && (
            <div className='flex items-center gap-3 px-2 py-3'>
-                <Image
-                    src={`https://api.dicebear.com/7.x/micah/svg?seed=${user?.email || 'default'}`}
-                    width={40}
-                    height={40}
-                    alt="Avatar"
-                    className="overflow-hidden rounded-full"
-                />
+                <Avatar>
+                  <AvatarFallback>
+                    {user?.email ? user.email.charAt(0).toUpperCase() : <User className="h-5 w-5" />}
+                  </AvatarFallback>
+                </Avatar>
                 <div className='flex flex-col truncate'>
                     <span className='font-semibold text-sm'>Admin</span>
                     <span className='text-xs text-muted-foreground truncate'>{user.email}</span>

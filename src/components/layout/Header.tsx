@@ -17,6 +17,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import type { AuthUser } from '@supabase/supabase-js';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 
 export default function Header() {
@@ -40,7 +41,8 @@ export default function Header() {
     router.refresh();
   };
 
-  const isAdmin = user?.email?.endsWith('@admin.com');
+  const { data: { user: authUser } } = supabase.auth.getUser();
+  const isAdmin = authUser?.user_metadata?.role === 'ADMIN' || (profile?.role === 'ADMIN');
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-lg sm:px-6">
@@ -58,14 +60,11 @@ export default function Header() {
               size="icon"
               className="overflow-hidden rounded-full"
             >
-              <Image
-                src={`https://api.dicebear.com/7.x/micah/svg?seed=${user?.email || 'default'}`}
-                width={36}
-                height={36}
-                alt="Avatar"
-                className="overflow-hidden rounded-full"
-                data-ai-hint="user avatar"
-              />
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>
+                  {user?.email ? user.email.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
+                </AvatarFallback>
+              </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
