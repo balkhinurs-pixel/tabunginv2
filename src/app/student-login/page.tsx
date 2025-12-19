@@ -138,7 +138,7 @@ export default function StudentLoginPage() {
           </CardHeader>
           <CardContent>
             <Button variant="outline" className="w-full mb-6 h-12 text-base" asChild>
-                <Link href="/transactions">
+                <Link href="/scan-login">
                     <QrCode className="mr-2 h-5 w-5"/>
                     Pindai Kode QR
                 </Link>

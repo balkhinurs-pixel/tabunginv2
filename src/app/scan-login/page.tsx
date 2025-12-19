@@ -3,21 +3,20 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { QrCode, ScanLine } from 'lucide-react';
+import Link from 'next/link';
+import { ScanLine, ArrowLeft } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { createClient } from '@/lib/supabase';
-import type { AuthUser } from '@supabase/supabase-js';
+import { Button } from '@/components/ui/button';
 
-export default function TransactionsPage() {
+export default function ScanLoginPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [scanResult, setScanResult] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = createClient();
 
   useEffect(() => {
     const getCameraPermission = async () => {
@@ -33,8 +32,8 @@ export default function TransactionsPage() {
         setHasCameraPermission(false);
         toast({
           variant: 'destructive',
-          title: 'Camera Access Denied',
-          description: 'Please enable camera permissions in your browser settings to use this app.',
+          title: 'Izin Kamera Ditolak',
+          description: 'Mohon aktifkan izin kamera di pengaturan browser Anda.',
         });
       }
     };
@@ -88,49 +87,33 @@ export default function TransactionsPage() {
     if(scanResult) {
         const [nis, schoolCode] = scanResult.split(',');
 
-        if (!nis) {
+        if (!nis || !schoolCode) {
              toast({
                 title: 'Kode QR Tidak Valid',
-                description: 'Format kode QR tidak dikenali. Coba pindai lagi.',
+                description: 'Format kode QR tidak dikenali. Pastikan kartu Anda adalah versi terbaru.',
                 variant: 'destructive',
             });
-            setTimeout(() => setScanResult(null), 2000);
+            setTimeout(() => setScanResult(null), 3000); // Reset after 3 seconds
             return;
         }
-
-        const findStudent = async () => {
-            const { data: student, error } = await supabase
-                .from('students')
-                .select('id, name')
-                .eq('nis', nis)
-                .single();
-
-            if (student && !error) {
-                toast({
-                    title: 'Siswa Ditemukan',
-                    description: `Membuka profil untuk ${student.name}.`,
-                });
-                router.push(`/profiles/${student.id}`);
-            } else {
-                toast({
-                    title: 'Siswa Tidak Ditemukan',
-                    description: `Tidak ada siswa dengan NIS "${nis}". Pindai lagi.`,
-                    variant: 'destructive',
-                });
-                setTimeout(() => setScanResult(null), 2000); 
-            }
-        }
-        findStudent();
+        
+        toast({
+            title: 'QR Terbaca',
+            description: 'Mengalihkan ke halaman login...',
+        });
+        
+        const params = new URLSearchParams({ nis, school_code: schoolCode });
+        router.push(`/student-login?${params.toString()}`);
     }
-  }, [scanResult, router, toast, supabase])
+  }, [scanResult, router, toast]);
 
 
   return (
-    <div className="flex flex-col gap-8 items-center justify-center h-full">
+    <div className="flex flex-col gap-8 items-center justify-center h-screen bg-gray-50 dark:bg-gray-900 p-4">
         <div className="flex flex-col items-center gap-4 text-center">
-             <h2 className="text-2xl font-bold tracking-tight">Pindai QR Siswa</h2>
+             <h2 className="text-2xl font-bold tracking-tight">Pindai QR untuk Login</h2>
             <p className="text-muted-foreground max-w-xs">
-                Arahkan kamera ke kode QR pada kartu siswa untuk memulai transaksi.
+                Arahkan kamera ke kode QR yang ada di kartu siswa Anda.
             </p>
         </div>
         
@@ -140,9 +123,14 @@ export default function TransactionsPage() {
             <canvas ref={canvasRef} className="hidden" />
         </div>
 
+        <Button variant="outline" asChild>
+            <Link href="/student-login">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Kembali ke Login Manual
+            </Link>
+        </Button>
+
         {hasCameraPermission === false && (
             <Alert variant="destructive" className="max-w-xs">
-                <QrCode className="h-4 w-4" />
                 <AlertTitle>Akses Kamera Diperlukan</AlertTitle>
                 <AlertDescription>
                 Mohon izinkan akses kamera di pengaturan browser Anda untuk menggunakan fitur ini.

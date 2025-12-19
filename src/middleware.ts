@@ -61,7 +61,7 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const isAuthRoute = ['/login', '/signup', '/student-login'].includes(pathname);
+  const isAuthRoute = ['/login', '/signup', '/student-login', '/scan-login'].includes(pathname);
   // Student routes are now separate
   const isStudentRoute = pathname.startsWith('/home');
   // Public routes are auth routes and callback
