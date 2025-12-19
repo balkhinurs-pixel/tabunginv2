@@ -27,6 +27,9 @@ function PinKeypad({ studentName, schoolCode, nis }: { studentName: string, scho
     const [pin, setPin] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const searchParams = useSearchParams();
+    const errorMessage = searchParams.get('message');
+
 
     const handleKeyPress = (key: string) => {
         if (loading) return;
@@ -50,12 +53,11 @@ function PinKeypad({ studentName, schoolCode, nis }: { studentName: string, scho
         formData.append('nis', nis);
         formData.append('pin', pin);
 
-        // We don't use the return value here as `studentLogin` redirects on its own
+        // This action redirects on its own, we don't need to handle the return
         await studentLogin(formData);
         
-        // If the redirect doesn't happen, it means there was an error.
-        // The error message is passed via URL param, so the page will reload and show it.
-        // We can set a fallback loading state here.
+        // If we are still here, it means login failed. The page will reload with an error message
+        // but we can show a loading state until then.
     };
 
     const pinDisplay = Array(6).fill('●').map((char, i) => (
@@ -67,6 +69,7 @@ function PinKeypad({ studentName, schoolCode, nis }: { studentName: string, scho
 
     const KeypadButton = ({ value, onClick, children }: { value: string; onClick: (val: string) => void; children: React.ReactNode }) => (
         <Button
+            type="button"
             variant="ghost"
             className="h-16 w-16 text-2xl font-bold rounded-full text-gray-700 bg-gray-100 hover:bg-gray-200"
             onClick={() => onClick(value)}
@@ -87,7 +90,9 @@ function PinKeypad({ studentName, schoolCode, nis }: { studentName: string, scho
                 {pinDisplay}
             </div>
 
+            {errorMessage && <Alert variant="destructive"><AlertDescription>{errorMessage}</AlertDescription></Alert>}
             {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+
 
             <div className="grid grid-cols-3 gap-4">
                 {[...Array(9).keys()].map(i => (
@@ -118,23 +123,115 @@ function PinKeypad({ studentName, schoolCode, nis }: { studentName: string, scho
     );
 }
 
+function ManualLoginForm() {
+    const searchParams = useSearchParams();
+    const errorMessage = searchParams.get('message');
+  
+    return (
+        <>
+            <Button variant="outline" className="w-full mb-6 h-12 text-base" asChild>
+                <Link href="/scan-login">
+                    <QrCode className="mr-2 h-5 w-5"/>
+                    Pindai Kode QR
+                </Link>
+            </Button>
+            <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">
+                    Atau login manual
+                    </span>
+                </div>
+            </div>
+            <form action={studentLogin} className="space-y-6">
+                <div className="space-y-2">
+                <Label htmlFor="school_code">Kode Sekolah</Label>
+                <div className="relative">
+                    <Shield className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Input
+                    id="school_code"
+                    name="school_code"
+                    type="text"
+                    placeholder="Masukkan kode unik sekolah"
+                    className="pl-10 h-12"
+                    required
+                    />
+                </div>
+                </div>
+
+                <div className="space-y-2">
+                <Label htmlFor="nis">NIS (Nomor Induk Siswa)</Label>
+                <div className="relative">
+                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Input
+                    id="nis"
+                    name="nis"
+                    type="text"
+                    placeholder="Masukkan NIS Anda"
+                    className="pl-10 h-12"
+                    required
+                    />
+                </div>
+                </div>
+                <div className="space-y-2">
+                <Label htmlFor="pin">PIN</Label>
+                <div className="relative">
+                    <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Input 
+                    id="pin" 
+                    name="pin" 
+                    type="password"
+                    placeholder="Masukkan PIN Anda"
+                    className="pl-10 h-12"
+                    required
+                    />
+                </div>
+                </div>
+
+                {errorMessage && (
+                    <Alert variant="destructive">
+                        <AlertDescription>
+                        {errorMessage}
+                        </AlertDescription>
+                    </Alert>
+                )}
+                
+                <SubmitButton className="w-full h-12 bg-primary text-white font-medium group">
+                <span className="flex items-center justify-center gap-2">
+                    Masuk
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </span>
+                </SubmitButton>
+            </form>
+            
+            <div className="mt-6 text-center text-sm">
+                <Link 
+                href="/login" 
+                className="text-primary hover:text-primary/80 font-medium transition-colors hover:underline"
+                >
+                Login sebagai Guru/Admin
+                </Link>
+            </div>
+        </>
+    );
+}
 
 function StudentLoginContent() {
   const searchParams = useSearchParams();
   const supabase = createClient();
-  const errorMessage = searchParams.get('message');
   
-  const nisFromQR = searchParams.get('nis') || '';
-  const schoolCodeFromQR = searchParams.get('school_code') || '';
+  const nisFromQR = searchParams.get('nis');
+  const schoolCodeFromQR = searchParams.get('school_code');
 
   const [studentName, setStudentName] = useState<string | null>(null);
   const [loadingName, setLoadingName] = useState(true);
   
-  const [nis, setNis] = useState(nisFromQR);
-  const [schoolCode, setSchoolCode] = useState(schoolCodeFromQR);
+  const isPinMode = nisFromQR && schoolCodeFromQR;
 
   useEffect(() => {
-    if (nisFromQR && schoolCodeFromQR) {
+    if (isPinMode) {
         setLoadingName(true);
         const fetchStudentName = async () => {
             const { data, error } = await supabase
@@ -146,8 +243,8 @@ function StudentLoginContent() {
             if (data) {
                 setStudentName(data.name);
             } else {
-                // If student not found, maybe QR is wrong, revert to manual login
-                setStudentName(null);
+                // If student not found, user can click 'Bukan Anda?' to go back to manual login.
+                setStudentName("Siswa tidak ditemukan"); 
             }
             setLoadingName(false);
         };
@@ -155,10 +252,9 @@ function StudentLoginContent() {
     } else {
         setLoadingName(false);
     }
-  }, [nisFromQR, schoolCodeFromQR, supabase]);
+  }, [isPinMode, nisFromQR, supabase]);
 
-
-  if (nisFromQR && schoolCodeFromQR) {
+  if (isPinMode) {
      if (loadingName) {
          return (
             <div className="flex flex-col items-center justify-center py-8 gap-4">
@@ -170,102 +266,11 @@ function StudentLoginContent() {
      if (studentName) {
         return <PinKeypad studentName={studentName} schoolCode={schoolCodeFromQR} nis={nisFromQR} />;
      }
+     // Fallback if name is still null after loading, though it should be handled
+     return <ManualLoginForm />;
   }
 
-
-  return (
-    <>
-      <Button variant="outline" className="w-full mb-6 h-12 text-base" asChild>
-        <Link href="/scan-login">
-            <QrCode className="mr-2 h-5 w-5"/>
-            Pindai Kode QR
-        </Link>
-      </Button>
-      <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
-              Atau login manual
-              </span>
-          </div>
-      </div>
-      <form action={studentLogin} className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="school_code">Kode Sekolah</Label>
-          <div className="relative">
-            <Shield className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input
-              id="school_code"
-              name="school_code"
-              type="text"
-              placeholder="Masukkan kode unik sekolah"
-              className="pl-10 h-12"
-              value={schoolCode}
-              onChange={(e) => setSchoolCode(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="nis">NIS (Nomor Induk Siswa)</Label>
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input
-              id="nis"
-              name="nis"
-              type="text"
-              placeholder="Masukkan NIS Anda"
-              className="pl-10 h-12"
-              value={nis}
-              onChange={(e) => setNis(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="pin">PIN</Label>
-          <div className="relative">
-            <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input 
-              id="pin" 
-              name="pin" 
-              type="password"
-              placeholder="Masukkan PIN Anda"
-              className="pl-10 h-12"
-              required
-            />
-          </div>
-        </div>
-
-        {errorMessage && (
-            <Alert variant="destructive">
-                <AlertDescription>
-                  {errorMessage}
-                </AlertDescription>
-            </Alert>
-        )}
-        
-        <SubmitButton className="w-full h-12 bg-primary text-white font-medium group">
-          <span className="flex items-center justify-center gap-2">
-            Masuk
-            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-          </span>
-        </SubmitButton>
-      </form>
-      
-      <div className="mt-6 text-center text-sm">
-        <Link 
-          href="/login" 
-          className="text-primary hover:text-primary/80 font-medium transition-colors hover:underline"
-        >
-          Login sebagai Guru/Admin
-        </Link>
-      </div>
-    </>
-  );
+  return <ManualLoginForm />;
 }
   
 export default function StudentLoginPage() {
@@ -292,5 +297,3 @@ export default function StudentLoginPage() {
     </main>
   );
 }
-
-    
