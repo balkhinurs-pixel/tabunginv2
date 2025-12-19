@@ -189,3 +189,124 @@ export async function deleteStudentAction(
         message: 'Siswa telah dihapus secara permanen.'
     };
 }
+
+
+interface ImportResult {
+  success: boolean;
+  message: string;
+  importedCount: number;
+  newStudents: Student[];
+}
+
+export async function importStudentsAction(csvContent: string): Promise<ImportResult> {
+  const supabase = createClient();
+  const supabaseAdmin = getSupabaseAdmin();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, message: 'Anda harus masuk untuk melakukan impor.', importedCount: 0, newStudents: [] };
+  }
+
+  const { data: profile } = await supabase.from('profiles').select('school_code, plan').eq('id', user.id).single();
+  if (!profile || !profile.school_code) {
+    return { success: false, message: 'Kode sekolah Anda belum diatur.', importedCount: 0, newStudents: [] };
+  }
+  
+  const { count: currentStudentCount } = await supabase.from('students').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
+  const studentQuota = profile.plan === 'PRO' ? 100 : 32;
+
+  const lines = csvContent.trim().split('\n');
+  const header = lines.shift()?.trim()?.split(',');
+
+  if (!header || !['nis', 'name', 'class', 'pin'].every(h => header.includes(h))) {
+    return { success: false, message: 'Header CSV tidak valid. Pastikan mengandung kolom: nis, name, class, pin.', importedCount: 0, newStudents: [] };
+  }
+
+  const nisIndex = header.indexOf('nis');
+  const nameIndex = header.indexOf('name');
+  const classIndex = header.indexOf('class');
+  const whatsappIndex = header.indexOf('whatsapp_number');
+  const pinIndex = header.indexOf('pin');
+
+  const studentsToImport = lines.map(line => {
+    const values = line.trim().split(',');
+    return {
+      nis: values[nisIndex]?.trim(),
+      name: values[nameIndex]?.trim(),
+      class: values[classIndex]?.trim(),
+      whatsapp_number: whatsappIndex !== -1 ? values[whatsappIndex]?.trim() : null,
+      pin: values[pinIndex]?.trim() || '123456',
+    };
+  }).filter(s => s.nis && s.name && s.class);
+
+  if (studentsToImport.length === 0) {
+    return { success: false, message: 'Tidak ada data siswa yang valid untuk diimpor dari file CSV.', importedCount: 0, newStudents: [] };
+  }
+
+  if ((currentStudentCount || 0) + studentsToImport.length > studentQuota) {
+    return { success: false, message: `Gagal mengimpor. Kuota siswa Anda (${studentQuota}) akan terlampaui.`, importedCount: 0, newStudents: [] };
+  }
+
+  let importedCount = 0;
+  const createdStudents: Student[] = [];
+  const errors: string[] = [];
+
+  for (const student of studentsToImport) {
+    const shadowEmail = `${student.nis}@${profile.school_code}.supabase.user`;
+    
+    // Create auth user first
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: shadowEmail,
+      password: student.pin,
+      email_confirm: true,
+    });
+
+    if (authError) {
+      errors.push(`NIS ${student.nis}: ${authError.message.includes('unique') ? 'sudah terdaftar' : authError.message}`);
+      continue;
+    }
+
+    if (authData.user) {
+      // Then, create the student profile
+      const { data: studentData, error: studentError } = await supabase
+        .from('students')
+        .insert({
+          id: authData.user.id,
+          nis: student.nis,
+          name: student.name,
+          class: student.class,
+          user_id: user.id,
+          whatsapp_number: student.whatsapp_number,
+        })
+        .select()
+        .single();
+      
+      if (studentError) {
+        errors.push(`NIS ${student.nis}: ${studentError.message}`);
+        // Rollback auth user creation
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      } else {
+        createdStudents.push({ ...studentData, transactions: [] });
+        importedCount++;
+      }
+    }
+  }
+
+  revalidatePath('/profiles');
+  
+  if (errors.length > 0) {
+    return { 
+      success: importedCount > 0, 
+      message: `Berhasil mengimpor ${importedCount} siswa. Gagal: ${errors.length} siswa. Error: ${errors.join(', ')}`,
+      importedCount,
+      newStudents: createdStudents
+    };
+  }
+
+  return { 
+    success: true, 
+    message: `Berhasil mengimpor ${importedCount} siswa baru.`,
+    importedCount,
+    newStudents: createdStudents
+  };
+}

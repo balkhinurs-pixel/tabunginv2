@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
@@ -36,6 +35,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 type BoundAddStudentAction = (formData: FormData) => Promise<{success: boolean; message: string; student?: Student;}>;
 type BoundUpdateStudentAction = (formData: FormData) => Promise<{success: boolean; message: string; student?: Student;}>;
 type BoundDeleteStudentAction = (studentId: string) => Promise<{success: boolean; message: string;}>;
+type BoundImportStudentsAction = (csvContent: string) => Promise<{success: boolean; message: string; importedCount: number; newStudents: Student[]}>;
+
 
 interface ProfilesClientPageProps {
     initialStudents: Student[];
@@ -44,6 +45,7 @@ interface ProfilesClientPageProps {
     addStudentAction: BoundAddStudentAction;
     updateStudentAction: BoundUpdateStudentAction;
     deleteStudentAction: BoundDeleteStudentAction;
+    importStudentsAction: BoundImportStudentsAction;
 }
 
 const EditStudentDialog = ({ student, onStudentUpdated, updateStudentAction }: { student: Student; onStudentUpdated: (updatedStudent: Student) => void; updateStudentAction: BoundUpdateStudentAction }) => {
@@ -205,10 +207,12 @@ export default function ProfilesClientPage({
     addStudentAction,
     updateStudentAction,
     deleteStudentAction,
+    importStudentsAction,
 }: ProfilesClientPageProps) {
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
-  const [loading, setLoading] = useState(false); // Can be used for client-side loading if needed
+  const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -297,7 +301,32 @@ export default function ProfilesClientPage({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    toast({ title: 'Fungsi Import Belum Tersedia', description: 'Fitur ini sedang dalam pengembangan dan akan segera hadir.', variant: 'default' });
+    setImporting(true);
+    toast({ title: 'Mengimpor siswa...', description: 'Mohon tunggu, ini mungkin memakan waktu beberapa saat.' });
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const content = e.target?.result as string;
+        const result = await importStudentsAction(content);
+        
+        if (result.success) {
+            toast({
+                title: 'Impor Berhasil',
+                description: result.message,
+            });
+            // Add new students to the local state to update UI
+            setStudents(prev => [...prev, ...result.newStudents].sort((a,b) => a.name.localeCompare(b.name)));
+        } else {
+            toast({
+                title: 'Impor Gagal',
+                description: result.message,
+                variant: 'destructive',
+                duration: 10000,
+            });
+        }
+        setImporting(false);
+    };
+    reader.readAsText(file);
     
     // Reset file input
     if(fileInputRef.current) {
@@ -363,8 +392,9 @@ export default function ProfilesClientPage({
             <Download className="mr-2 h-4 w-4" /> Unduh Template
         </Button>
       </div>
-      <Button variant="outline" onClick={handleImportClick} disabled>
-        <Upload className="mr-2 h-4 w-4" /> Import (CSV) - Segera Hadir
+      <Button variant="outline" onClick={handleImportClick} disabled={importing}>
+        {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+        Import (CSV)
       </Button>
       <input 
         type="file" 
