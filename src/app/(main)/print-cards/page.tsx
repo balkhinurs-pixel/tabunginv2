@@ -9,10 +9,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import type { Student } from '@/types';
+import type { Student, Profile } from '@/types';
 import { createClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
+import type { AuthUser } from '@supabase/supabase-js';
 
 // Helper function to fetch image as base64
 const getImageAsBase64 = (url: string): Promise<string> => {
@@ -41,43 +42,57 @@ const getImageAsBase64 = (url: string): Promise<string> => {
 export default function PrintCardsPage() {
   const supabase = createClient();
   const [students, setStudents] = useState<Student[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | undefined>(undefined);
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchStudents = async () => {
+    const fetchData = async () => {
         setLoading(true);
-        const { data, error } = await supabase
-            .from('students')
-            .select('id, nis, name, class')
-            .order('name', { ascending: true });
+        const { data: { user } } = await supabase.auth.getUser();
 
-        if (error) {
+        if (!user) {
+            toast({ title: 'Anda tidak login', variant: 'destructive'});
+            setLoading(false);
+            return;
+        }
+
+        const [
+            { data: studentsData, error: studentsError },
+            { data: profileData, error: profileError }
+        ] = await Promise.all([
+             supabase.from('students').select('id, nis, name, class').order('name', { ascending: true }),
+             supabase.from('profiles').select('*').eq('id', user.id).single()
+        ]);
+       
+        if (studentsError || profileError) {
             toast({
-                title: 'Gagal memuat data siswa',
-                description: error.message,
+                title: 'Gagal memuat data',
+                description: studentsError?.message || profileError?.message,
                 variant: 'destructive'
             });
         } else {
-            setStudents(data as Student[]);
-            if (data && data.length > 0) {
-                setSelectedStudentId(data[0].id);
+            setStudents(studentsData as Student[]);
+            setProfile(profileData as Profile);
+            if (studentsData && studentsData.length > 0) {
+                setSelectedStudentId(studentsData[0].id);
             }
         }
         setLoading(false);
     };
-    fetchStudents();
+    fetchData();
   }, [toast, supabase]);
 
   const selectedStudent = students.find(s => s.id === selectedStudentId);
 
-  const drawCard = async (doc: jsPDF, x: number, y: number, student: { nis: string, name: string, class: string }) => {
+  const drawCard = async (doc: jsPDF, x: number, y: number, student: { nis: string, name: string, class: string }, schoolCode: string) => {
     const cardWidth = 85.6;
     const cardHeight = 53.98;
     const logoUrl = 'https://picsum.photos/seed/logoschool/200/200';
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${student.nis}`;
+    const qrData = `${student.nis},${schoolCode}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(qrData)}`;
     
     let logoBase64: string | null = null;
     let qrBase64: string | null = null;
@@ -104,7 +119,7 @@ export default function PrintCardsPage() {
     doc.text('KARTU TABUNGAN SISWA', x + 5, y + 7);
     doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
-    doc.text('ribath5', x + 5, y + 10);
+    doc.text(profile?.school_name || 'Sekolah Anda', x + 5, y + 10);
     
     // Logo
     if (logoBase64) {
@@ -132,7 +147,7 @@ export default function PrintCardsPage() {
   };
   
   const handlePrintSingleCard = async () => {
-    if (!selectedStudent) return;
+    if (!selectedStudent || !profile?.school_code) return;
     setIsGenerating(true);
   
     const doc = new jsPDF({
@@ -141,13 +156,13 @@ export default function PrintCardsPage() {
       format: [85.6, 53.98]
     });
   
-    await drawCard(doc, 0, 0, selectedStudent);
+    await drawCard(doc, 0, 0, selectedStudent, profile.school_code);
     doc.save(`kartu-${selectedStudent.nis}.pdf`);
     setIsGenerating(false);
   };
 
   const handlePrintAllCards = async () => {
-    if (students.length === 0) return;
+    if (students.length === 0 || !profile?.school_code) return;
     setIsGenerating(true);
     toast({ title: "Membuat PDF...", description: "Ini mungkin memakan waktu beberapa saat." });
 
@@ -179,12 +194,14 @@ export default function PrintCardsPage() {
         const x = marginX + col * (cardWidth + 10);
         const y = marginY + row * (cardHeight + 5);
 
-        await drawCard(doc, x, y, student);
+        await drawCard(doc, x, y, student, profile.school_code);
     }
 
     doc.save('semua-kartu-tabungan.pdf');
     setIsGenerating(false);
   };
+
+  const qrData = selectedStudent && profile?.school_code ? `${selectedStudent.nis},${profile.school_code}` : '';
 
   return (
     <div className="space-y-6">
@@ -230,13 +247,13 @@ export default function PrintCardsPage() {
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="font-bold text-primary text-sm">KARTU TABUNGAN SISWA</p>
-                                <p className="text-xs text-muted-foreground">ribath5</p>
+                                <p className="text-xs text-muted-foreground">{profile?.school_name || 'Sekolah Anda'}</p>
                             </div>
                             <Image src="https://picsum.photos/seed/logoschool/40/40" width={40} height={40} alt="Logo Sekolah" className="rounded-full" data-ai-hint="company logo" />
                         </div>
 
                         <div className="flex items-center gap-4">
-                            <Image src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${selectedStudent.nis}`} width={80} height={80} alt="QR Code" data-ai-hint="qr code" />
+                            <Image src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(qrData)}`} width={80} height={80} alt="QR Code" data-ai-hint="qr code" />
                             <div>
                                 <p className="font-bold">{selectedStudent.name}</p>
                                 <p className="text-sm text-muted-foreground">NIS: {selectedStudent.nis}</p>

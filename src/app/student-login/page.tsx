@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -22,6 +22,20 @@ import { Loader2, KeyRound, User, ArrowRight, Shield } from 'lucide-react';
 function StudentLoginContent() {
   const searchParams = useSearchParams();
   const errorMessage = searchParams.get('message');
+  
+  // Get data from QR scan if available
+  const initialNis = searchParams.get('nis') || '';
+  const initialSchoolCode = searchParams.get('school_code') || '';
+  
+  const [nis, setNis] = useState(initialNis);
+  const [schoolCode, setSchoolCode] = useState(initialSchoolCode);
+
+  useEffect(() => {
+    setNis(initialNis);
+    setSchoolCode(initialSchoolCode);
+  }, [initialNis, initialSchoolCode]);
+
+  const isQrLogin = !!(initialNis && initialSchoolCode);
 
   return (
     <>
@@ -36,6 +50,9 @@ function StudentLoginContent() {
               type="text"
               placeholder="Masukkan kode unik sekolah"
               className="pl-10 h-12"
+              value={schoolCode}
+              onChange={(e) => setSchoolCode(e.target.value)}
+              readOnly={isQrLogin}
               required
             />
           </div>
@@ -51,6 +68,9 @@ function StudentLoginContent() {
               type="text"
               placeholder="Masukkan NIS Anda"
               className="pl-10 h-12"
+              value={nis}
+              onChange={(e) => setNis(e.target.value)}
+              readOnly={isQrLogin}
               required
             />
           </div>
@@ -65,7 +85,8 @@ function StudentLoginContent() {
               type="password"
               placeholder="Masukkan PIN Anda"
               className="pl-10 h-12"
-              required 
+              required
+              autoFocus={isQrLogin}
             />
           </div>
         </div>
@@ -111,7 +132,7 @@ export default function StudentLoginPage() {
               Login Siswa
             </CardTitle>
             <CardDescription className="text-muted-foreground mt-2">
-              Lihat riwayat tabungan dan saldo Anda.
+              Pindai QR pada kartu Anda atau isi form di bawah.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -128,5 +149,3 @@ export default function StudentLoginPage() {
     </main>
   );
 }
-
-    

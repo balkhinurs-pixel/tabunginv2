@@ -8,18 +8,26 @@ import jsQR from 'jsqr';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { createClient } from '@/lib/supabase';
+import type { AuthUser } from '@supabase/supabase-js';
+import { Button } from '@/components/ui/button';
 
 export default function TransactionsPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [scanResult, setScanResult] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
 
   useEffect(() => {
-    const getCameraPermission = async () => {
+    const getCameraAndUser = async () => {
+      // Get user session
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      setUser(authUser);
+
+      // Get camera permission
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         setHasCameraPermission(true);
@@ -39,7 +47,7 @@ export default function TransactionsPage() {
     };
     
 
-    getCameraPermission();
+    getCameraAndUser();
 
     return () => {
         if (videoRef.current && videoRef.current.srcObject) {
@@ -47,7 +55,7 @@ export default function TransactionsPage() {
             stream.getTracks().forEach(track => track.stop());
         }
     }
-  }, [toast]);
+  }, [toast, supabase]);
 
   useEffect(() => {
     let animationFrameId: number;
@@ -86,32 +94,60 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     if(scanResult) {
-        const findStudent = async () => {
-            const { data: student, error } = await supabase
-                .from('students')
-                .select('id, name')
-                .eq('nis', scanResult)
-                .single();
+        const [nis, schoolCode] = scanResult.split(',');
 
-            if (student && !error) {
-                toast({
-                    title: 'Siswa Ditemukan',
-                    description: `Membuka profil untuk ${student.name}.`,
-                });
-                router.push(`/profiles/${student.id}`);
-            } else {
-                toast({
-                    title: 'Siswa Tidak Ditemukan',
-                    description: `Tidak ada siswa dengan NIS "${scanResult}". Pindai lagi.`,
+        if (!nis) {
+             toast({
+                title: 'Kode QR Tidak Valid',
+                description: `Format kode QR tidak dikenali.`,
+                variant: 'destructive',
+            });
+            setTimeout(() => setScanResult(null), 2000);
+            return;
+        }
+
+        // If user is logged in (i.e., a teacher), proceed to transaction
+        if (user) {
+             const findStudent = async () => {
+                const { data: student, error } = await supabase
+                    .from('students')
+                    .select('id, name')
+                    .eq('nis', nis)
+                    .single();
+
+                if (student && !error) {
+                    toast({
+                        title: 'Siswa Ditemukan',
+                        description: `Membuka profil untuk ${student.name}.`,
+                    });
+                    router.push(`/profiles/${student.id}`);
+                } else {
+                    toast({
+                        title: 'Siswa Tidak Ditemukan',
+                        description: `Tidak ada siswa dengan NIS "${nis}". Pindai lagi.`,
+                        variant: 'destructive',
+                    });
+                    setTimeout(() => setScanResult(null), 2000); 
+                }
+            }
+            findStudent();
+        } else {
+            // If user is not logged in (i.e., a student trying to log in)
+            // Redirect to login page with pre-filled data
+            if (!schoolCode) {
+                 toast({
+                    title: 'Kode QR Login Tidak Lengkap',
+                    description: `Kode QR tidak berisi kode sekolah. Gunakan kartu yang baru.`,
                     variant: 'destructive',
                 });
-                // Reset scan to allow another scan
-                setTimeout(() => setScanResult(null), 2000); 
+                setTimeout(() => setScanResult(null), 2000);
+                return;
             }
+            const params = new URLSearchParams({ nis, school_code: schoolCode });
+            router.push(`/student-login?${params.toString()}`);
         }
-        findStudent();
     }
-  }, [scanResult, router, toast, supabase])
+  }, [scanResult, router, toast, supabase, user])
 
 
   return (
@@ -119,7 +155,7 @@ export default function TransactionsPage() {
         <div className="flex flex-col items-center gap-4 text-center">
              <h2 className="text-2xl font-bold tracking-tight">Pindai untuk Memulai</h2>
             <p className="text-muted-foreground max-w-xs">
-                Posisikan kode QR siswa di dalam bingkai untuk memulai transaksi dengan cepat.
+                {user ? 'Pindai kode QR siswa untuk memulai transaksi.' : 'Pindai kode QR pada kartu Anda untuk login.'}
             </p>
         </div>
         
@@ -128,6 +164,12 @@ export default function TransactionsPage() {
             <ScanLine className="absolute h-full w-full text-primary animate-pulse" />
             <canvas ref={canvasRef} className="hidden" />
         </div>
+
+        {!user && (
+            <Button variant="outline" asChild>
+                <Link href="/student-login">Login Manual</Link>
+            </Button>
+        )}
 
         {hasCameraPermission === false && (
             <Alert variant="destructive" className="max-w-xs">
