@@ -27,7 +27,7 @@ export default function StudentLayout({
       if (authUser) {
         const { data: studentData } = await supabase
             .from('students')
-            .select('name')
+            .select('name, class')
             .eq('id', authUser.id)
             .single();
         if (studentData) {
@@ -44,9 +44,10 @@ export default function StudentLayout({
     router.refresh();
   };
   
-  const getInitials = (name?: string) => {
-    if (!name) return user?.email?.charAt(0).toUpperCase() || <User className="h-4 w-4" />;
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  const getAvatarContent = () => {
+    if (student?.class) return student.class.substring(0, 3).toUpperCase();
+    if (user?.email) return user.email.charAt(0).toUpperCase();
+    return <User className="h-4 w-4" />;
   }
 
   return (
@@ -54,8 +55,8 @@ export default function StudentLayout({
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-lg sm:px-6">
             <div className='flex items-center gap-3'>
                 <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                        {getInitials(student?.name)}
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                        {getAvatarContent()}
                     </AvatarFallback>
                 </Avatar>
                 <div className='flex flex-col'>
