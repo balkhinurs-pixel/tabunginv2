@@ -71,7 +71,7 @@ export default function AppSidebar() {
         {user && (
            <div className='flex items-center gap-3 px-2 py-3'>
                 <Image
-                    src={`https://api.dicebear.com/7.x/identicon/svg?seed=${user?.email || 'default'}`}
+                    src={`https://api.dicebear.com/7.x/micah/svg?seed=${user?.email || 'default'}`}
                     width={40}
                     height={40}
                     alt="Avatar"

@@ -59,7 +59,7 @@ export default function Header() {
               className="overflow-hidden rounded-full"
             >
               <Image
-                src={`https://api.dicebear.com/7.x/identicon/svg?seed=${user?.email || 'default'}`}
+                src={`https://api.dicebear.com/7.x/micah/svg?seed=${user?.email || 'default'}`}
                 width={36}
                 height={36}
                 alt="Avatar"
@@ -93,5 +93,3 @@ export default function Header() {
     </header>
   );
 }
-
-    
