@@ -17,7 +17,8 @@ import { studentLogin } from './actions';
 import { SubmitButton } from '@/components/SubmitButton';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, KeyRound, User, ArrowRight, Shield } from 'lucide-react';
+import { Loader2, KeyRound, User, ArrowRight, Shield, QrCode } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 function StudentLoginContent() {
   const searchParams = useSearchParams();
@@ -132,10 +133,26 @@ export default function StudentLoginPage() {
               Login Siswa
             </CardTitle>
             <CardDescription className="text-muted-foreground mt-2">
-              Pindai QR pada kartu Anda atau isi form di bawah.
+              Isi form di bawah ini atau pindai kartu Anda.
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <Button variant="outline" className="w-full mb-6 h-12 text-base" asChild>
+                <Link href="/transactions">
+                    <QrCode className="mr-2 h-5 w-5"/>
+                    Pindai Kode QR
+                </Link>
+            </Button>
+            <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">
+                    Atau login manual
+                    </span>
+                </div>
+            </div>
             <Suspense fallback={
               <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
