@@ -17,29 +17,180 @@ import { studentLogin } from './actions';
 import { SubmitButton } from '@/components/SubmitButton';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, KeyRound, User, ArrowRight, Shield, QrCode } from 'lucide-react';
+import { Loader2, KeyRound, User, ArrowRight, Shield, QrCode, Delete } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { createClient } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
+
+
+function PinKeypad({ studentName, schoolCode, nis }: { studentName: string, schoolCode: string, nis: string }) {
+    const [pin, setPin] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleKeyPress = (key: string) => {
+        if (loading) return;
+        if (key === 'backspace') {
+            setPin(p => p.slice(0, -1));
+        } else if (pin.length < 6) {
+            setPin(p => p + key);
+        }
+    };
+
+    const handleLogin = async () => {
+        if (pin.length === 0) {
+            setError('PIN tidak boleh kosong.');
+            return;
+        }
+        setLoading(true);
+        setError('');
+
+        const formData = new FormData();
+        formData.append('school_code', schoolCode);
+        formData.append('nis', nis);
+        formData.append('pin', pin);
+
+        // We don't use the return value here as `studentLogin` redirects on its own
+        await studentLogin(formData);
+        
+        // If the redirect doesn't happen, it means there was an error.
+        // The error message is passed via URL param, so the page will reload and show it.
+        // We can set a fallback loading state here.
+    };
+
+    const pinDisplay = Array(6).fill('●').map((char, i) => (
+        <div key={i} className={cn(
+            "h-4 w-4 rounded-full transition-all duration-200",
+            i < pin.length ? 'bg-primary' : 'bg-gray-300'
+        )}></div>
+    ));
+
+    const KeypadButton = ({ value, onClick, children }: { value: string; onClick: (val: string) => void; children: React.ReactNode }) => (
+        <Button
+            variant="ghost"
+            className="h-16 w-16 text-2xl font-bold rounded-full text-gray-700 bg-gray-100 hover:bg-gray-200"
+            onClick={() => onClick(value)}
+            disabled={loading}
+        >
+            {children}
+        </Button>
+    );
+
+    return (
+        <div className="flex flex-col items-center text-center gap-6">
+            <CardTitle className="text-2xl font-bold">Selamat Datang!</CardTitle>
+            <CardDescription className="text-muted-foreground -mt-4">
+                Masukkan PIN Anda untuk masuk sebagai <br/><span className="font-bold text-primary">{studentName}</span>
+            </CardDescription>
+
+            <div className="flex items-center justify-center gap-3 my-4">
+                {pinDisplay}
+            </div>
+
+            {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+
+            <div className="grid grid-cols-3 gap-4">
+                {[...Array(9).keys()].map(i => (
+                    <KeypadButton key={i+1} value={(i + 1).toString()} onClick={handleKeyPress}>
+                        {i + 1}
+                    </KeypadButton>
+                ))}
+                <div /> 
+                <KeypadButton value="0" onClick={handleKeyPress}>0</KeypadButton>
+                <KeypadButton value="backspace" onClick={handleKeyPress}>
+                    <Delete className="h-6 w-6" />
+                </KeypadButton>
+            </div>
+             <Button className="w-full h-12 bg-primary text-white font-medium group mt-4" onClick={handleLogin} disabled={loading}>
+                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+                    <span className="flex items-center justify-center gap-2">
+                        Masuk
+                        <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                )}
+            </Button>
+             <div className="mt-2 text-center text-sm">
+                <Link href="/student-login" className="text-muted-foreground hover:text-primary transition-colors">
+                    Bukan Anda? Login manual.
+                </Link>
+             </div>
+        </div>
+    );
+}
+
 
 function StudentLoginContent() {
   const searchParams = useSearchParams();
+  const supabase = createClient();
   const errorMessage = searchParams.get('message');
   
-  // Get data from QR scan if available
-  const initialNis = searchParams.get('nis') || '';
-  const initialSchoolCode = searchParams.get('school_code') || '';
+  const nisFromQR = searchParams.get('nis') || '';
+  const schoolCodeFromQR = searchParams.get('school_code') || '';
+
+  const [studentName, setStudentName] = useState<string | null>(null);
+  const [loadingName, setLoadingName] = useState(true);
   
-  const [nis, setNis] = useState(initialNis);
-  const [schoolCode, setSchoolCode] = useState(initialSchoolCode);
+  const [nis, setNis] = useState(nisFromQR);
+  const [schoolCode, setSchoolCode] = useState(schoolCodeFromQR);
 
   useEffect(() => {
-    setNis(initialNis);
-    setSchoolCode(initialSchoolCode);
-  }, [initialNis, initialSchoolCode]);
+    if (nisFromQR && schoolCodeFromQR) {
+        setLoadingName(true);
+        const fetchStudentName = async () => {
+            const { data, error } = await supabase
+                .from('students')
+                .select('name')
+                .eq('nis', nisFromQR)
+                .single();
+            
+            if (data) {
+                setStudentName(data.name);
+            } else {
+                // If student not found, maybe QR is wrong, revert to manual login
+                setStudentName(null);
+            }
+            setLoadingName(false);
+        };
+        fetchStudentName();
+    } else {
+        setLoadingName(false);
+    }
+  }, [nisFromQR, schoolCodeFromQR, supabase]);
 
-  const isQrLogin = !!(initialNis && initialSchoolCode);
+
+  if (nisFromQR && schoolCodeFromQR) {
+     if (loadingName) {
+         return (
+            <div className="flex flex-col items-center justify-center py-8 gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-muted-foreground">Mencari data siswa...</p>
+            </div>
+         );
+     }
+     if (studentName) {
+        return <PinKeypad studentName={studentName} schoolCode={schoolCodeFromQR} nis={nisFromQR} />;
+     }
+  }
+
 
   return (
     <>
+      <Button variant="outline" className="w-full mb-6 h-12 text-base" asChild>
+        <Link href="/scan-login">
+            <QrCode className="mr-2 h-5 w-5"/>
+            Pindai Kode QR
+        </Link>
+      </Button>
+      <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+              Atau login manual
+              </span>
+          </div>
+      </div>
       <form action={studentLogin} className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="school_code">Kode Sekolah</Label>
@@ -53,7 +204,6 @@ function StudentLoginContent() {
               className="pl-10 h-12"
               value={schoolCode}
               onChange={(e) => setSchoolCode(e.target.value)}
-              readOnly={isQrLogin}
               required
             />
           </div>
@@ -71,7 +221,6 @@ function StudentLoginContent() {
               className="pl-10 h-12"
               value={nis}
               onChange={(e) => setNis(e.target.value)}
-              readOnly={isQrLogin}
               required
             />
           </div>
@@ -87,7 +236,6 @@ function StudentLoginContent() {
               placeholder="Masukkan PIN Anda"
               className="pl-10 h-12"
               required
-              autoFocus={isQrLogin}
             />
           </div>
         </div>
@@ -129,30 +277,8 @@ export default function StudentLoginPage() {
              <div className="mb-6 flex justify-center">
                 <AppLogo />
             </div>
-            <CardTitle className="text-2xl font-bold">
-              Login Siswa
-            </CardTitle>
-            <CardDescription className="text-muted-foreground mt-2">
-              Isi form di bawah ini atau pindai kartu Anda.
-            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full mb-6 h-12 text-base" asChild>
-                <Link href="/scan-login">
-                    <QrCode className="mr-2 h-5 w-5"/>
-                    Pindai Kode QR
-                </Link>
-            </Button>
-            <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">
-                    Atau login manual
-                    </span>
-                </div>
-            </div>
             <Suspense fallback={
               <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -166,3 +292,5 @@ export default function StudentLoginPage() {
     </main>
   );
 }
+
+    
