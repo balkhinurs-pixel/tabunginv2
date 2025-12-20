@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { DollarSign, Users, Key, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase";
+import type { Profile } from "@/types";
 
 interface DashboardStats {
     totalUsers: number;
@@ -20,7 +21,13 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
         setLoading(true);
 
-        const { data: profiles, error } = await supabase.from('profiles').select('plan');
+        // This query now works because the RLS policy for the 'profiles' table
+        // was updated to allow ADMIN roles to read all profiles.
+        // We also filter out student shadow accounts.
+        const { data: profiles, error } = await supabase
+            .from('profiles')
+            .select('plan')
+            .not('email', 'like', '%.supabase.user');
 
         if (error) {
             console.error("Error fetching stats:", error);
