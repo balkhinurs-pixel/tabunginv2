@@ -12,6 +12,8 @@ async function getUsers() {
     const { data, error } = await supabaseAdmin
         .from('profiles')
         .select('*')
+        // Filter out student accounts, which have a shadow email ending in .supabase.user
+        .not('email', 'like', '%.supabase.user')
         .order('email', { ascending: true });
 
     if (error) {
@@ -28,7 +30,7 @@ export default async function AdminUsersPage() {
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold tracking-tight">Manajemen Pengguna</h1>
-            <p className="text-muted-foreground">Lihat dan kelola semua pengguna yang terdaftar di aplikasi Anda.</p>
+            <p className="text-muted-foreground">Lihat dan kelola semua pengguna (guru/admin) yang terdaftar di aplikasi Anda.</p>
 
             <Card>
                 <CardHeader>
