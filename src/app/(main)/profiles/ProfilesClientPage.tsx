@@ -23,7 +23,7 @@ import {
   } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2, Save, Loader2, Info } from 'lucide-react';
+import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2, Save, Loader2, Info, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -223,7 +223,8 @@ export default function ProfilesClientPage({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
 
-  const studentQuota = profile?.plan === 'PRO' ? 100 : 5;
+  const studentQuota = profile?.plan === 'PRO' ? 40 : 5;
+  const proStudentQuota = 40;
 
   const handleUpdateStudent = (updatedStudent: Student) => {
     setStudents(prev =>
@@ -410,44 +411,22 @@ export default function ProfilesClientPage({
         </CardContent>
       </Card>
       
-      <Card>
-          <CardContent className="p-4 space-y-4">
-            <div className='space-y-2'>
-                <Label className='flex items-center gap-2 text-muted-foreground'><Filter className='h-4 w-4' /> Filter Kelas:</Label>
-                <Select value={selectedClass} onValueChange={setSelectedClass}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Semua Kelas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Kelas</SelectItem>
-                        {uniqueClasses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className='space-y-2'>
-                <Label htmlFor='search'>Cari Siswa (NIS, Nama):</Label>
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="search" placeholder="Ketik untuk mencari..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                </div>
-            </div>
-          </CardContent>
-      </Card>
-
       {profile?.plan === 'TRIAL' && (
-        <Card className="text-center">
-            <CardContent className="p-6 space-y-3">
-                <div className='flex justify-center'>
-                  <div className="p-2 bg-primary/10 rounded-full inline-block">
-                      <ShieldCheck className="h-6 w-6 text-primary" />
-                  </div>
+        <Card className="bg-gradient-to-br from-primary to-blue-800 text-primary-foreground shadow-lg">
+            <CardContent className="p-6 space-y-4">
+                <div className='flex items-center gap-4'>
+                    <div className="p-3 bg-white/20 rounded-full">
+                        <ShieldCheck className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-lg">Aktivasi Akun PRO Anda</h3>
+                        <p className="text-primary-foreground/80 text-sm">Buka kuota hingga <span className="font-bold">{proStudentQuota} siswa</span> dan dapatkan akses penuh.</p>
+                    </div>
                 </div>
-                <h3 className="font-semibold">Aktivasi Akun PRO Anda</h3>
-                <p className="text-muted-foreground text-sm">Buka kuota hingga {studentQuota} siswa dan dapatkan akses penuh.</p>
-                <Button asChild>
-                  <Link href="/activation">
-                      Aktivasi Sekarang
-                  </Link>
+                <Button asChild variant="secondary" className="w-full justify-center group bg-white text-primary hover:bg-white/90">
+                    <Link href="/activation">
+                        Aktivasi Sekarang <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </Link>
                 </Button>
             </CardContent>
         </Card>

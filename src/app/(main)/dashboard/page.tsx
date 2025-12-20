@@ -87,7 +87,7 @@ async function DashboardData() {
     return total + studentBalance;
   }, 0);
 
-  const studentQuota = profile.plan === 'PRO' ? 100 : 5;
+  const studentQuota = profile.plan === 'PRO' ? 40 : 5;
 
   const recentTransactions = transactions.map(tx => ({
       id: tx.id,
