@@ -1,60 +1,39 @@
 
-'use client';
-
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { DollarSign, Users, Key, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase";
-import type { Profile } from "@/types";
+import { DollarSign, Users, Key } from "lucide-react";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
-interface DashboardStats {
-    totalUsers: number;
-    proUsers: number;
+async function getStats() {
+    const supabaseAdmin = getSupabaseAdmin();
+    
+    const { data: profiles, error } = await supabaseAdmin
+        .from('profiles')
+        .select('plan')
+        .not('email', 'like', '%.supabase.user');
+
+    if (error) {
+        console.error("Error fetching stats:", error);
+        return { totalUsers: 0, proUsers: 0 };
+    }
+
+    const totalUsers = profiles.length;
+    const proUsers = profiles.filter(p => p.plan === 'PRO').length;
+
+    return { totalUsers, proUsers };
 }
 
-export default function AdminDashboard() {
-  const supabase = createClient();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-        setLoading(true);
+export default async function AdminDashboard() {
+  const stats = await getStats();
 
-        // This query now works because the RLS policy for the 'profiles' table
-        // was updated to allow ADMIN roles to read all profiles.
-        // We also filter out student shadow accounts.
-        const { data: profiles, error } = await supabase
-            .from('profiles')
-            .select('plan')
-            .not('email', 'like', '%.supabase.user');
-
-        if (error) {
-            console.error("Error fetching stats:", error);
-        } else {
-            const totalUsers = profiles.length;
-            const proUsers = profiles.filter(p => p.plan === 'PRO').length;
-            setStats({ totalUsers, proUsers });
-        }
-
-        setLoading(false);
-    };
-
-    fetchStats();
-  }, [supabase]);
-
-  const StatCard = ({ title, value, icon: Icon, loading }: { title: string, value: string | number, icon: React.ElementType, loading: boolean }) => (
+  const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
     <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">{title}</CardTitle>
           <Icon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-            {loading ? (
-                 <div className="h-8 w-24 mt-1 rounded-md animate-pulse bg-muted" />
-            ) : (
-                <div className="text-2xl font-bold">{value}</div>
-            )}
+            <div className="text-2xl font-bold">{value}</div>
         </CardContent>
       </Card>
   );
@@ -67,15 +46,13 @@ export default function AdminDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <StatCard 
             title="Total Pengguna"
-            value={stats?.totalUsers ?? 0}
+            value={stats.totalUsers}
             icon={Users}
-            loading={loading}
           />
           <StatCard 
             title="Akun Aktif (Premium)"
-            value={stats?.proUsers ?? 0}
+            value={stats.proUsers}
             icon={Key}
-            loading={loading}
           />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
