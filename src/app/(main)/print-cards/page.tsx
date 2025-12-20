@@ -139,7 +139,7 @@ export default function PrintCardsPage() {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(107, 114, 128); // gray-500
     doc.text(`NIS: ${student.nis}`, x + 30, y + 25);
-    doc.text(`Kelas: ${student.class}`, x + 30, y + 30);
+    doc.text(`Kode Sekolah: ${schoolCode}`, x + 30, y + 30);
   
     // Footer
     doc.setFontSize(6);
@@ -257,7 +257,7 @@ export default function PrintCardsPage() {
                             <div>
                                 <p className="font-bold">{selectedStudent.name}</p>
                                 <p className="text-sm text-muted-foreground">NIS: {selectedStudent.nis}</p>
-                                <p className="text-sm text-muted-foreground">Kelas: {selectedStudent.class}</p>
+                                <p className="text-sm text-muted-foreground">Kode Sekolah: {profile?.school_code}</p>
                             </div>
                         </div>
                         <p className="text-xs text-muted-foreground text-center">Gunakan kartu ini untuk transaksi & login</p>
