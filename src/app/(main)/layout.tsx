@@ -12,7 +12,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const MainContent = (
-    <main className="p-4 sm:p-6 lg:p-8 sm:pb-6">{children}</main>
+    <main className="p-4 sm:p-6 lg:p-8 pb-24 sm:pb-6">{children}</main>
   );
 
   return (
