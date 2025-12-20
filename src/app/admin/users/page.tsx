@@ -1,32 +1,29 @@
-
-'use client'
-
-import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase';
+import { createClient } from '@/lib/utils/supabase/server';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Profile } from '@/types';
+import type { Profile } from '@/types';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
-export default function AdminUsersPage() {
-    const supabase = createClient();
-    const [users, setUsers] = useState<Profile[]>([]);
-    const [loading, setLoading] = useState(true);
+// This is a Server Component that fetches data securely.
+async function getUsers() {
+    // We use the admin client to bypass RLS for the admin panel.
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data, error } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .order('email', { ascending: true });
 
-    useEffect(() => {
-        const fetchUsers = async () => {
-            setLoading(true);
-            const { data, error } = await supabase.from('profiles').select('*').order('email', { ascending: true });
+    if (error) {
+        console.error("Error fetching profiles with admin client:", error);
+        return [];
+    }
+    return data as Profile[];
+}
 
-            if (error) {
-                console.error("Error fetching profiles:", error);
-            } else {
-                setUsers(data as Profile[]);
-            }
-            setLoading(false);
-        };
-        fetchUsers();
-    }, [supabase]);
+
+export default async function AdminUsersPage() {
+    const users = await getUsers();
 
     return (
         <div className="space-y-6">
@@ -35,7 +32,7 @@ export default function AdminUsersPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Daftar Pengguna</CardTitle>
+                    <CardTitle>Daftar Pengguna ({users.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {/* Desktop Table */}
@@ -49,16 +46,12 @@ export default function AdminUsersPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {loading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={3} className="text-center">Memuat pengguna...</TableCell>
-                                    </TableRow>
-                                ) : users.length > 0 ? (
+                                {users.length > 0 ? (
                                     users.map(user => (
                                         <TableRow key={user.id}>
                                             <TableCell className="font-medium">{user.email}</TableCell>
                                             <TableCell>
-                                                <Badge variant={user.plan === 'PRO' ? 'default' : 'secondary'}>
+                                                <Badge variant={user.plan === 'PRO' ? 'default' : 'secondary'} className={user.plan === 'PRO' ? 'bg-green-100 text-green-800' : ''}>
                                                     {user.plan}
                                                 </Badge>
                                             </TableCell>
@@ -82,9 +75,7 @@ export default function AdminUsersPage() {
 
                     {/* Mobile Card List */}
                     <div className="md:hidden">
-                        {loading ? (
-                            <p className="text-center text-muted-foreground">Memuat pengguna...</p>
-                        ) : users.length > 0 ? (
+                        {users.length > 0 ? (
                             <div className="space-y-4">
                                 {users.map(user => (
                                     <div key={user.id} className="border rounded-lg p-4">
@@ -94,7 +85,7 @@ export default function AdminUsersPage() {
                                         <div className="flex justify-between items-center text-sm">
                                             <div>
                                                 <span className="text-muted-foreground">Status: </span>
-                                                <Badge variant={user.plan === 'PRO' ? 'default' : 'secondary'} className="ml-1">
+                                                <Badge variant={user.plan === 'PRO' ? 'default' : 'secondary'} className={`ml-1 ${user.plan === 'PRO' ? 'bg-green-100 text-green-800' : ''}`}>
                                                     {user.plan}
                                                 </Badge>
                                             </div>
