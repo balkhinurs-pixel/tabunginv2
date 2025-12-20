@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -63,6 +64,7 @@ export default function RootLayout({
       <body className={`font-sans antialiased ${inter.variable} bg-background`}>
         {children}
         <Toaster />
+        <PWAInstallPrompt />
       </body>
     </html>
   );
