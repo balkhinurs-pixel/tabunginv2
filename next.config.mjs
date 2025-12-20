@@ -1,15 +1,17 @@
 /** @type {import('next').NextConfig} */
-import withPWA from '@ducanh2912/next-pwa';
-
 const nextConfig = {
-  // Your Next.js config
+    images: {
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: 'api.qrserver.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'picsum.photos',
+            }
+        ],
+    },
 };
 
-const pwaConfig = withPWA({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
-});
-
-export default pwaConfig(nextConfig);
+export default nextConfig;
