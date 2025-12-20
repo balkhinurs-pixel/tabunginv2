@@ -223,7 +223,7 @@ export default function ProfilesClientPage({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
 
-  const studentQuota = profile?.plan === 'PRO' ? 100 : 32;
+  const studentQuota = profile?.plan === 'PRO' ? 100 : 5;
 
   const handleUpdateStudent = (updatedStudent: Student) => {
     setStudents(prev =>
