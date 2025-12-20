@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 const APP_NAME = "Tabungin";
 const APP_DESCRIPTION = "Aplikasi tabungan siswa modern untuk pengelolaan keuangan yang lebih mudah dan transparan.";
-const APP_URL = "https://tabungin.com"; // Ganti dengan URL produksi Anda nanti
+const APP_URL = process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'http://localhost:9002';
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     },
     description: APP_DESCRIPTION,
     url: APP_URL,
-    images: [`${APP_URL}/opengraph-image.png`], // Tautan absolut ke gambar
+    images: [`${APP_URL}/logo.png`],
   },
   twitter: {
     card: "summary_large_image",
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
       template: `%s - ${APP_NAME}`,
     },
     description: APP_DESCRIPTION,
-    images: [`${APP_URL}/opengraph-image.png`], // Tautan absolut ke gambar
+    images: [`${APP_URL}/logo.png`],
   },
 };
 
