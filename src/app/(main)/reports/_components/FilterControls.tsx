@@ -1,23 +1,14 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TableFooter,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Download, Calendar as CalendarIcon, Filter } from 'lucide-react';
+import { Download, Calendar as CalendarIcon, Filter, FileSpreadsheet } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,7 +17,6 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { createClient } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
 
 interface ReportRow {
   nis: string;
@@ -52,7 +42,6 @@ export default function FilterControls({ reportData, period, totals }: FilterCon
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const { toast } = useToast();
 
     const [uniqueClasses, setUniqueClasses] = useState<string[]>([]);
     
@@ -64,7 +53,7 @@ export default function FilterControls({ reportData, period, totals }: FilterCon
 
     useEffect(() => {
         const fetchClasses = async () => {
-            const { data, error } = await supabase.from('students').select('class');
+            const { data } = await supabase.from('students').select('class');
             if (data) {
                 const unique = [...new Set(data.map(item => item.class))];
                 setUniqueClasses(unique);
@@ -98,10 +87,8 @@ export default function FilterControls({ reportData, period, totals }: FilterCon
     const handlePrintPdf = () => {
         const doc = new jsPDF();
         
-        const schoolName = "ribath5"; // This could come from profile data in the future
-        
         doc.setFontSize(16);
-        doc.text(`Laporan Tabungan Siswa - ${schoolName}`, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+        doc.text(`Laporan Tabungan Siswa`, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
         doc.setFontSize(10);
         doc.text(`Periode: ${period}`, doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
         
@@ -125,18 +112,44 @@ export default function FilterControls({ reportData, period, totals }: FilterCon
             ],
             headStyles: { fillColor: [29, 78, 133], textColor: 255, fontStyle: 'bold' },
             footStyles: { fillColor: [241, 245, 249], fontStyle: 'bold' },
-            theme: 'grid',
-            didDrawPage: (data) => {
-                doc.setFontSize(8);
-                doc.text(`Halaman ${data.pageNumber}`, data.settings.margin.left, doc.internal.pageSize.getHeight() - 10);
-            }
+            theme: 'grid'
         });
 
         doc.save(`laporan-tabungan-${format(new Date(), 'yyyyMMdd')}.pdf`);
     };
 
+    const handleExportCsv = () => {
+        const headers = ['No', 'NIS', 'Nama Siswa', 'Kelas', 'Pemasukan (Rp)', 'Pengeluaran (Rp)', 'Saldo Akhir (Rp)'];
+        const rows = reportData.map((item, index) => [
+            index + 1,
+            `'${item.nis}`, // Force as string in Excel
+            item.name,
+            item.class,
+            item.income,
+            item.outcome,
+            item.balance
+        ]);
+
+        const totalsRow = ['GRAND TOTAL', '', '', '', totals.totalIncome, totals.totalOutcome, totals.totalBalance];
+        
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(',')),
+            totalsRow.join(',')
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `laporan-tabungan-${format(new Date(), 'yyyyMMdd')}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
-        <>
+        <div className="space-y-4">
             <Card>
                 <CardContent className="p-4 space-y-4">
                     <div className="space-y-2">
@@ -159,7 +172,6 @@ export default function FilterControls({ reportData, period, totals }: FilterCon
                         <Popover>
                         <PopoverTrigger asChild>
                             <Button
-                            id="date"
                             variant={"outline"}
                             className={cn(
                                 "w-full justify-start text-left font-normal",
@@ -195,9 +207,15 @@ export default function FilterControls({ reportData, period, totals }: FilterCon
                     </div>
                 </CardContent>
             </Card>
-             <Button className="w-full" onClick={handlePrintPdf}>
-                <Download className="mr-2 h-4 w-4" /> Cetak Laporan (PDF)
-            </Button>
-        </>
+            
+            <div className="grid grid-cols-1 gap-2">
+                <Button onClick={handlePrintPdf} className="bg-primary hover:bg-primary/90">
+                    <Download className="mr-2 h-4 w-4" /> Cetak PDF
+                </Button>
+                <Button onClick={handleExportCsv} variant="secondary">
+                    <FileSpreadsheet className="mr-2 h-4 w-4" /> Ekspor ke CSV (Excel)
+                </Button>
+            </div>
+        </div>
     )
 }

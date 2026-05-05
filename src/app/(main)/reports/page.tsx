@@ -11,7 +11,7 @@ import {
   TableFooter,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, FileSpreadsheet, Download } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Student } from '@/types';
 import { createClient } from '@/lib/utils/supabase/server';
@@ -87,7 +87,7 @@ async function ReportsData({ searchParams }: ReportsPageProps) {
             outcome: expense,
             balance: income - expense,
         };
-    }).filter(data => data.income > 0 || data.outcome > 0); // Only show students with transactions in the period
+    }).filter(data => data.income > 0 || data.outcome > 0);
 
 
     const { totalIncome, totalOutcome, totalBalance } = reportData.reduce(
@@ -103,13 +103,9 @@ async function ReportsData({ searchParams }: ReportsPageProps) {
     const period = from ? `${format(new Date(from), 'd MMM yyyy')} - ${to ? format(new Date(to), 'd MMM yyyy') : 'Sekarang'}` : 'Semua Periode';
 
     return (
-        <>
-            <div className='space-y-2'>
-                <FilterControls reportData={reportData} period={period} totals={{ totalIncome, totalOutcome, totalBalance }} />
-                <Button variant="secondary" className="w-full" disabled>
-                    <FileSpreadsheet className="mr-2 h-4 w-4" /> Ekspor ke CSV (Segera Hadir)
-                </Button>
-            </div>
+        <div className="space-y-6">
+            <FilterControls reportData={reportData} period={period} totals={{ totalIncome, totalOutcome, totalBalance }} />
+            
              <div className="overflow-x-auto rounded-lg border">
                 <Table>
                     <TableHeader>
@@ -120,7 +116,7 @@ async function ReportsData({ searchParams }: ReportsPageProps) {
                             <TableHead>KELAS</TableHead>
                             <TableHead className="text-right">PEMASUKAN (RP)</TableHead>
                             <TableHead className="text-right">PENGELUARAN (RP)</TableHead>
-                            <TableHead className="text-right">SALDO AKHIR (RP)</TableHead>
+                            <TableHead className="text-right font-bold">SALDO AKHIR</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -152,7 +148,7 @@ async function ReportsData({ searchParams }: ReportsPageProps) {
                     </TableFooter>
                 </Table>
             </div>
-        </>
+        </div>
     )
 }
 
@@ -169,10 +165,9 @@ export default function ReportsPage({ searchParams }: ReportsPageProps) {
         <h2 className="text-xl font-bold tracking-tight">Laporan Tabungan Siswa</h2>
       </div>
 
-      <Suspense fallback={<div className="text-center text-muted-foreground">Memuat laporan...</div>}>
+      <Suspense fallback={<div className="text-center text-muted-foreground py-10">Memuat laporan...</div>}>
         <ReportsData searchParams={searchParams} />
       </Suspense>
     </div>
   );
 }
-
