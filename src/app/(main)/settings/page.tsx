@@ -2,17 +2,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, Trash2, DatabaseZap, Loader2 } from 'lucide-react';
+import { Save, DatabaseZap, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import type { Profile } from '@/types';
 import type { AuthUser } from '@supabase/supabase-js';
 import { cn } from "@/lib/utils";
+import BackupRestore from './_components/BackupRestore';
 
 export default function SettingsPage() {
   const supabase = createClient();
@@ -79,7 +79,7 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold tracking-tight">Pengaturan Aplikasi & Akun</h2>
 
-      <Card>
+      <Card className="shadow-sm border-primary/10">
         <CardHeader>
           <CardTitle>Informasi Sekolah</CardTitle>
           <CardDescription>Atur nama dan kode unik sekolah Anda. Kode ini akan digunakan oleh siswa saat mereka login.</CardDescription>
@@ -111,15 +111,16 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Data Aplikasi</CardTitle>
+      <Card className="shadow-sm border-primary/10 overflow-hidden">
+        <CardHeader className="bg-muted/30 border-b">
+          <div className="flex items-center gap-2">
+            <DatabaseZap className="h-5 w-5 text-primary" />
+            <CardTitle>Manajemen Data (Backup & Restore)</CardTitle>
+          </div>
+          <CardDescription>Amankan data Anda secara mandiri untuk menghindari kehilangan data yang tidak disengaja.</CardDescription>
         </CardHeader>
-        <CardContent>
-            <Button variant="secondary" className="w-full justify-start" disabled>
-                <DatabaseZap className="mr-2 h-4 w-4" />
-                Backup & Restore Data (Segera Hadir)
-            </Button>
+        <CardContent className="pt-6">
+          <BackupRestore />
         </CardContent>
       </Card>
 
