@@ -46,7 +46,6 @@ async function DashboardData() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    // This should be handled by middleware, but as a safeguard.
     return <p>User not found.</p>;
   }
   
@@ -57,9 +56,7 @@ async function DashboardData() {
     .maybeSingle();
   
   if (profileError || !profileData) {
-      // This case should rarely happen now because the middleware redirects
-      // to /welcome if the profile isn't fully set up.
-      return <p className="text-destructive text-center p-4">Gagal memuat data: Profil pengguna tidak ditemukan. Coba segarkan halaman.</p>;
+      return <p className="text-destructive text-center p-4">Gagal memuat data: Profil pengguna tidak ditemukan.</p>;
   }
 
 
@@ -72,8 +69,7 @@ async function DashboardData() {
   ]);
 
   if (studentsError || transactionsError) {
-    const errorMessage = studentsError?.message || transactionsError?.message || 'Terjadi kesalahan tidak diketahui.';
-    return <p className="text-destructive">Gagal memuat data: {errorMessage}</p>;
+    return <p className="text-destructive">Gagal memuat data.</p>;
   }
 
   const students = studentsData as Student[];
@@ -100,34 +96,34 @@ async function DashboardData() {
 
   return (
     <>
-       <Card className="bg-primary text-primary-foreground shadow-lg">
+       <Card className="bg-primary text-primary-foreground shadow-lg border-none">
         <CardContent className="p-6">
           <div className="flex justify-between items-start">
             <div className="bg-white/20 p-2 rounded-lg">
                 <BackpackIcon className="h-6 w-6 text-white"/>
             </div>
             {profile.plan === 'TRIAL' ? (
-              <Badge variant="secondary" className="bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90">TRIAL</Badge>
+              <Badge variant="secondary" className="bg-amber-400 text-amber-950 hover:bg-amber-400/90 border-none font-bold">TRIAL</Badge>
             ) : (
-              <Badge variant="secondary" className="bg-green-400 text-green-900 hover:bg-green-400/90">PRO</Badge>
+              <Badge variant="secondary" className="bg-emerald-400 text-emerald-950 hover:bg-emerald-400/90 border-none font-bold">PRO</Badge>
             )}
           </div>
           <div className="mt-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm opacity-80">Total Saldo Semua Siswa</span>
-              <EyeOff className="h-4 w-4 opacity-80" />
+              <span className="text-sm opacity-80 font-medium">Total Saldo Semua Siswa</span>
+              <EyeOff className="h-4 w-4 opacity-70" />
             </div>
             <p className="text-4xl font-bold tracking-tight">
               {totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
             </p>
-            <p className="text-xs opacity-80 mt-1">Kuota Siswa Digunakan: {students.length} / {studentQuota}</p>
+            <p className="text-xs opacity-70 mt-1 font-medium">Kuota Siswa Terpakai: {students.length} / {studentQuota}</p>
           </div>
         </CardContent>
       </Card>
 
       <SearchStudent />
       
-      <Card>
+      <Card className="border-none shadow-sm">
         <CardContent className="p-4 flex justify-around">
             <ActionButton icon={Users} label="Data Siswa" href="/profiles" />
             <ActionButton icon={QrCode} label="Cetak Kartu" href="/print-cards"/>
@@ -136,13 +132,13 @@ async function DashboardData() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-none shadow-sm">
           <CardContent className="p-4">
             <div className="flex justify-between items-center mb-2">
-                <h3 className="font-semibold">Transaksi Terkini</h3>
-                <Button variant="link" className="text-primary h-auto p-0" asChild>
+                <h3 className="font-bold text-sm">Transaksi Terkini</h3>
+                <Button variant="link" className="text-primary h-auto p-0 text-xs font-semibold" asChild>
                     <Link href="/reports">
-                      Lihat Semua <ArrowRight className="ml-1 h-4 w-4" />
+                      Lihat Semua <ArrowRight className="ml-1 h-3 w-3" />
                     </Link>
                 </Button>
             </div>
@@ -151,9 +147,9 @@ async function DashboardData() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>SISWA</TableHead>
-                                <TableHead>JENIS</TableHead>
-                                <TableHead className="text-right">JUMLAH</TableHead>
+                                <TableHead className="text-[10px] uppercase font-bold tracking-wider">SISWA</TableHead>
+                                <TableHead className="text-[10px] uppercase font-bold tracking-wider">JENIS</TableHead>
+                                <TableHead className="text-right text-[10px] uppercase font-bold tracking-wider">JUMLAH</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -161,16 +157,16 @@ async function DashboardData() {
                                 <TableRow key={tx.id}>
                                     <TableCell>
                                         <Link href={`/profiles/${tx.studentId}`} className="hover:underline">
-                                            <div className="font-medium">{tx.studentName}</div>
-                                            <div className="text-xs text-muted-foreground">{tx.date}</div>
+                                            <div className="font-semibold text-sm">{tx.studentName}</div>
+                                            <div className="text-[10px] text-muted-foreground">{tx.date}</div>
                                         </Link>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant={tx.type === 'Pemasukan' ? 'default' : 'destructive'} className={cn(tx.type === 'Pemasukan' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
+                                        <Badge variant={tx.type === 'Pemasukan' ? 'default' : 'destructive'} className={cn("text-[10px] px-2 py-0 border-none font-bold", tx.type === 'Pemasukan' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700')}>
                                             {tx.type}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className={cn("text-right font-medium", tx.type === 'Pemasukan' ? 'text-green-600' : 'text-red-600')}>
+                                    <TableCell className={cn("text-right font-bold text-sm", tx.type === 'Pemasukan' ? 'text-emerald-600' : 'text-rose-600')}>
                                         {tx.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                                     </TableCell>
                                 </TableRow>
@@ -180,7 +176,7 @@ async function DashboardData() {
                 </div>
             ) : (
                 <div className="text-center py-8">
-                    <p className="text-muted-foreground text-sm">Belum ada transaksi terbaru.</p>
+                    <p className="text-muted-foreground text-xs font-medium">Belum ada transaksi terbaru.</p>
                 </div>
             )}
           </CardContent>
@@ -191,28 +187,13 @@ async function DashboardData() {
 
 function DashboardLoading() {
   return (
-    <>
-      <Card className="bg-primary text-primary-foreground shadow-lg">
-        <CardContent className="p-6">
-          <div className="h-[125px] w-full" />
-        </CardContent>
+    <div className="space-y-6">
+      <Card className="bg-primary/10 border-none">
+        <CardContent className="p-6 h-[160px] animate-pulse" />
       </Card>
-      <Card>
-        <CardContent className="p-4 space-y-3">
-           <div className="h-[76px] w-full" />
-        </CardContent>
-      </Card>
-       <Card>
-        <CardContent className="p-4 flex justify-around">
-            <div className="h-[76px] w-full" />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="p-4">
-          <div className="text-center py-8 text-muted-foreground text-sm">Memuat transaksi...</div>
-        </CardContent>
-      </Card>
-    </>
+      <div className="h-20 bg-muted animate-pulse rounded-lg" />
+      <div className="h-40 bg-muted animate-pulse rounded-lg" />
+    </div>
   );
 }
 
