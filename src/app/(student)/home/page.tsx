@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import type { Student, Transaction } from '@/types';
-import { Loader2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { Loader2, ArrowUpCircle, ArrowDownCircle, Wallet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -102,14 +102,20 @@ export default function StudentDashboardPage() {
 
     return (
         <div className="space-y-6 pb-8">
-            {/* Main Balance Card */}
-            <Card className="bg-primary text-primary-foreground shadow-lg overflow-hidden">
-                <CardContent className="p-6 relative">
-                     <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full opacity-50"></div>
-                     <div className="absolute -bottom-12 -right-4 w-24 h-24 bg-white/10 rounded-full opacity-50"></div>
-                     <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-white/10 rounded-full opacity-50"></div>
-                    <p className="text-sm text-primary-foreground/80">Saldo Anda Saat Ini</p>
-                    <p className="text-4xl font-bold tracking-tight mt-1">
+            {/* Main Balance Card with Gradient and Motif */}
+            <Card className="bg-gradient-to-br from-primary via-primary to-blue-700 text-primary-foreground shadow-xl border-none relative overflow-hidden">
+                {/* Decorative Pattern */}
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="absolute -bottom-12 -left-8 w-24 h-24 bg-blue-300/20 rounded-full blur-xl pointer-events-none" />
+                
+                <CardContent className="p-6 relative z-10">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm border border-white/10">
+                            <Wallet className="h-5 w-5 text-white" />
+                        </div>
+                        <p className="text-sm text-primary-foreground/80 font-medium tracking-wide">Saldo Anda Saat Ini</p>
+                    </div>
+                    <p className="text-4xl font-bold tracking-tight">
                         {balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                     </p>
                 </CardContent>
@@ -117,26 +123,26 @@ export default function StudentDashboardPage() {
             
             {/* Income and Expense Summary */}
             <div className="grid grid-cols-2 gap-4">
-                <Card>
+                <Card className="border-none shadow-sm">
                     <CardContent className="p-4 flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-50 dark:bg-green-900/50">
                             <ArrowUpCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
                         </div>
                         <div>
-                            <p className="text-xs text-muted-foreground">Pemasukan</p>
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Pemasukan</p>
                             <p className="font-bold text-green-600 dark:text-green-400">
                                 {income.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                             </p>
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="border-none shadow-sm">
                     <CardContent className="p-4 flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/50">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 dark:bg-red-900/50">
                             <ArrowDownCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
                         </div>
                         <div>
-                            <p className="text-xs text-muted-foreground">Pengeluaran</p>
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Pengeluaran</p>
                             <p className="font-bold text-red-600 dark:text-red-400">
                                 {expense.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                             </p>
@@ -146,9 +152,9 @@ export default function StudentDashboardPage() {
             </div>
 
             {/* Recent Transactions */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Riwayat Transaksi</CardTitle>
+            <Card className="border-none shadow-sm">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold">Riwayat Transaksi</CardTitle>
                 </CardHeader>
                 <CardContent className="px-2 divide-y">
                     {student.transactions.length > 0 ? (

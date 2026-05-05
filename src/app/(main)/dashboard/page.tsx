@@ -96,27 +96,34 @@ async function DashboardData() {
 
   return (
     <>
-       <Card className="bg-primary text-primary-foreground shadow-lg border-none">
-        <CardContent className="p-6">
+       <Card className="bg-gradient-to-br from-primary via-primary to-blue-700 text-primary-foreground shadow-xl border-none relative overflow-hidden">
+        {/* Decorative Motif */}
+        <div className="absolute -top-12 -right-12 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-8 w-32 h-32 bg-blue-400/20 rounded-full blur-2xl pointer-events-none" />
+        
+        <CardContent className="p-6 relative z-10">
           <div className="flex justify-between items-start">
-            <div className="bg-white/20 p-2 rounded-lg">
+            <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm border border-white/10">
                 <BackpackIcon className="h-6 w-6 text-white"/>
             </div>
             {profile.plan === 'TRIAL' ? (
               <Badge variant="secondary" className="bg-amber-400 text-amber-950 hover:bg-amber-400/90 border-none font-bold">TRIAL</Badge>
             ) : (
-              <Badge variant="secondary" className="bg-emerald-400 text-emerald-950 hover:bg-emerald-400/90 border-none font-bold">PRO</Badge>
+              <Badge variant="secondary" className="bg-emerald-400 text-emerald-950 hover:bg-emerald-400/90 border-none font-bold shadow-sm">PRO</Badge>
             )}
           </div>
-          <div className="mt-4">
+          <div className="mt-6">
             <div className="flex items-center gap-2">
-              <span className="text-sm opacity-80 font-medium">Total Saldo Semua Siswa</span>
+              <span className="text-sm opacity-80 font-medium tracking-wide">Total Saldo Semua Siswa</span>
               <EyeOff className="h-4 w-4 opacity-70" />
             </div>
-            <p className="text-4xl font-bold tracking-tight">
+            <p className="text-4xl font-bold tracking-tight mt-1">
               {totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
             </p>
-            <p className="text-xs opacity-70 mt-1 font-medium">Kuota Siswa Terpakai: {students.length} / {studentQuota}</p>
+            <div className="mt-4 flex items-center gap-2 bg-black/10 w-fit px-3 py-1 rounded-full backdrop-blur-sm">
+                <Users className="h-3 w-3 opacity-70" />
+                <p className="text-[10px] uppercase font-bold tracking-widest opacity-90">Kuota Siswa: {students.length} / {studentQuota}</p>
+            </div>
           </div>
         </CardContent>
       </Card>
