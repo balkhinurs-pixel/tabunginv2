@@ -29,18 +29,6 @@ const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, la
   return content;
 };
 
-
-const BackpackIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="4" y="5" width="16" height="16" rx="2" />
-        <path d="M4 7h16" />
-        <path d="M8 5V3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
-        <path d="M9.5 12.5h2" />
-        <path d="M12.5 15.5h-2a1 1 0 0 1 -1 -1v-1a1 1 0 0 1 1 -1h2" />
-        <path d="M10.5 15.5v-3" />
-    </svg>
-)
-
 async function DashboardData() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -103,8 +91,10 @@ async function DashboardData() {
         
         <CardContent className="p-6 relative z-10">
           <div className="flex justify-between items-start">
-            <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm border border-white/10">
-                <BackpackIcon className="h-6 w-6 text-white"/>
+            <div className="flex items-center">
+                <span className="text-2xl font-black tracking-tighter text-white drop-shadow-md">
+                  Tabung<span className="opacity-60">.in</span>
+                </span>
             </div>
             {profile.plan === 'TRIAL' ? (
               <Badge variant="secondary" className="bg-amber-400 text-amber-950 hover:bg-amber-400/90 border-none font-bold">TRIAL</Badge>

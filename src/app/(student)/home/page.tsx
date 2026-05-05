@@ -110,10 +110,11 @@ export default function StudentDashboardPage() {
                 
                 <CardContent className="p-6 relative z-10">
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm border border-white/10">
-                            <Wallet className="h-5 w-5 text-white" />
-                        </div>
-                        <p className="text-sm text-primary-foreground/80 font-medium tracking-wide">Saldo Anda Saat Ini</p>
+                        <span className="text-2xl font-black tracking-tighter text-white drop-shadow-md">
+                          Tabung<span className="opacity-60">.in</span>
+                        </span>
+                        <div className="h-px w-8 bg-white/20 mx-1" />
+                        <p className="text-sm text-primary-foreground/80 font-medium tracking-wide">Saldo Anda</p>
                     </div>
                     <p className="text-4xl font-bold tracking-tight">
                         {balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
