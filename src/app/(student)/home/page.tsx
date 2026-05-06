@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import type { Student, Transaction } from '@/types';
-import { Loader2, ArrowUpCircle, ArrowDownCircle, Wallet } from 'lucide-react';
+import { Loader2, ArrowUpCircle, ArrowDownCircle, Wallet, EyeOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -102,23 +102,36 @@ export default function StudentDashboardPage() {
 
     return (
         <div className="space-y-6 pb-8">
-            {/* Main Balance Card with Gradient and Motif */}
-            <Card className="bg-gradient-to-br from-primary via-primary to-blue-700 text-primary-foreground shadow-xl border-none relative overflow-hidden">
-                {/* Decorative Pattern */}
-                <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-                <div className="absolute -bottom-12 -left-8 w-24 h-24 bg-blue-300/20 rounded-full blur-xl pointer-events-none" />
+            {/* Main Balance Card with Gradient and Modern Motif */}
+            <Card className="bg-gradient-to-br from-primary via-primary to-blue-700 text-primary-foreground shadow-xl border-none relative overflow-hidden h-[220px]">
+                {/* Artistic Overlapping Circles (Matching User Request) */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+                <div className="absolute top-1/2 -right-16 w-48 h-48 bg-white/5 rounded-full pointer-events-none" />
+                <div className="absolute -bottom-12 -left-8 w-32 h-32 bg-blue-300/20 rounded-full blur-2xl pointer-events-none" />
                 
-                <CardContent className="p-6 relative z-10">
+                <CardContent className="p-6 relative z-10 h-full flex flex-col">
                     <div className="flex items-center gap-3 mb-4">
                         <span className="text-2xl font-black tracking-tighter text-white drop-shadow-md">
                           Tabung<span className="opacity-60">.in</span>
                         </span>
                         <div className="h-px w-8 bg-white/20 mx-1" />
-                        <p className="text-sm text-primary-foreground/80 font-medium tracking-wide">Saldo Anda</p>
+                        <p className="text-xs text-primary-foreground/80 font-bold tracking-widest uppercase">Halo, {student.name.split(' ')[0]}!</p>
                     </div>
-                    <p className="text-4xl font-bold tracking-tight">
-                        {balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
-                    </p>
+
+                    <div className="mt-auto">
+                        <div className="flex items-center gap-2">
+                            <p className="text-xs text-primary-foreground/80 font-medium tracking-wide uppercase">Saldo Tabungan Anda</p>
+                            <EyeOff className="h-3 w-3 opacity-60" />
+                        </div>
+                        <p className="text-4xl font-black tracking-tight mt-1 drop-shadow-sm">
+                            {balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                        </p>
+                        
+                        {/* Glassmorphism Badge for Student Info */}
+                        <div className="mt-4 inline-flex items-center gap-2 bg-white/10 border border-white/20 px-3 py-1.5 rounded-xl backdrop-blur-md">
+                            <p className="text-[10px] font-black tracking-widest uppercase">Kelas {student.class}</p>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
             

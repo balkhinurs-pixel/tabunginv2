@@ -84,17 +84,19 @@ async function DashboardData() {
 
   return (
     <>
-       <Card className="bg-gradient-to-br from-primary via-primary to-blue-700 text-primary-foreground shadow-xl border-none relative overflow-hidden">
-        {/* Decorative Motif */}
-        <div className="absolute -top-12 -right-12 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-16 -left-8 w-32 h-32 bg-blue-400/20 rounded-full blur-2xl pointer-events-none" />
+       <Card className="bg-gradient-to-br from-primary via-primary to-blue-700 text-primary-foreground shadow-xl border-none relative overflow-hidden h-[240px]">
+        {/* Artistic Circles Pattern (Matching User Request) */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+        <div className="absolute top-1/4 -right-10 w-48 h-48 bg-white/5 rounded-full pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-400/20 rounded-full blur-2xl pointer-events-none" />
         
-        <CardContent className="p-6 relative z-10">
+        <CardContent className="p-6 relative z-10 h-full flex flex-col">
           <div className="flex justify-between items-start">
-            <div className="flex items-center">
-                <span className="text-2xl font-black tracking-tighter text-white drop-shadow-md">
+            <div className="flex flex-col">
+                <span className="text-3xl font-black tracking-tighter text-white drop-shadow-md">
                   Tabung<span className="opacity-60">.in</span>
                 </span>
+                <span className="text-[10px] uppercase font-bold tracking-widest opacity-70 -mt-1 ml-0.5">Guru Dashboard</span>
             </div>
             {profile.plan === 'TRIAL' ? (
               <Badge variant="secondary" className="bg-amber-400 text-amber-950 hover:bg-amber-400/90 border-none font-bold">TRIAL</Badge>
@@ -102,17 +104,25 @@ async function DashboardData() {
               <Badge variant="secondary" className="bg-emerald-400 text-emerald-950 hover:bg-emerald-400/90 border-none font-bold shadow-sm">PRO</Badge>
             )}
           </div>
-          <div className="mt-6">
+
+          <div className="mt-auto">
             <div className="flex items-center gap-2">
-              <span className="text-sm opacity-80 font-medium tracking-wide">Total Saldo Semua Siswa</span>
-              <EyeOff className="h-4 w-4 opacity-70" />
+              <span className="text-xs opacity-80 font-semibold tracking-wide uppercase">Total Saldo Terkumpul</span>
+              <EyeOff className="h-3 w-3 opacity-60" />
             </div>
-            <p className="text-4xl font-bold tracking-tight mt-1">
+            <p className="text-4xl font-black tracking-tight mt-1 drop-shadow-sm">
               {totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
             </p>
-            <div className="mt-4 flex items-center gap-2 bg-black/10 w-fit px-3 py-1 rounded-full backdrop-blur-sm">
-                <Users className="h-3 w-3 opacity-70" />
-                <p className="text-[10px] uppercase font-bold tracking-widest opacity-90">Kuota Siswa: {students.length} / {studentQuota}</p>
+            
+            {/* Glass Box for Quota Info (Matching "Time Box" in user's image) */}
+            <div className="mt-4 flex items-center justify-between bg-white/10 border border-white/20 px-4 py-3 rounded-2xl backdrop-blur-md">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 opacity-70" />
+                  <p className="text-xs font-bold tracking-wide">KUOTA SISWA TERPAKAI</p>
+                </div>
+                <div className="text-xs font-black bg-white/20 px-2 py-0.5 rounded-md">
+                  {students.length} / {studentQuota}
+                </div>
             </div>
           </div>
         </CardContent>
