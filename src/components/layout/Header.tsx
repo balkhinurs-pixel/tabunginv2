@@ -1,7 +1,7 @@
+
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import type { AuthUser } from '@supabase/supabase-js';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { Profile } from '@/types';
-
+import { Badge } from '@/components/ui/badge';
 
 export default function Header() {
   const supabase = createClient();
@@ -52,16 +52,20 @@ export default function Header() {
   };
 
   const isAdmin = profile?.role === 'ADMIN';
+  const isPro = profile?.plan === 'PRO';
 
   return (
-    <header className="sticky top-0 z-50 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-lg sm:px-6">
+    <header className="sticky top-0 z-[100] flex h-16 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6 shadow-sm">
         <div className="font-bold text-lg">
-            {/* Balance can be added back here if needed */}
+            {/* Branding can be here if needed */}
         </div>
       <div className='flex items-center gap-2'>
         <Button variant="ghost" size="icon">
           <Bell className="h-5 w-5" />
         </Button>
+        {isPro && (
+          <Badge variant="secondary" className="bg-emerald-400 text-emerald-950 hover:bg-emerald-400/90 border-none font-bold text-[10px] h-6 px-2">PRO</Badge>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
