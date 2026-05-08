@@ -1,34 +1,36 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { usePathname } from 'next/navigation';
 
 export default function SplashScreen() {
   const [isVisible, setIsVisible] = useState(false);
   const [isFading, setIsFading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Cek apakah splash screen sudah ditampilkan di sesi ini
+    // Splash screen hanya muncul di halaman utama setelah login (Dashboard atau Home)
+    const isLandingPage = pathname === '/dashboard' || pathname === '/home';
     const hasShownSplash = sessionStorage.getItem('hasShownSplashScreen');
     
-    if (!hasShownSplash) {
+    if (isLandingPage && !hasShownSplash) {
       setIsVisible(true);
-      // Simpan status agar tidak muncul lagi saat refresh di sesi yang sama
+      // Simpan status agar tidak muncul lagi saat navigasi antar menu
       sessionStorage.setItem('hasShownSplashScreen', 'true');
 
-      // Batas waktu maksimal splash screen (10-12 detik sesuai permintaan)
-      // Ini berfungsi sebagai fallback jika video gagal dimuat atau durasinya pendek
+      // Batas waktu maksimal splash screen
       const timer = setTimeout(() => {
         handleDismiss();
       }, 10000);
 
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
-    // Memastikan video diputar saat komponen muncul
     if (isVisible && videoRef.current) {
       videoRef.current.play().catch(error => {
         console.error("Autoplay dipicu kendala browser:", error);
@@ -40,7 +42,7 @@ export default function SplashScreen() {
     setIsFading(true);
     setTimeout(() => {
       setIsVisible(false);
-    }, 1000); // Durasi fade out yang elegan
+    }, 1000);
   };
 
   if (!isVisible) return null;
@@ -67,7 +69,6 @@ export default function SplashScreen() {
           </video>
         </div>
         
-        {/* Indikator Pemuatan Halus di bagian bawah */}
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
             <div className="flex gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary/20 animate-bounce [animation-delay:-0.3s]"></div>
@@ -76,14 +77,6 @@ export default function SplashScreen() {
             </div>
             <p className="text-[10px] font-bold tracking-[0.4em] text-gray-300 uppercase">Menyiapkan Pengalaman Anda</p>
         </div>
-        
-        {/* Tombol lewati yang minimalis */}
-        <button 
-          onClick={handleDismiss}
-          className="absolute top-8 right-8 text-gray-400 hover:text-gray-600 text-[10px] font-bold tracking-widest uppercase bg-gray-50/50 hover:bg-gray-100 px-5 py-2.5 rounded-full backdrop-blur-sm transition-all border border-gray-100"
-        >
-          Skip
-        </button>
       </div>
     </div>
   );
