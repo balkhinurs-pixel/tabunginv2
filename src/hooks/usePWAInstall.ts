@@ -16,11 +16,14 @@ const usePWAInstall = () => {
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event: Event) => {
+      // Mencegah browser menampilkan prompt default
       event.preventDefault();
-      // Check if the app is already installed
+      
+      // Jangan tampilkan jika sudah dalam mode standalone (terinstal)
       if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
           return;
       }
+      
       setInstallPrompt(event as BeforeInstallPromptEvent);
     };
 
@@ -39,8 +42,6 @@ const usePWAInstall = () => {
     
     if (outcome === 'accepted') {
       console.log('User accepted the PWA installation');
-    } else {
-      console.log('User dismissed the PWA installation');
     }
     setInstallPrompt(null);
   };
