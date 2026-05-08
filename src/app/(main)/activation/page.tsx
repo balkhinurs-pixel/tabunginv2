@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Loader2, ShieldCheck, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,8 +38,6 @@ export default function ActivationPage() {
          return;
     }
 
-    // The logic to check the code here first is good for a quick UI response,
-    // but the final authority is the RPC function which does it in a transaction.
     const { data: codeData, error: codeError } = await supabase
         .from('activation_codes')
         .select('*')
@@ -66,7 +64,6 @@ export default function ActivationPage() {
         return;
     }
     
-    // Call the RPC function to perform the activation securely.
     const { error: activationError } = await supabase.rpc('activate_account', {
         p_code: activationCode,
         p_user_id: user.id
@@ -83,13 +80,16 @@ export default function ActivationPage() {
             title: 'Aktivasi Berhasil!',
             description: 'Akun Anda telah berhasil diaktivasi ke PRO. Semua fitur telah terbuka.',
         });
-        // We can refresh the router or the whole page to make sure
-        // all components re-evaluate the user's new "PRO" status.
         router.push('/dashboard');
         router.refresh(); 
     }
 
     setLoading(false);
+  };
+
+  const handleOrderWA = () => {
+    const message = encodeURIComponent("Halo Admin Tabungin,\n\nSaya tertarik untuk meningkatkan akun saya ke versi PRO. Mohon informasi mengenai cara mendapatkan Kode Aktivasi/Serial Number.\n\nTerima kasih.");
+    window.open(`https://wa.me/6287734390171?text=${message}`, '_blank');
   };
 
   return (
@@ -129,6 +129,23 @@ export default function ActivationPage() {
             )}
             Aktifkan Sekarang
           </Button>
+
+          <div className="relative py-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Atau</span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm text-center text-muted-foreground">Belum memiliki kode aktivasi?</p>
+            <Button variant="outline" onClick={handleOrderWA} className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800">
+              <MessageCircle className="mr-2 h-4 w-4" />
+              Pesan Kode Aktivasi (WA)
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
