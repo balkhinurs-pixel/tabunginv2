@@ -9,25 +9,19 @@ import SplashScreen from '@/components/layout/SplashScreen';
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 const APP_NAME = "Tabungin";
-const APP_DESCRIPTION = "Aplikasi tabungan siswa modern untuk pengelolaan keuangan yang lebih mudah dan transparan.";
-const APP_URL = process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'http://localhost:9002';
+const APP_DEFAULT_TITLE = "Tabungin - Aplikasi Tabungan Siswa Modern";
+const APP_TITLE_TEMPLATE = "%s - Tabungin";
+const APP_DESCRIPTION = "Solusi digital cerdas untuk pengelolaan tabungan siswa. Praktis, transparan, dan aman dengan fitur cetak kartu QR, laporan otomatis, dan monitoring saldo real-time.";
+const APP_URL = process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'https://tabungin.com';
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,
   title: {
-    default: APP_NAME,
-    template: `%s - ${APP_NAME}`,
+    default: APP_DEFAULT_TITLE,
+    template: APP_TITLE_TEMPLATE,
   },
   description: APP_DESCRIPTION,
   manifest: '/manifest.json',
-  icons: {
-    icon: [
-      { url: '/logo192.png', sizes: '192x192', type: 'image/png' }
-    ],
-    apple: [
-      { url: '/logo192.png', sizes: '192x192', type: 'image/png' }
-    ],
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -40,21 +34,33 @@ export const metadata: Metadata = {
     type: "website",
     siteName: APP_NAME,
     title: {
-      default: APP_NAME,
-      template: `%s - ${APP_NAME}`,
+      default: APP_DEFAULT_TITLE,
+      template: APP_TITLE_TEMPLATE,
     },
     description: APP_DESCRIPTION,
     url: APP_URL,
-    images: [`${APP_URL}/logo192.png`],
+    images: [
+      {
+        url: "/logo192.png",
+        width: 192,
+        height: 192,
+        alt: "Tabungin App Icon",
+      },
+    ],
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: {
-      default: APP_NAME,
-      template: `%s - ${APP_NAME}`,
+      default: APP_DEFAULT_TITLE,
+      template: APP_TITLE_TEMPLATE,
     },
     description: APP_DESCRIPTION,
-    images: [`${APP_URL}/logo192.png`],
+    images: ["/logo192.png"],
+  },
+  icons: {
+    icon: "/logo192.png",
+    shortcut: "/logo192.png",
+    apple: "/logo192.png",
   },
 };
 
@@ -65,7 +71,6 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
 };
-
 
 export default function RootLayout({
   children,
