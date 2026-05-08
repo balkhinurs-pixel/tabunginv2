@@ -9,14 +9,14 @@ interface AppLogoProps {
 export function AppLogo({ variant = 'default', className = '' }: AppLogoProps) {
   const isCompact = variant === 'compact';
 
-  // Menggunakan logo192.png sesuai instruksi user untuk konsistensi aset PWA
+  // Menggunakan logo512.png untuk kualitas HD pada tampilan UI
   return (
     <div className={className}>
       <Image
-        src="/logo192.png"
+        src="/logo512.png"
         alt="Tabungin Logo"
-        width={isCompact ? 100 : 150}
-        height={isCompact ? 30 : 40}
+        width={isCompact ? 120 : 180}
+        height={isCompact ? 40 : 60}
         className="object-contain"
         priority
       />
