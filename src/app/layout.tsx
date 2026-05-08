@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     },
     description: APP_DESCRIPTION,
     url: APP_URL,
-    images: [`${APP_URL}/logo.png`],
+    images: [`${APP_URL}/logo192.png`],
   },
   twitter: {
     card: "summary_large_image",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
       template: `%s - ${APP_NAME}`,
     },
     description: APP_DESCRIPTION,
-    images: [`${APP_URL}/logo.png`],
+    images: [`${APP_URL}/logo192.png`],
   },
 };
 
