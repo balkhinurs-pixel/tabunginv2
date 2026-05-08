@@ -1,3 +1,4 @@
+
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from '@/components/ui/toaster';
@@ -20,9 +21,12 @@ export const metadata: Metadata = {
   description: APP_DESCRIPTION,
   manifest: '/manifest.json',
   icons: {
-    icon: '/logo192.png',
-    shortcut: '/logo192.png',
-    apple: '/logo192.png',
+    icon: [
+      { url: '/logo192.png', sizes: '192x192', type: 'image/png' }
+    ],
+    apple: [
+      { url: '/logo192.png', sizes: '192x192', type: 'image/png' }
+    ],
   },
   appleWebApp: {
     capable: true,
@@ -56,6 +60,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#1E40AF",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 
