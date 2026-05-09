@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -17,10 +16,11 @@ import { studentLogin } from './actions';
 import { SubmitButton } from '@/components/SubmitButton';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, KeyRound, User, ArrowRight, Shield, QrCode, Delete } from 'lucide-react';
+import { KeyRound, User, ArrowRight, Shield, QrCode, Delete } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
+import { MorphingSpinner } from '@/components/ui/morphing-spinner';
 
 
 function PinKeypad({ studentName, schoolCode, nis }: { studentName: string, schoolCode: string, nis: string }) {
@@ -53,11 +53,7 @@ function PinKeypad({ studentName, schoolCode, nis }: { studentName: string, scho
         formData.append('nis', nis);
         formData.append('pin', pin);
 
-        // This action redirects on its own, we don't need to handle the return
         await studentLogin(formData);
-        
-        // If we are still here, it means login failed. The page will reload with an error message
-        // but we can show a loading state until then.
     };
 
     const pinDisplay = Array(6).fill('●').map((char, i) => (
@@ -107,7 +103,7 @@ function PinKeypad({ studentName, schoolCode, nis }: { studentName: string, scho
                 </KeypadButton>
             </div>
              <Button className="w-full h-12 bg-primary text-white font-medium group mt-4" onClick={handleLogin} disabled={loading}>
-                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+                {loading ? <MorphingSpinner size="sm" className="mr-2" /> : (
                     <span className="flex items-center justify-center gap-2">
                         Masuk
                         <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -243,7 +239,6 @@ function StudentLoginContent() {
             if (data) {
                 setStudentName(data.name);
             } else {
-                // If student not found, user can click 'Bukan Anda?' to go back to manual login.
                 setStudentName("Siswa tidak ditemukan"); 
             }
             setLoadingName(false);
@@ -258,7 +253,7 @@ function StudentLoginContent() {
      if (loadingName) {
          return (
             <div className="flex flex-col items-center justify-center py-8 gap-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <MorphingSpinner size="md" />
                 <p className="text-muted-foreground">Mencari data siswa...</p>
             </div>
          );
@@ -266,7 +261,6 @@ function StudentLoginContent() {
      if (studentName) {
         return <PinKeypad studentName={studentName} schoolCode={schoolCodeFromQR} nis={nisFromQR} />;
      }
-     // Fallback if name is still null after loading, though it should be handled
      return <ManualLoginForm />;
   }
 
@@ -286,7 +280,7 @@ export default function StudentLoginPage() {
           <CardContent>
             <Suspense fallback={
               <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <MorphingSpinner size="md" />
               </div>
             }>
               <StudentLoginContent />

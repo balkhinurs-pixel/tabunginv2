@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { MorphingSpinner } from '@/components/ui/morphing-spinner';
 
 export default function Home() {
   const router = useRouter();
@@ -13,8 +13,8 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-background">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="mt-4 text-muted-foreground">Loading...</p>
+      <MorphingSpinner size="lg" />
+      <p className="mt-4 text-muted-foreground">Menghubungkan...</p>
     </div>
   );
 }

@@ -105,11 +105,38 @@ export default {
             transform: 'translateY(0)',
           },
         },
+        smoothMorph: {
+          '0%': { 
+            transform: 'scale(1) rotate(0deg)',
+            borderRadius: '50%',
+          },
+          '20%': { 
+            transform: 'scale(0.9) rotate(72deg)',
+            borderRadius: '35%',
+          },
+          '40%': { 
+            transform: 'scale(1.1) rotate(144deg)',
+            borderRadius: '15%',
+          },
+          '60%': { 
+            transform: 'scale(0.85) rotate(216deg)',
+            borderRadius: '8%',
+          },
+          '80%': { 
+            transform: 'scale(1.05) rotate(288deg)',
+            borderRadius: '25%',
+          },
+          '100%': { 
+            transform: 'scale(1) rotate(360deg)',
+            borderRadius: '50%',
+          },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-in-up': 'fade-in-up 0.5s ease-out forwards',
+        'smooth-morph': 'smoothMorph 3s ease-in-out infinite',
       },
     },
   },

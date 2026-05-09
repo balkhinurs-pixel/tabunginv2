@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -18,9 +17,10 @@ import { SubmitButton } from '@/components/SubmitButton';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Loader2, Eye, EyeOff, Mail, Lock, ArrowRight, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, User } from 'lucide-react';
 import { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
+import { MorphingSpinner } from '@/components/ui/morphing-spinner';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>
@@ -197,7 +197,7 @@ export default function LoginPage() {
           <CardContent className="pt-0">
             <Suspense fallback={
               <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <MorphingSpinner size="md" />
               </div>
             }>
               <LoginContent />
