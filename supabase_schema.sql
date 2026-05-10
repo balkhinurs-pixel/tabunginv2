@@ -144,3 +144,4 @@ CREATE POLICY "Authenticated users can view codes" ON activation_codes
 -- Important: You MUST use the `service_role` key from a secure backend (like an Edge Function)
 -- to generate codes. Do NOT allow clients to insert into this table.
 -- The RPC function `activate_account` handles the secure usage of a code.
+ALTER TABLE profiles ADD COLUMN custom_quota INTEGER DEFAULT NULL;

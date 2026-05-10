@@ -16,6 +16,11 @@ const usePWAInstall = () => {
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event: Event) => {
+      // Jangan tampilkan jika pengguna sudah memilih untuk tidak ditanya lagi
+      if (localStorage.getItem('pwa-dismissed-permanently') === 'true') {
+        return;
+      }
+
       // Mencegah browser menampilkan prompt default
       event.preventDefault();
       
@@ -50,7 +55,12 @@ const usePWAInstall = () => {
     setInstallPrompt(null);
   };
 
-  return { installPrompt, handleInstall, handleDismiss };
+  const handleDismissPermanently = () => {
+    localStorage.setItem('pwa-dismissed-permanently', 'true');
+    setInstallPrompt(null);
+  };
+
+  return { installPrompt, handleInstall, handleDismiss, handleDismissPermanently };
 };
 
 export default usePWAInstall;

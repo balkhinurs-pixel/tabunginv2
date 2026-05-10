@@ -3,42 +3,57 @@
 import React from 'react';
 import usePWAInstall from '@/hooks/usePWAInstall';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Card, CardContent } from '@/components/ui/card';
 import { AppLogo } from './AppLogo';
-import { Download } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 
 const PWAInstallPrompt: React.FC = () => {
-  const { installPrompt, handleInstall, handleDismiss } = usePWAInstall();
+  const { installPrompt, handleInstall, handleDismiss, handleDismissPermanently } = usePWAInstall();
 
   if (!installPrompt) {
     return null;
   }
 
   return (
-    <Sheet open={!!installPrompt} onOpenChange={(open) => !open && handleDismiss()}>
-      <SheetContent side="bottom" className="rounded-t-2xl border-t-4 border-primary/20 p-6 pb-10">
-        <SheetHeader className="text-center space-y-4">
-            <div className="flex justify-center">
-              <div className="p-4 bg-white dark:bg-gray-800 rounded-3xl shadow-inner border border-gray-100">
-                  <AppLogo variant="compact" />
-              </div>
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[150] w-[90%] max-w-sm animate-in fade-in slide-in-from-bottom-8 duration-500">
+      <Card className="overflow-hidden border-none shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] bg-white/95 dark:bg-gray-900/95 backdrop-blur-md">
+        <CardContent className="p-5">
+          <button 
+            onClick={handleDismiss}
+            className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          
+          <div className="flex items-center gap-4 mb-4">
+            <div className="h-14 w-14 shrink-0 p-2 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-center shadow-sm">
+                <AppLogo variant="compact" className="scale-75" />
             </div>
-          <SheetTitle className="text-2xl font-bold tracking-tight">Pasang Aplikasi Tabungin</SheetTitle>
-          <SheetDescription className="max-w-xs mx-auto text-base">
-            Nikmati akses lebih cepat, aman, dan lancar langsung dari layar utama perangkat Anda.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="grid gap-4 mt-8">
-          <Button onClick={handleInstall} className="w-full h-14 text-lg font-bold shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90" size="lg">
-            <Download className="mr-3 h-6 w-6" />
-            Install Sekarang
-          </Button>
-          <Button onClick={handleDismiss} variant="ghost" className="w-full h-12 text-muted-foreground font-medium">
-             Gunakan di Browser Saja
-          </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
+            <div className="flex flex-col">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white leading-tight">Pasang Tabungin</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Akses lebih cepat & lancar dari layar utama.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Button 
+              onClick={handleInstall} 
+              className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Install Sekarang
+            </Button>
+            
+            <button 
+              onClick={handleDismissPermanently}
+              className="text-[10px] text-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 font-medium uppercase tracking-wider py-1"
+            >
+              Jangan tanyakan lagi
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
