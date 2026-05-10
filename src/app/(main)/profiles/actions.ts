@@ -25,7 +25,7 @@ export async function addStudentAction(
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('school_code, plan')
+    .select('school_code, plan, custom_quota')
     .eq('id', user.id)
     .single();
 
@@ -43,7 +43,7 @@ export async function addStudentAction(
     return { success: false, message: `Gagal memeriksa kuota siswa: ${countError.message}` };
   }
 
-  const studentQuota = profile.plan === 'PRO' ? 40 : 5;
+  const studentQuota = profile.custom_quota || (profile.plan === 'PRO' ? 40 : 5);
   if (studentCount != null && studentCount >= studentQuota) {
     return { success: false, message: `Kuota siswa penuh. Batas untuk akun Anda adalah ${studentQuota} siswa.` };
   }
@@ -207,13 +207,13 @@ export async function importStudentsAction(csvContent: string): Promise<ImportRe
     return { success: false, message: 'Anda harus masuk untuk melakukan impor.', importedCount: 0, newStudents: [] };
   }
 
-  const { data: profile } = await supabase.from('profiles').select('school_code, plan').eq('id', user.id).single();
+  const { data: profile } = await supabase.from('profiles').select('school_code, plan, custom_quota').eq('id', user.id).single();
   if (!profile || !profile.school_code) {
     return { success: false, message: 'Kode sekolah Anda belum diatur.', importedCount: 0, newStudents: [] };
   }
   
   const { count: currentStudentCount } = await supabase.from('students').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
-  const studentQuota = profile.plan === 'PRO' ? 40 : 5;
+  const studentQuota = profile.custom_quota || (profile.plan === 'PRO' ? 40 : 5);
 
   const lines = csvContent.trim().split('\n');
   const header = lines.shift()?.trim()?.split(',');

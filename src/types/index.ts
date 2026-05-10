@@ -1,5 +1,4 @@
 
-
 export interface Transaction {
   id: string;
   created_at?: string;
@@ -33,6 +32,5 @@ export interface Profile {
   role: 'ADMIN' | 'USER';
   school_name?: string | null;
   school_code?: string | null;
+  custom_quota?: number | null;
 }
-
-    

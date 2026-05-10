@@ -39,7 +39,7 @@ async function DashboardData() {
   
   const { data: profileData, error: profileError } = await supabase
     .from('profiles')
-    .select('id, email, plan')
+    .select('id, email, plan, custom_quota')
     .eq('id', user.id)
     .maybeSingle();
   
@@ -71,7 +71,8 @@ async function DashboardData() {
     return total + studentBalance;
   }, 0);
 
-  const studentQuota = profile.plan === 'PRO' ? 40 : 5;
+  // Kuota diprioritaskan dari custom_quota, jika tidak ada baru berdasarkan plan
+  const studentQuota = profile.custom_quota || (profile.plan === 'PRO' ? 40 : 5);
 
   const recentTransactions = transactions.map(tx => ({
       id: tx.id,
@@ -85,7 +86,7 @@ async function DashboardData() {
   return (
     <>
        <Card className="bg-gradient-to-br from-primary via-primary to-blue-700 text-primary-foreground shadow-xl border-none relative overflow-hidden h-[240px]">
-        {/* Artistic Circles Pattern (Matching User Request) */}
+        {/* Artistic Circles Pattern */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
         <div className="absolute top-1/4 -right-10 w-48 h-48 bg-white/5 rounded-full pointer-events-none" />
         <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-400/20 rounded-full blur-2xl pointer-events-none" />
@@ -114,7 +115,6 @@ async function DashboardData() {
               {totalBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
             </p>
             
-            {/* Glass Box for Quota Info (Matching "Time Box" in user's image) */}
             <div className="mt-4 flex items-center justify-between bg-white/10 border border-white/20 px-4 py-3 rounded-2xl backdrop-blur-md">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 opacity-70" />
