@@ -43,7 +43,9 @@ export async function addStudentAction(
     return { success: false, message: `Gagal memeriksa kuota siswa: ${countError.message}` };
   }
 
+  // Prioritas kuota: custom_quota > plan PRO (40) > default TRIAL (5)
   const studentQuota = profile.custom_quota || (profile.plan === 'PRO' ? 40 : 5);
+  
   if (studentCount != null && studentCount >= studentQuota) {
     return { success: false, message: `Kuota siswa penuh. Batas untuk akun Anda adalah ${studentQuota} siswa.` };
   }

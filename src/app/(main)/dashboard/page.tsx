@@ -44,7 +44,7 @@ async function DashboardData() {
     .maybeSingle();
   
   if (profileError || !profileData) {
-      return <p className="text-destructive text-center p-4">Gagal memuat data: Profil pengguna tidak ditemukan.</p>;
+      return <p className="text-destructive text-center p-4">Gagal memuat data: Profil pengguna tidak ditemukan. Pastikan tabel profiles sudah memiliki kolom custom_quota.</p>;
   }
 
 

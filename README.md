@@ -1,3 +1,4 @@
+ALTER TABLE profiles ADD COLUMN custom_quota INTEGER DEFAULT NULL;
 # Firebase Studio
 
 This is a NextJS starter in Firebase Studio.
