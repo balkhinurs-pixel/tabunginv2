@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
@@ -31,11 +31,20 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
   const supabase = createClient();
   
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [amount, setAmount] = useState(''); // Menyimpan string angka murni
+  const [amount, setAmount] = useState(''); 
   const [description, setDescription] = useState('');
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(false);
   const studentId = params.id;
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [cursorPosition, setCursorPosition] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (inputRef.current && cursorPosition !== null) {
+      inputRef.current.setSelectionRange(cursorPosition, cursorPosition);
+    }
+  }, [amount, cursorPosition]);
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -67,9 +76,27 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
   }, [studentId, toast, supabase]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Hanya ambil angka saja
-    const rawValue = e.target.value.replace(/\D/g, '');
+    const input = e.target;
+    const value = input.value;
+    const selectionStart = input.selectionStart || 0;
+
+    const digitsBeforeCursor = value.slice(0, selectionStart).replace(/\D/g, '').length;
+
+    const rawValue = value.replace(/\D/g, '');
     setAmount(rawValue);
+
+    const formatted = rawValue ? new Intl.NumberFormat('id-ID').format(Number(rawValue)) : '';
+    
+    let newPos = 0;
+    let digitCount = 0;
+    for (let i = 0; i < formatted.length && digitCount < digitsBeforeCursor; i++) {
+      if (/\d/.test(formatted[i])) {
+        digitCount++;
+      }
+      newPos = i + 1;
+    }
+
+    setCursorPosition(newPos);
   };
 
   const formatDisplayAmount = (val: string) => {
@@ -188,6 +215,7 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
                 <Input 
                   id="amount" 
+                  ref={inputRef}
                   type="text" 
                   inputMode="numeric"
                   placeholder="Contoh: 20.000" 

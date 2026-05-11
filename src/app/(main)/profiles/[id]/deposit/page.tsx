@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
@@ -30,15 +30,47 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
   const supabase = createClient();
   
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [amount, setAmount] = useState(''); // Menyimpan string angka murni
+  const [amount, setAmount] = useState(''); 
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const studentId = params.id;
 
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [cursorPosition, setCursorPosition] = useState<number | null>(null);
+
+  // Efek untuk mengembalikan posisi kursor setelah re-render
+  useEffect(() => {
+    if (inputRef.current && cursorPosition !== null) {
+      inputRef.current.setSelectionRange(cursorPosition, cursorPosition);
+    }
+  }, [amount, cursorPosition]);
+
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Hanya ambil angka saja
-    const rawValue = e.target.value.replace(/\D/g, '');
+    const input = e.target;
+    const value = input.value;
+    const selectionStart = input.selectionStart || 0;
+
+    // Hitung berapa banyak angka sebelum kursor (sebelum diformat ulang)
+    const digitsBeforeCursor = value.slice(0, selectionStart).replace(/\D/g, '').length;
+
+    // Hanya ambil angka saja untuk disimpan di state
+    const rawValue = value.replace(/\D/g, '');
     setAmount(rawValue);
+
+    // Format ulang untuk menghitung posisi kursor baru
+    const formatted = rawValue ? new Intl.NumberFormat('id-ID').format(Number(rawValue)) : '';
+    
+    // Cari posisi kursor baru di string yang sudah diformat
+    let newPos = 0;
+    let digitCount = 0;
+    for (let i = 0; i < formatted.length && digitCount < digitsBeforeCursor; i++) {
+      if (/\d/.test(formatted[i])) {
+        digitCount++;
+      }
+      newPos = i + 1;
+    }
+
+    setCursorPosition(newPos);
   };
 
   const formatDisplayAmount = (val: string) => {
@@ -96,7 +128,7 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
             description: `Setoran sebesar ${numericAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} telah disimpan.`,
         });
         router.push(`/profiles/${studentId}`);
-        router.refresh(); // Refresh server-side data
+        router.refresh(); 
     }
   };
 
@@ -148,6 +180,7 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
                 <Input 
                   id="amount" 
+                  ref={inputRef}
                   type="text" 
                   inputMode="numeric"
                   placeholder="Contoh: 50.000" 
