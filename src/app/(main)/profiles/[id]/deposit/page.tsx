@@ -36,41 +36,50 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
   const studentId = params.id;
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const [cursorPosition, setCursorPosition] = useState<number | null>(null);
+  const [prevCursorDigits, setPrevCursorDigits] = useState<number | null>(null);
 
-  // Efek untuk mengembalikan posisi kursor setelah re-render
+  // Efek untuk mengembalikan posisi kursor berdasarkan jumlah angka yang ada
   useEffect(() => {
-    if (inputRef.current && cursorPosition !== null) {
-      inputRef.current.setSelectionRange(cursorPosition, cursorPosition);
+    if (inputRef.current && prevCursorDigits !== null) {
+      const formatted = formatDisplayAmount(amount);
+      let newPos = 0;
+      let digitCount = 0;
+      
+      // Cari posisi kursor yang sesuai dengan jumlah angka sebelumnya
+      for (let i = 0; i < formatted.length; i++) {
+        if (/\d/.test(formatted[i])) {
+          digitCount++;
+        }
+        newPos = i + 1;
+        if (digitCount === prevCursorDigits) break;
+      }
+      
+      inputRef.current.setSelectionRange(newPos, newPos);
     }
-  }, [amount, cursorPosition]);
+  }, [amount, prevCursorDigits]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target;
     const value = input.value;
     const selectionStart = input.selectionStart || 0;
 
-    // Hitung berapa banyak angka sebelum kursor (sebelum diformat ulang)
-    const digitsBeforeCursor = value.slice(0, selectionStart).replace(/\D/g, '').length;
+    // Hitung berapa banyak angka (bukan titik) sebelum kursor sebelum perubahan
+    const digitsBefore = value.slice(0, selectionStart).replace(/\D/g, '').length;
 
-    // Hanya ambil angka saja untuk disimpan di state
-    const rawValue = value.replace(/\D/g, '');
-    setAmount(rawValue);
-
-    // Format ulang untuk menghitung posisi kursor baru
-    const formatted = rawValue ? new Intl.NumberFormat('id-ID').format(Number(rawValue)) : '';
+    // Ambil hanya angka murni
+    let rawValue = value.replace(/\D/g, '');
     
-    // Cari posisi kursor baru di string yang sudah diformat
-    let newPos = 0;
-    let digitCount = 0;
-    for (let i = 0; i < formatted.length && digitCount < digitsBeforeCursor; i++) {
-      if (/\d/.test(formatted[i])) {
-        digitCount++;
-      }
-      newPos = i + 1;
+    // Penanganan khusus jika pengguna menghapus titik pemisah
+    // Jika nilai raw sama dengan sebelumnya tapi kursor bergeser, berarti menghapus pemisah
+    const isDeleting = (e.nativeEvent as any).inputType?.includes('delete');
+    if (isDeleting && rawValue === amount && selectionStart > 0) {
+        rawValue = rawValue.slice(0, Math.max(0, digitsBefore - 1)) + rawValue.slice(digitsBefore);
+        setPrevCursorDigits(Math.max(0, digitsBefore - 1));
+    } else {
+        setPrevCursorDigits(digitsBefore);
     }
 
-    setCursorPosition(newPos);
+    setAmount(rawValue);
   };
 
   const formatDisplayAmount = (val: string) => {
@@ -80,7 +89,9 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const numericAmount = parseFloat(amount);
+    // amount sudah berupa string angka murni (tanpa titik), tinggal dikonversi ke angka
+    const numericAmount = Number(amount);
+    
     if (!numericAmount || numericAmount <= 0) {
         toast({
             title: 'Jumlah Tidak Valid',

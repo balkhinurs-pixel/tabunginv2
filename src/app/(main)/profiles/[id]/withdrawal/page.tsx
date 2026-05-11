@@ -38,22 +38,32 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
   const studentId = params.id;
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const [cursorPosition, setCursorPosition] = useState<number | null>(null);
+  const [prevCursorDigits, setPrevCursorDigits] = useState<number | null>(null);
 
   useEffect(() => {
-    if (inputRef.current && cursorPosition !== null) {
-      inputRef.current.setSelectionRange(cursorPosition, cursorPosition);
+    if (inputRef.current && prevCursorDigits !== null) {
+      const formatted = formatDisplayAmount(amount);
+      let newPos = 0;
+      let digitCount = 0;
+      
+      for (let i = 0; i < formatted.length; i++) {
+        if (/\d/.test(formatted[i])) {
+          digitCount++;
+        }
+        newPos = i + 1;
+        if (digitCount === prevCursorDigits) break;
+      }
+      
+      inputRef.current.setSelectionRange(newPos, newPos);
     }
-  }, [amount, cursorPosition]);
+  }, [amount, prevCursorDigits]);
 
   useEffect(() => {
     const fetchStudentData = async () => {
-        setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
             toast({ title: 'Anda tidak login', variant: 'destructive' });
-            setLoading(false);
             return;
         }
 
@@ -69,7 +79,6 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
         } else {
             setStudent(data as Student);
         }
-        setLoading(false);
     };
 
     fetchStudentData();
@@ -80,23 +89,19 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
     const value = input.value;
     const selectionStart = input.selectionStart || 0;
 
-    const digitsBeforeCursor = value.slice(0, selectionStart).replace(/\D/g, '').length;
+    const digitsBefore = value.slice(0, selectionStart).replace(/\D/g, '').length;
 
-    const rawValue = value.replace(/\D/g, '');
-    setAmount(rawValue);
-
-    const formatted = rawValue ? new Intl.NumberFormat('id-ID').format(Number(rawValue)) : '';
+    let rawValue = value.replace(/\D/g, '');
     
-    let newPos = 0;
-    let digitCount = 0;
-    for (let i = 0; i < formatted.length && digitCount < digitsBeforeCursor; i++) {
-      if (/\d/.test(formatted[i])) {
-        digitCount++;
-      }
-      newPos = i + 1;
+    const isDeleting = (e.nativeEvent as any).inputType?.includes('delete');
+    if (isDeleting && rawValue === amount && selectionStart > 0) {
+        rawValue = rawValue.slice(0, Math.max(0, digitsBefore - 1)) + rawValue.slice(digitsBefore);
+        setPrevCursorDigits(Math.max(0, digitsBefore - 1));
+    } else {
+        setPrevCursorDigits(digitsBefore);
     }
 
-    setCursorPosition(newPos);
+    setAmount(rawValue);
   };
 
   const formatDisplayAmount = (val: string) => {
@@ -109,8 +114,7 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
     setLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
-
-    const numericAmount = parseFloat(amount);
+    const numericAmount = Number(amount);
     
     if (!student) {
         toast({ title: 'Siswa tidak ditemukan', variant: 'destructive' });
