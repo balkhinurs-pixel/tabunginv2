@@ -152,21 +152,8 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
 
             <div className="space-y-3">
               <Label htmlFor="amount" className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Jumlah Setoran</Label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground font-bold">Rp</span>
-                <Input 
-                  id="amount" 
-                  type="text" 
-                  inputMode="numeric"
-                  placeholder="Masukkan angka saja... (Contoh: 50000)" 
-                  className="pl-10 h-14 text-xl font-bold border-gray-200 focus:ring-green-500" 
-                  value={amount}
-                  onChange={handleAmountChange}
-                  required
-                />
-              </div>
               
-              {/* Live Preview - Solusi paling stabil untuk mobile */}
+              {/* Live Preview di atas input agar lebih mudah dikontrol secara visual */}
               <div className={cn(
                   "p-3 rounded-xl border text-center transition-all duration-300",
                   amount ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-100 opacity-50"
@@ -175,6 +162,20 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
                   <p className="text-2xl font-black text-green-600 truncate">
                       {formatCurrency(amount)}
                   </p>
+              </div>
+
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground font-bold">Rp</span>
+                <Input 
+                  id="amount" 
+                  type="text" 
+                  inputMode="numeric"
+                  placeholder="Masukkan saldo... (Contoh: 50000)" 
+                  className="pl-10 h-14 text-xl font-bold border-gray-200 focus:ring-green-500" 
+                  value={amount}
+                  onChange={handleAmountChange}
+                  required
+                />
               </div>
             </div>
 

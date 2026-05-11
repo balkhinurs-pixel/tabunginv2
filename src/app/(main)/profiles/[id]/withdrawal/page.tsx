@@ -171,21 +171,8 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
 
             <div className="space-y-3">
               <Label htmlFor="amount" className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Jumlah Penarikan</Label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground font-bold">Rp</span>
-                <Input 
-                  id="amount" 
-                  type="text" 
-                  inputMode="numeric"
-                  placeholder="Masukkan angka saja... (Contoh: 20000)" 
-                  className="pl-10 h-14 text-xl font-bold border-gray-200 focus:ring-red-500" 
-                  value={amount}
-                  onChange={handleAmountChange}
-                  required
-                />
-              </div>
               
-              {/* Live Preview Visual - Bebas Bug Kursor Mobile */}
+              {/* Live Preview Visual di atas input */}
               <div className={cn(
                   "p-3 rounded-xl border text-center transition-all duration-300",
                   amount ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-100 opacity-50"
@@ -194,6 +181,20 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
                   <p className="text-2xl font-black text-red-600 truncate">
                       {formatCurrency(amount)}
                   </p>
+              </div>
+
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground font-bold">Rp</span>
+                <Input 
+                  id="amount" 
+                  type="text" 
+                  inputMode="numeric"
+                  placeholder="Masukkan saldo... (Contoh: 20000)" 
+                  className="pl-10 h-14 text-xl font-bold border-gray-200 focus:ring-red-500" 
+                  value={amount}
+                  onChange={handleAmountChange}
+                  required
+                />
               </div>
             </div>
 
