@@ -1,6 +1,6 @@
 
 import Link from 'next/link';
-import { ArrowLeft, PlusCircle, MinusCircle } from 'lucide-react';
+import { ArrowLeft, PlusCircle, MinusCircle, Wallet, TrendingUp, TrendingDown, User, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Student } from '@/types';
@@ -8,6 +8,7 @@ import { createClient } from '@/lib/utils/supabase/server';
 import PrintReportButton from './_components/PrintReportButton';
 import SendWAButton from './_components/SendWAButton';
 import TransactionList from './_components/TransactionList';
+import { cn } from '@/lib/utils';
 
 interface StudentProfilePageProps {
     params: {
@@ -15,28 +16,35 @@ interface StudentProfilePageProps {
     };
 }
 
-const StatCard = ({ title, value, colorClass, loading }: { title: string, value: string, colorClass: string, loading?: boolean }) => (
-    <Card className={`text-center shadow-md ${colorClass}`}>
-        <CardContent className="p-4">
-            <p className="text-sm">{title}</p>
-            {loading ? (
-                 <div className="h-8 w-32 mt-1 mx-auto rounded-md animate-pulse bg-gray-300/50" />
-            ): (
-                <p className="text-2xl font-bold">{value}</p>
+const StatMiniCard = ({ title, value, type }: { title: string, value: string, type: 'income' | 'expense' }) => (
+    <div className={cn(
+        "flex flex-col p-4 rounded-2xl border shadow-sm transition-all duration-300",
+        type === 'income' ? "bg-emerald-50/50 border-emerald-100" : "bg-rose-50/50 border-rose-100"
+    )}>
+        <div className="flex items-center gap-2 mb-1">
+            {type === 'income' ? (
+                <TrendingUp className="h-3 w-3 text-emerald-600" />
+            ) : (
+                <TrendingDown className="h-3 w-3 text-rose-600" />
             )}
-        </CardContent>
-    </Card>
+            <p className={cn("text-[10px] font-bold uppercase tracking-wider", type === 'income' ? "text-emerald-700" : "text-rose-700")}>{title}</p>
+        </div>
+        <p className={cn("text-lg font-black tracking-tight", type === 'income' ? "text-emerald-600" : "text-rose-600")}>
+            {value}
+        </p>
+    </div>
 );
 
-const ActionButton = ({ icon: Icon, label, variant = 'default', href, onClick }: { icon: React.ElementType, label: string, variant?: 'default' | 'destructive', href?: string, onClick?: () => void }) => {
-    const colorClasses = {
-        default: 'bg-green-500 hover:bg-green-600 text-white',
-        destructive: 'bg-red-600 hover:bg-red-700 text-white',
+const ActionButton = ({ icon: Icon, label, variant = 'default', href, onClick }: { icon: React.ElementType, label: string, variant?: 'default' | 'destructive' | 'outline', href?: string, onClick?: () => void }) => {
+    const variants = {
+        default: 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-100',
+        destructive: 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-100',
+        outline: 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm'
     };
     
     const content = (
-        <Button onClick={onClick} className={`w-full justify-center text-left h-12 text-base font-medium ${colorClasses[variant]}`}>
-            <Icon className="mr-3 h-5 w-5" />
+        <Button onClick={onClick} className={cn("w-full justify-center h-12 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95", variants[variant])}>
+            <Icon className="mr-2 h-4 w-4" />
             {label}
         </Button>
     );
@@ -47,7 +55,6 @@ const ActionButton = ({ icon: Icon, label, variant = 'default', href, onClick }:
 
     return content;
 };
-
 
 export default async function StudentProfilePage({ params }: StudentProfilePageProps) {
   const studentId = params.id;
@@ -72,8 +79,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
   }
 
   const student = studentData as Student;
-  student.transactions = student.transactions.sort((a,b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
-
+  student.transactions = (student.transactions || []).sort((a,b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
 
   const { income, expense, balance } = (student?.transactions || []).reduce(
     (acc, tx) => {
@@ -89,41 +95,84 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
   );
   
   return (
-    <div className="space-y-6 pb-24">
-      <Button variant="ghost" asChild className="pl-0">
-        <Link href="/profiles">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Kembali ke Data Siswa
-        </Link>
-      </Button>
+    <div className="space-y-6 pb-24 max-w-md mx-auto">
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" asChild className="pl-0 hover:bg-transparent text-muted-foreground hover:text-primary">
+            <Link href="/profiles">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Daftar Siswa
+            </Link>
+        </Button>
+        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <User className="h-4 w-4 text-primary" />
+        </div>
+      </div>
 
-      <h1 className="text-2xl font-bold text-center">Profil Siswa</h1>
+      {/* Profile Info Header */}
+      <div className="space-y-1 text-center">
+        <h1 className="text-2xl font-black tracking-tight">{student.name}</h1>
+        <div className="flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
+            <span>NIS {student.nis}</span>
+            <span className="h-1 w-1 rounded-full bg-gray-300" />
+            <span>Kelas {student.class}</span>
+        </div>
+      </div>
 
-      <Card className="shadow-lg">
-          <CardContent className="p-4">
-            <p className="text-xl font-bold">{student.name}</p>
-            <p className="text-muted-foreground">NIS: {student.nis}</p>
-            <p className="text-muted-foreground">Kelas: {student.class}</p>
-             {student.whatsapp_number && <p className="text-muted-foreground text-sm">WA: {student.whatsapp_number}</p>}
-          </CardContent>
+      {/* Main Balance Card */}
+      <Card className="bg-gradient-to-br from-primary via-primary to-blue-700 text-primary-foreground shadow-2xl border-none relative overflow-hidden h-[200px] rounded-[2rem]">
+        {/* Decorative Elements */}
+        <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-400/20 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl pointer-events-none" />
+        
+        <CardContent className="p-8 relative z-10 h-full flex flex-col justify-between">
+          <div className="flex justify-between items-start">
+            <div className="flex flex-col">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Saldo Tabungan</p>
+                <div className="h-1 w-8 bg-white/30 mt-1 rounded-full" />
+            </div>
+            <Wallet className="h-6 w-6 opacity-40" />
+          </div>
+
+          <div>
+            <p className="text-4xl font-black tracking-tighter drop-shadow-md">
+              {balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+            </p>
+            <p className="text-[9px] font-medium opacity-60 mt-1 uppercase tracking-widest">Update Terakhir: {student.transactions[0] ? new Date(student.transactions[0].created_at!).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '-'}</p>
+          </div>
+        </CardContent>
       </Card>
       
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-2 gap-4">
+        <StatMiniCard title="Pemasukan" value={income.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} type="income" />
+        <StatMiniCard title="Pengeluaran" value={expense.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} type="expense" />
+      </div>
+
+      {/* Action Sections */}
       <div className="space-y-3">
-        <StatCard loading={false} title="Total Pemasukan" value={income.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-green-100/50 border-green-200 text-green-700" />
-        <StatCard loading={false} title="Total Pengeluaran" value={expense.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-red-100/50 border-red-200 text-red-700" />
-        <StatCard loading={false} title="Saldo Akhir" value={balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })} colorClass="bg-blue-100/50 border-blue-200 text-blue-700" />
-      </div>
-
-      <div className="space-y-3 pt-4">
-        <div className="grid grid-cols-2 gap-3">
-            <ActionButton icon={PlusCircle} label="Setor" href={`/profiles/${studentId}/deposit`} />
-            <ActionButton icon={MinusCircle} label="Tarik" variant="destructive" href={`/profiles/${studentId}/withdrawal`} />
+        <div className="flex items-center gap-2 px-1">
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Transaksi Cepat</p>
+            <div className="h-px flex-1 bg-gray-100" />
         </div>
-        <PrintReportButton student={student} />
-        <SendWAButton student={student} income={income} expense={expense} balance={balance} />
+        <div className="grid grid-cols-2 gap-3">
+            <ActionButton icon={PlusCircle} label="Setoran" href={`/profiles/${studentId}/deposit`} />
+            <ActionButton icon={MinusCircle} label="Penarikan" variant="destructive" href={`/profiles/${studentId}/withdrawal`} />
+        </div>
+        
+        <div className="flex items-center gap-2 px-1 pt-4">
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Laporan & Berbagi</p>
+            <div className="h-px flex-1 bg-gray-100" />
+        </div>
+        <div className="grid grid-cols-1 gap-3">
+            <PrintReportButton student={student} />
+            <SendWAButton student={student} income={income} expense={expense} balance={balance} />
+        </div>
       </div>
 
-      <TransactionList initialTransactions={student.transactions} />
+      {/* Transaction History Section */}
+      <div className="pt-6">
+        <TransactionList initialTransactions={student.transactions} />
+      </div>
     </div>
   );
 }
