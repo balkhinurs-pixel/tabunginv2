@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon, BookOpen, Landmark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -37,35 +37,10 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
   const [loading, setLoading] = useState(false);
   const studentId = params.id;
 
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [prevCursorDigits, setPrevCursorDigits] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (inputRef.current && prevCursorDigits !== null) {
-      const formatted = formatDisplayAmount(amount);
-      let newPos = 0;
-      let digitCount = 0;
-      
-      for (let i = 0; i < formatted.length; i++) {
-        if (/\d/.test(formatted[i])) {
-          digitCount++;
-        }
-        newPos = i + 1;
-        if (digitCount === prevCursorDigits) break;
-      }
-      
-      inputRef.current.setSelectionRange(newPos, newPos);
-    }
-  }, [amount, prevCursorDigits]);
-
   useEffect(() => {
     const fetchStudentData = async () => {
         const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            toast({ title: 'Anda tidak login', variant: 'destructive' });
-            return;
-        }
+        if (!user) return;
 
         const { data, error } = await supabase
             .from('students')
@@ -74,39 +49,25 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
             .limit(1)
             .single();
         
-        if (error) {
-            toast({ title: 'Siswa tidak ditemukan', variant: 'destructive' });
-        } else {
+        if (!error) {
             setStudent(data as Student);
         }
     };
-
     fetchStudentData();
-  }, [studentId, toast, supabase]);
+  }, [studentId, supabase]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const value = input.value;
-    const selectionStart = input.selectionStart || 0;
-
-    const digitsBefore = value.slice(0, selectionStart).replace(/\D/g, '').length;
-
-    let rawValue = value.replace(/\D/g, '');
-    
-    const isDeleting = (e.nativeEvent as any).inputType?.includes('delete');
-    if (isDeleting && rawValue === amount && selectionStart > 0) {
-        rawValue = rawValue.slice(0, Math.max(0, digitsBefore - 1)) + rawValue.slice(digitsBefore);
-        setPrevCursorDigits(Math.max(0, digitsBefore - 1));
-    } else {
-        setPrevCursorDigits(digitsBefore);
-    }
-
+    const rawValue = e.target.value.replace(/\D/g, '');
     setAmount(rawValue);
   };
 
-  const formatDisplayAmount = (val: string) => {
-    if (!val) return '';
-    return new Intl.NumberFormat('id-ID').format(Number(val));
+  const formatCurrency = (val: string) => {
+    if (!val) return 'Rp 0';
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(Number(val));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -125,11 +86,7 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
     const balance = student.transactions.reduce((acc, tx) => acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount), 0);
 
     if (!numericAmount || numericAmount <= 0) {
-        toast({
-            title: 'Jumlah Tidak Valid',
-            description: 'Mohon masukkan jumlah yang valid.',
-            variant: 'destructive',
-        });
+        toast({ title: 'Jumlah Tidak Valid', variant: 'destructive' });
         setLoading(false);
         return;
     }
@@ -137,7 +94,7 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
     if (numericAmount > balance) {
         toast({
             title: 'Saldo Tidak Cukup',
-            description: `Saldo akhir tidak mencukupi untuk penarikan ini. Saldo saat ini: ${balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}`,
+            description: `Saldo maksimal penarikan: ${formatCurrency(balance.toString())}`,
             variant: 'destructive',
         });
         setLoading(false);
@@ -156,15 +113,11 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
     setLoading(false);
 
     if (error) {
-        toast({
-            title: 'Gagal Menyimpan Transaksi',
-            description: error.message,
-            variant: 'destructive',
-        });
+        toast({ title: 'Gagal Menyimpan', description: error.message, variant: 'destructive' });
     } else {
         toast({
-            title: 'Transaksi Berhasil',
-            description: `Penarikan sebesar ${numericAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })} telah disimpan.`,
+            title: 'Penarikan Berhasil',
+            description: `Dana sebesar ${formatCurrency(amount)} telah ditarik.`,
         });
         router.push(`/profiles/${studentId}`);
         router.refresh();
@@ -180,19 +133,22 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
         </Link>
       </Button>
 
-      <Card>
+      <Card className="border-none shadow-xl overflow-hidden">
+        <div className="bg-red-600 p-4 text-white text-center">
+            <Landmark className="h-10 w-10 mx-auto mb-2 opacity-80" />
+            <h1 className="text-xl font-bold">Input Penarikan Siswa</h1>
+        </div>
         <CardContent className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <h1 className="text-2xl font-bold text-center">Form Input Pengeluaran</h1>
             
             <div className="space-y-2">
-              <Label htmlFor="date">Tanggal</Label>
+              <Label htmlFor="date" className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Tanggal Transaksi</Label>
                <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "w-full justify-start text-left font-normal",
+                        "w-full justify-start text-left font-normal h-12 border-gray-200",
                         !date && "text-muted-foreground"
                       )}
                     >
@@ -213,32 +169,42 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
                 </Popover>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="amount">Jumlah (Rp)</Label>
+            <div className="space-y-3">
+              <Label htmlFor="amount" className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Jumlah Penarikan</Label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground font-bold">Rp</span>
                 <Input 
                   id="amount" 
-                  ref={inputRef}
                   type="text" 
                   inputMode="numeric"
-                  placeholder="Contoh: 20.000" 
-                  className="pl-8" 
-                  value={formatDisplayAmount(amount)}
+                  placeholder="Masukkan angka saja... (Contoh: 20000)" 
+                  className="pl-10 h-14 text-xl font-bold border-gray-200 focus:ring-red-500" 
+                  value={amount}
                   onChange={handleAmountChange}
                   required
                 />
               </div>
+              
+              {/* Live Preview Visual - Bebas Bug Kursor Mobile */}
+              <div className={cn(
+                  "p-3 rounded-xl border text-center transition-all duration-300",
+                  amount ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-100 opacity-50"
+              )}>
+                  <p className="text-[10px] font-bold text-red-700 uppercase tracking-widest mb-1">Konfirmasi Nominal</p>
+                  <p className="text-2xl font-black text-red-600 truncate">
+                      {formatCurrency(amount)}
+                  </p>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Keterangan</Label>
+              <Label htmlFor="description" className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Keterangan / Catatan</Label>
               <div className="relative">
                 <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                   id="description" 
-                  placeholder="Contoh: Jajan" 
-                  className="pl-10" 
+                  placeholder="Contoh: Keperluan jajan" 
+                  className="pl-10 h-12 border-gray-200" 
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   required
@@ -246,9 +212,9 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
               </div>
             </div>
 
-            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white h-12" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Simpan Transaksi
+            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white h-14 text-lg font-bold shadow-lg shadow-red-200" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Landmark className="mr-2 h-5 w-5" />}
+              Simpan Penarikan
             </Button>
           </form>
         </CardContent>
