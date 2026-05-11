@@ -107,33 +107,36 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
 
   return (
     <div className="space-y-6">
-      <Button variant="ghost" asChild className="pl-0">
+      <Button variant="ghost" asChild className="pl-0 hover:bg-transparent text-muted-foreground hover:text-primary">
         <Link href={`/profiles/${studentId}`}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Kembali ke Profil
         </Link>
       </Button>
 
-      <Card className="border-none shadow-xl overflow-hidden">
-        <div className="bg-green-500 p-4 text-white text-center">
-            <Banknote className="h-10 w-10 mx-auto mb-2 opacity-80" />
-            <h1 className="text-xl font-bold">Input Setoran Siswa</h1>
+      <Card className="border-none shadow-xl overflow-hidden rounded-2xl">
+        <div className="bg-green-500 p-6 text-white text-center">
+            <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
+                <Banknote className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight">Input Setoran Siswa</h1>
+            <p className="text-green-50 text-xs mt-1 opacity-80 uppercase tracking-widest font-medium">Catat Transaksi Masuk</p>
         </div>
         <CardContent className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             
             <div className="space-y-2">
-              <Label htmlFor="date" className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Tanggal Transaksi</Label>
+              <Label htmlFor="date" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Tanggal Transaksi</Label>
                <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "w-full justify-start text-left font-normal h-12 border-gray-200",
+                        "w-full justify-start text-left font-medium h-12 border-gray-100 bg-gray-50/50 hover:bg-gray-50 rounded-xl",
                         !date && "text-muted-foreground"
                       )}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
                       {date ? format(date, "dd MMMM yyyy", { locale: id }) : <span>Pilih tanggal</span>}
                     </Button>
                   </PopoverTrigger>
@@ -151,27 +154,26 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
             </div>
 
             <div className="space-y-3">
-              <Label htmlFor="amount" className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Jumlah Setoran</Label>
+              <Label htmlFor="amount" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Jumlah Setoran</Label>
               
-              {/* Live Preview di atas input agar lebih mudah dikontrol secara visual */}
               <div className={cn(
-                  "p-3 rounded-xl border text-center transition-all duration-300",
-                  amount ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-100 opacity-50"
+                  "p-4 rounded-2xl border text-center transition-all duration-300 shadow-sm",
+                  amount ? "bg-green-50 border-green-100 scale-[1.02]" : "bg-gray-50/50 border-gray-100 opacity-60"
               )}>
-                  <p className="text-[10px] font-bold text-green-700 uppercase tracking-widest mb-1">Konfirmasi Nominal</p>
-                  <p className="text-2xl font-black text-green-600 truncate">
+                  <p className="text-[10px] font-bold text-green-700 uppercase tracking-[0.2em] mb-1">Konfirmasi Nominal</p>
+                  <p className="text-3xl font-black text-green-600 truncate tracking-tight">
                       {formatCurrency(amount)}
                   </p>
               </div>
 
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground font-bold">Rp</span>
+              <div className="relative group">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-muted-foreground font-bold text-lg">Rp</span>
                 <Input 
                   id="amount" 
                   type="text" 
                   inputMode="numeric"
-                  placeholder="Masukkan saldo... (Contoh: 50000)" 
-                  className="pl-10 h-14 text-xl font-bold border-gray-200 focus:ring-green-500" 
+                  placeholder="Masukkan nominal..." 
+                  className="pl-12 h-14 text-xl font-bold border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-green-500 rounded-xl transition-all" 
                   value={amount}
                   onChange={handleAmountChange}
                   required
@@ -180,13 +182,13 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Keterangan / Catatan</Label>
+              <Label htmlFor="description" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Keterangan / Catatan</Label>
               <div className="relative">
-                <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                   id="description" 
-                  placeholder="Contoh: Tabungan mingguan" 
-                  className="pl-10 h-12 border-gray-200" 
+                  placeholder="Catatan transaksi..." 
+                  className="pl-12 h-12 border-gray-100 bg-gray-50/50 focus:bg-white rounded-xl transition-all" 
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   required
@@ -194,7 +196,7 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
               </div>
             </div>
 
-            <Button type="submit" className="w-full bg-green-500 hover:bg-green-600 text-white h-14 text-lg font-bold shadow-lg shadow-green-200" disabled={loading}>
+            <Button type="submit" className="w-full bg-green-500 hover:bg-green-600 text-white h-14 rounded-2xl text-lg font-bold shadow-lg shadow-green-100 transition-all active:scale-95" disabled={loading}>
               {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Banknote className="mr-2 h-5 w-5" />}
               Simpan Setoran
             </Button>
@@ -204,3 +206,4 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
     </div>
   );
 }
+
