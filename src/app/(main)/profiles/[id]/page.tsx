@@ -108,36 +108,43 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
         </div>
       </div>
 
-      {/* Profile Info Header */}
-      <div className="space-y-1 text-center">
-        <h1 className="text-2xl font-black tracking-tight">{student.name}</h1>
-        <div className="flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
-            <span>NIS {student.nis}</span>
-            <span className="h-1 w-1 rounded-full bg-gray-300" />
-            <span>Kelas {student.class}</span>
-        </div>
-      </div>
-
-      {/* Main Balance Card */}
-      <Card className="bg-gradient-to-br from-primary via-primary to-blue-700 text-primary-foreground shadow-2xl border-none relative overflow-hidden h-[200px] rounded-[2rem]">
+      {/* Main Digital ID & Balance Card */}
+      <Card className="bg-gradient-to-br from-primary via-primary to-blue-700 text-primary-foreground shadow-2xl border-none relative overflow-hidden h-[260px] rounded-[2rem]">
         {/* Decorative Elements */}
         <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-400/20 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl pointer-events-none" />
         
         <CardContent className="p-8 relative z-10 h-full flex flex-col justify-between">
           <div className="flex justify-between items-start">
-            <div className="flex flex-col">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Saldo Tabungan</p>
-                <div className="h-1 w-8 bg-white/30 mt-1 rounded-full" />
+            <div className="flex flex-col gap-0.5">
+                <h1 className="text-2xl font-black tracking-tight leading-tight">{student.name}</h1>
+                <div className="flex items-center gap-2 text-[10px] font-bold opacity-80 uppercase tracking-widest mt-1">
+                    <span>NIS {student.nis}</span>
+                    <span className="h-1 w-1 rounded-full bg-white/40" />
+                    <span>Kelas {student.class}</span>
+                </div>
             </div>
-            <Wallet className="h-6 w-6 opacity-40" />
+            <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-md border border-white/20 shadow-inner">
+                <Wallet className="h-6 w-6 text-white" />
+            </div>
           </div>
 
-          <div>
+          <div className="mt-auto">
+            <div className="flex items-center gap-2 mb-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">Saldo Tabungan</p>
+                <div className="h-px flex-1 bg-white/20" />
+            </div>
             <p className="text-4xl font-black tracking-tighter drop-shadow-md">
               {balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
             </p>
-            <p className="text-[9px] font-medium opacity-60 mt-1 uppercase tracking-widest">Update Terakhir: {student.transactions[0] ? new Date(student.transactions[0].created_at!).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '-'}</p>
+            <div className="flex items-center justify-between mt-2">
+                <p className="text-[9px] font-medium opacity-60 uppercase tracking-widest">
+                    Update: {student.transactions[0] ? new Date(student.transactions[0].created_at!).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '-'}
+                </p>
+                <div className="px-2 py-0.5 bg-white/10 rounded-full border border-white/10">
+                    <p className="text-[8px] font-bold uppercase tracking-widest">Active Account</p>
+                </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -150,7 +157,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
 
       {/* Action Sections */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 px-1">
+        <div className="flex items-center gap-2 px-1 pt-2">
             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Transaksi Cepat</p>
             <div className="h-px flex-1 bg-gray-100" />
         </div>
