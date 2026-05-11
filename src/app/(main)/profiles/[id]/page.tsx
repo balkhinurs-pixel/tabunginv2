@@ -23,9 +23,9 @@ const StatMiniCard = ({ title, value, type }: { title: string, value: string, ty
     )}>
         <div className="flex items-center gap-2 mb-1">
             {type === 'income' ? (
-                <TrendingUp className="h-3 w-3 text-emerald-600" />
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
             ) : (
-                <TrendingDown className="h-3 w-3 text-rose-600" />
+                <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
             )}
             <p className={cn("text-[10px] font-bold uppercase tracking-wider", type === 'income' ? "text-emerald-700" : "text-rose-700")}>{title}</p>
         </div>

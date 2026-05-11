@@ -12,14 +12,14 @@ interface PrintReportButtonProps {
     student: Student;
 }
 
-const ActionButton = ({ icon: Icon, label, variant = 'secondary', onClick }: { icon: React.ElementType, label: string, variant?: 'secondary', onClick?: () => void }) => {
-    const colorClasses = {
-        secondary: 'bg-white hover:bg-gray-100 text-gray-800 border border-gray-200',
-    };
-    
+const ActionButton = ({ icon: Icon, label, onClick }: { icon: React.ElementType, label: string, onClick?: () => void }) => {
     return (
-        <Button onClick={onClick} className={`w-full justify-center text-left h-12 text-base font-medium ${colorClasses[variant]}`}>
-            <Icon className="mr-3 h-5 w-5" />
+        <Button 
+            onClick={onClick} 
+            variant="outline"
+            className="w-full justify-center h-12 text-sm font-bold rounded-xl bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm transition-all active:scale-95"
+        >
+            <Icon className="mr-2 h-4 w-4 text-gray-500" />
             {label}
         </Button>
     );
@@ -75,5 +75,5 @@ export default function PrintReportButton({ student }: PrintReportButtonProps) {
         doc.save(`laporan-${student.nis}-${student.name}.pdf`);
     };
 
-    return <ActionButton icon={FileText} label="Cetak Laporan" variant="secondary" onClick={handlePrintReport} />
+    return <ActionButton icon={FileText} label="Cetak Laporan PDF" onClick={handlePrintReport} />
 }

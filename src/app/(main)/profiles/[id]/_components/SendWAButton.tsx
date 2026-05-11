@@ -15,14 +15,13 @@ interface SendWAButtonProps {
     balance: number;
 }
 
-const ActionButton = ({ icon: Icon, label, variant = 'ghost', onClick }: { icon: React.ElementType, label: string, variant?: 'ghost', onClick?: () => void }) => {
-    const colorClasses = {
-        ghost: 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400'
-    };
-    
+const ActionButton = ({ icon: Icon, label, onClick }: { icon: React.ElementType, label: string, onClick?: () => void }) => {
     return (
-        <Button onClick={onClick} className={`w-full justify-center text-left h-12 text-base font-medium ${colorClasses[variant]}`}>
-            <Icon className="mr-3 h-5 w-5" />
+        <Button 
+            onClick={onClick} 
+            className="w-full justify-center h-12 text-sm font-bold rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 hover:bg-emerald-100 transition-all active:scale-95 shadow-sm shadow-emerald-50"
+        >
+            <Icon className="mr-2 h-4 w-4" />
             {label}
         </Button>
     );
@@ -91,5 +90,5 @@ _Waktu Cetak: ${format(new Date(), 'd MMMM yyyy, HH:mm', { locale: id })}_
         window.open(whatsappUrl, '_blank');
     };
 
-    return <ActionButton icon={MessageCircle} label="Kirim Laporan WA" variant="ghost" onClick={handleSendWA} />
+    return <ActionButton icon={MessageCircle} label="Kirim Laporan via WA" onClick={handleSendWA} />
 }
