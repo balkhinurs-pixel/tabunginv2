@@ -30,10 +30,21 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
   const supabase = createClient();
   
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(''); // Menyimpan string angka murni
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const studentId = params.id;
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Hanya ambil angka saja
+    const rawValue = e.target.value.replace(/\D/g, '');
+    setAmount(rawValue);
+  };
+
+  const formatDisplayAmount = (val: string) => {
+    if (!val) return '';
+    return new Intl.NumberFormat('id-ID').format(Number(val));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,11 +148,12 @@ export default function AddDepositPage({ params }: AddDepositPageProps) {
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
                 <Input 
                   id="amount" 
-                  type="number" 
-                  placeholder="Contoh: 50000" 
+                  type="text" 
+                  inputMode="numeric"
+                  placeholder="Contoh: 50.000" 
                   className="pl-8" 
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  value={formatDisplayAmount(amount)}
+                  onChange={handleAmountChange}
                   required
                 />
               </div>

@@ -31,7 +31,7 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
   const supabase = createClient();
   
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(''); // Menyimpan string angka murni
   const [description, setDescription] = useState('');
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,6 +66,16 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
     fetchStudentData();
   }, [studentId, toast, supabase]);
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Hanya ambil angka saja
+    const rawValue = e.target.value.replace(/\D/g, '');
+    setAmount(rawValue);
+  };
+
+  const formatDisplayAmount = (val: string) => {
+    if (!val) return '';
+    return new Intl.NumberFormat('id-ID').format(Number(val));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,11 +188,12 @@ export default function WithdrawPage({ params }: WithdrawPageProps) {
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
                 <Input 
                   id="amount" 
-                  type="number" 
-                  placeholder="Contoh: 20000" 
+                  type="text" 
+                  inputMode="numeric"
+                  placeholder="Contoh: 20.000" 
                   className="pl-8" 
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  value={formatDisplayAmount(amount)}
+                  onChange={handleAmountChange}
                   required
                 />
               </div>
