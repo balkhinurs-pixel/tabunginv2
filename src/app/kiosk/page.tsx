@@ -35,7 +35,7 @@ export default function KioskPage() {
         const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { 
               facingMode: facingMode,
-              width: { ideal: 1280 }, 
+              width: { ideal: 1280 },
               height: { ideal: 720 }
             } 
         });
@@ -70,19 +70,24 @@ export default function KioskPage() {
         const context = canvas.getContext('2d', { willReadFrequently: true });
         
         if (context) {
-            canvas.height = video.videoHeight;
-            canvas.width = video.videoWidth;
+            // OPTIMASI: Gunakan resolusi lebih kecil untuk pemrosesan jsQR (lebih cepat)
+            // jsQR tidak butuh gambar HD untuk deteksi, 480p sudah cukup dan jauh lebih ringan
+            const processWidth = 640;
+            const processHeight = (video.videoHeight / video.videoWidth) * processWidth;
+            
+            canvas.width = processWidth;
+            canvas.height = processHeight;
 
-            context.save();
+            // Handle un-mirroring untuk kamera depan
             if (facingMode === 'user') {
-                context.translate(canvas.width, 0);
+                context.translate(processWidth, 0);
                 context.scale(-1, 1);
             }
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            context.restore();
+            
+            context.drawImage(video, 0, 0, processWidth, processHeight);
 
-            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            const imageData = context.getImageData(0, 0, processWidth, processHeight);
+            const code = jsQR(imageData.data, processWidth, processHeight, {
                 inversionAttempts: 'dontInvert',
             });
 
@@ -113,13 +118,12 @@ export default function KioskPage() {
     const [nis, schoolCode] = data.split(',');
     
     if (!nis || !schoolCode) {
-        setTimeout(() => { processingRef.current = false; }, 2000);
+        setTimeout(() => { processingRef.current = false; }, 1500);
         return;
     }
 
     setIsProcessing(true); 
     
-    // Panggil Server Action sebagai ganti query langsung ke client SDK
     const result = await getStudentKioskData(nis, schoolCode);
 
     if (result.success && result.data) {
@@ -136,13 +140,13 @@ export default function KioskPage() {
     } else {
         toast({
             title: "Data Tidak Ditemukan",
-            description: result.message || `NIS ${nis} tidak terdaftar di sekolah ${schoolCode}.`,
+            description: result.message || `Siswa tidak ditemukan.`,
             variant: "destructive"
         });
         setTimeout(() => {
             setIsProcessing(false);
             processingRef.current = false; 
-        }, 3000);
+        }, 2000);
     }
   };
 
@@ -152,7 +156,7 @@ export default function KioskPage() {
              <video 
                 ref={videoRef} 
                 className={cn(
-                    "w-full h-full object-cover opacity-60 grayscale-[0.3] transition-all duration-700",
+                    "w-full h-full object-cover opacity-60 grayscale-[0.2] transition-all duration-700",
                     facingMode === 'user' && "-scale-x-100",
                     (isProcessing || showOverlay) && "blur-xl scale-110"
                 )} 
@@ -205,7 +209,7 @@ export default function KioskPage() {
                             {isProcessing ? <Loader2 className="h-12 w-12 animate-spin text-primary" /> : <Wallet className="h-12 w-12" />}
                         </div>
                         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-center px-10">
-                            {isProcessing ? "Menyiapkan Data..." : "Arahkan Kartu QR"}
+                            {isProcessing ? "Mencari Data..." : "Tunjukkan Kartu QR"}
                         </p>
                     </div>
                 </div>
@@ -214,10 +218,10 @@ export default function KioskPage() {
                     <div className="mt-12 text-center space-y-4 px-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
                         <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-primary/10 border border-primary/20 rounded-full">
                             <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                            <p className="text-primary font-bold text-[10px] uppercase tracking-widest">Kamera Standby</p>
+                            <p className="text-primary font-bold text-[10px] uppercase tracking-widest">Kamera Siap</p>
                         </div>
                         <p className="text-white/40 text-[9px] max-w-[250px] mx-auto font-medium leading-relaxed uppercase tracking-[0.2em]">
-                            Tempelkan kartu secara perlahan <br/> data akan muncul otomatis
+                            Dekatkan kartu ke arah kamera <br/> Pastikan QR terlihat jelas
                         </p>
                     </div>
                 )}
@@ -252,7 +256,7 @@ export default function KioskPage() {
                                 <div className="w-2 h-2 rounded-full bg-white/40 animate-bounce [animation-delay:-0.15s]"></div>
                                 <div className="w-2 h-2 rounded-full bg-white/40 animate-bounce"></div>
                             </div>
-                            <p className="text-white/40 text-[8px] font-bold uppercase tracking-[0.5em] animate-pulse">Menutup otomatis...</p>
+                            <p className="text-white/40 text-[8px] font-bold uppercase tracking-[0.5em] animate-pulse">Siap untuk siswa berikutnya...</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -264,12 +268,12 @@ export default function KioskPage() {
                  <div className="bg-rose-100 p-8 rounded-full mb-8">
                     <AlertCircle className="h-16 w-16 text-rose-600" />
                 </div>
-                <h2 className="text-2xl font-bold mb-4">Kamera Bermasalah</h2>
+                <h2 className="text-2xl font-bold mb-4">Izin Kamera Diperlukan</h2>
                 <p className="text-muted-foreground mb-10 max-w-sm leading-relaxed">
-                    Pastikan Anda telah memberikan izin kamera untuk memulai Mode Kios Cek Saldo.
+                    Mohon berikan akses kamera pada browser Anda untuk dapat melakukan pengecekan saldo mandiri.
                 </p>
                 <Button onClick={() => window.location.reload()} size="lg" className="rounded-2xl h-14 px-10 text-lg font-bold">
-                    Refresh Halaman
+                    Buka Kamera Sekarang
                 </Button>
             </div>
         )}
