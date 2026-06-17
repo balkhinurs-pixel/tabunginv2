@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ScanLine, ArrowLeft, Wallet, User, Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
+import { ScanLine, ArrowLeft, Wallet, User, Loader2, CheckCircle2, RefreshCw, AlertCircle } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -11,17 +11,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 
-/**
- * @fileOverview Halaman Mode Kios untuk cek saldo mandiri tanpa login.
- * Dilengkapi fitur toggle kamera depan/belakang untuk fleksibilitas pengujian.
- */
-
 export default function KioskPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const processingRef = useRef(false); // Blokir instan di level memory
+  
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // Untuk UI state
   const [studentData, setStudentData] = useState<{ name: string; class: string; balance: number } | null>(null);
   const [showOverlay, setShowOverlay] = useState(false);
   const { toast } = useToast();
@@ -30,7 +27,6 @@ export default function KioskPage() {
   useEffect(() => {
     const getCameraPermission = async () => {
       try {
-        // Stop any existing tracks first to clean up resources
         if (videoRef.current && videoRef.current.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach(track => track.stop());
@@ -38,10 +34,9 @@ export default function KioskPage() {
 
         const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { 
-              facingMode: facingMode, 
-              width: { ideal: 1280 }, 
-              height: { ideal: 720 },
-              frameRate: { ideal: 30 }
+              facingMode: facingMode,
+              width: { ideal: 640 }, // Resolusi standar agar pemrosesan jsQR cepat
+              height: { ideal: 480 }
             } 
         });
         setHasCameraPermission(true);
@@ -50,13 +45,8 @@ export default function KioskPage() {
           videoRef.current.srcObject = stream;
         }
       } catch (error) {
-        console.error('Error mengakses kamera:', error);
+        console.error('Error kamera:', error);
         setHasCameraPermission(false);
-        toast({
-          variant: 'destructive',
-          title: 'Izin Kamera Ditolak',
-          description: 'Mohon aktifkan izin kamera dan pastikan pencahayaan cukup.',
-        });
       }
     };
 
@@ -68,13 +58,14 @@ export default function KioskPage() {
             stream.getTracks().forEach(track => track.stop());
         }
     }
-  }, [toast, facingMode]);
+  }, [facingMode]);
 
   useEffect(() => {
     let animationFrameId: number;
 
     const tick = () => {
-      if (!isProcessing && videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
+      // JANGAN pindai jika sedang memproses database atau menampilkan saldo
+      if (!processingRef.current && videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
         const context = canvas.getContext('2d', { willReadFrequently: true });
@@ -83,8 +74,8 @@ export default function KioskPage() {
             canvas.height = video.videoHeight;
             canvas.width = video.videoWidth;
 
+            // Mirroring logic
             context.save();
-            // Hanya un-mirroring jika menggunakan kamera depan
             if (facingMode === 'user') {
                 context.translate(canvas.width, 0);
                 context.scale(-1, 1);
@@ -97,7 +88,9 @@ export default function KioskPage() {
                 inversionAttempts: 'dontInvert',
             });
 
-            if (code) {
+            if (code && code.data) {
+                // KUNCI segera agar tidak ada double scan dalam satu frame
+                processingRef.current = true; 
                 handleScanResult(code.data);
             }
         }
@@ -112,24 +105,26 @@ export default function KioskPage() {
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [hasCameraPermission, isProcessing, facingMode]);
+  }, [hasCameraPermission, facingMode]);
 
   const toggleCamera = () => {
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-    toast({
-        title: "Beralih Kamera",
-        description: `Mengaktifkan kamera ${facingMode === 'user' ? 'belakang' : 'depan'}.`
-    });
+    processingRef.current = false;
   };
 
   const handleScanResult = async (data: string) => {
     const [nis, schoolCode] = data.split(',');
     
-    if (!nis || !schoolCode) return;
+    if (!nis || !schoolCode) {
+        // Jika format salah, tunggu sebentar baru boleh scan lagi
+        setTimeout(() => { processingRef.current = false; }, 2000);
+        return;
+    }
 
     setIsProcessing(true);
     
     try {
+        // Query database
         const { data: student, error } = await supabase
             .from('students')
             .select(`
@@ -138,11 +133,13 @@ export default function KioskPage() {
                 transactions(amount, type),
                 profiles:user_id!inner(school_code)
             `)
-            .eq('nis', nis)
-            .eq('profiles.school_code', schoolCode.toLowerCase())
+            .eq('nis', nis.trim())
+            .eq('profiles.school_code', schoolCode.trim().toLowerCase())
             .maybeSingle();
 
-        if (student && !error) {
+        if (error) throw error;
+
+        if (student) {
             const balance = (student.transactions || []).reduce((acc, tx) => {
                 return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
             }, 0);
@@ -154,17 +151,29 @@ export default function KioskPage() {
             });
             setShowOverlay(true);
 
+            // Tampilkan hasil selama 6 detik
             setTimeout(() => {
                 setShowOverlay(false);
                 setStudentData(null);
                 setIsProcessing(false);
+                processingRef.current = false; // Buka kunci pemindaian
             }, 6000);
 
         } else {
-            setTimeout(() => setIsProcessing(false), 2000);
+            toast({
+                title: "Data Tidak Ditemukan",
+                description: `NIS ${nis} tidak terdaftar di sekolah ${schoolCode}.`,
+                variant: "destructive"
+            });
+            setTimeout(() => {
+                setIsProcessing(false);
+                processingRef.current = false; 
+            }, 3000);
         }
     } catch (err) {
+        console.error("Kiosk error:", err);
         setIsProcessing(false);
+        processingRef.current = false;
     }
   };
 
@@ -175,8 +184,9 @@ export default function KioskPage() {
              <video 
                 ref={videoRef} 
                 className={cn(
-                    "w-full h-full object-cover opacity-60 grayscale-[0.3]",
-                    facingMode === 'user' && "-scale-x-100" // Mirror UI hanya jika kamera depan
+                    "w-full h-full object-cover opacity-60 grayscale-[0.3] transition-all duration-700",
+                    facingMode === 'user' && "-scale-x-100",
+                    isProcessing && "blur-xl scale-110"
                 )} 
                 autoPlay 
                 playsInline 
@@ -190,19 +200,19 @@ export default function KioskPage() {
         <div className="relative z-10 p-6 flex justify-between items-center">
             <div className="flex flex-col">
                 <h1 className="text-2xl font-black tracking-tighter text-white">
-                    Tabung<span className="text-primary">.in</span> <span className="opacity-50">KIOS</span>
+                    Tabung<span className="text-primary">.in</span> <span className="opacity-50 text-sm">KIOS</span>
                 </h1>
-                <p className="text-white/60 text-[10px] font-bold uppercase tracking-[0.3em]">Smart Self-Service</p>
+                <p className="text-white/60 text-[10px] font-bold uppercase tracking-[0.3em]">Cek Saldo Mandiri</p>
             </div>
             <div className="flex gap-2">
                 <Button 
                     variant="ghost" 
-                    className="text-white/40 hover:text-white hover:bg-white/10 text-xs"
+                    className="text-white/60 hover:text-white hover:bg-white/10 text-xs rounded-full h-10 px-4"
                     onClick={toggleCamera}
                 >
                     <RefreshCw className="mr-2 h-3 w-3" /> Ganti Kamera
                 </Button>
-                <Button variant="ghost" className="text-white/40 hover:text-white hover:bg-white/10 text-xs" asChild>
+                <Button variant="ghost" className="text-white/60 hover:text-white hover:bg-white/10 text-xs rounded-full h-10 px-4" asChild>
                     <Link href="/login">
                         <ArrowLeft className="mr-2 h-3 w-3" /> Keluar
                     </Link>
@@ -213,69 +223,72 @@ export default function KioskPage() {
         {/* Scan Area */}
         {!showOverlay && (
             <div className="flex-1 flex flex-col items-center justify-center relative z-10">
-                <div className="relative w-72 h-72 sm:w-96 sm:h-96 border border-white/20 rounded-[3.5rem] flex items-center justify-center overflow-hidden backdrop-blur-[1px]">
+                <div className={cn(
+                    "relative w-72 h-72 sm:w-80 sm:h-80 border border-white/20 rounded-[3rem] flex items-center justify-center overflow-hidden transition-all duration-500",
+                    isProcessing ? "scale-90 opacity-0" : "scale-100 opacity-100"
+                )}>
                     {/* Scanner Frame Corners */}
-                    <div className="absolute top-0 left-0 w-14 h-14 border-t-4 border-l-4 border-primary rounded-tl-[3.5rem]" />
-                    <div className="absolute top-0 right-0 w-14 h-14 border-t-4 border-r-4 border-primary rounded-tr-[3.5rem]" />
-                    <div className="absolute bottom-0 left-0 w-14 h-14 border-b-4 border-l-4 border-primary rounded-bl-[3.5rem]" />
-                    <div className="absolute bottom-0 right-0 w-14 h-14 border-b-4 border-r-4 border-primary rounded-br-[3.5rem]" />
+                    <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-primary rounded-tl-[3rem]" />
+                    <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-primary rounded-tr-[3rem]" />
+                    <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-primary rounded-bl-[3rem]" />
+                    <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-primary rounded-br-[3rem]" />
                     
-                    <ScanLine className="absolute w-[120%] text-primary/80 h-1 animate-[bounce_2.5s_infinite] shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
+                    <ScanLine className="absolute w-full text-primary/80 h-1 animate-[bounce_2s_infinite] shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
                     
-                    <div className="flex flex-col items-center gap-4 text-white/30">
-                        <div className="p-6 bg-white/5 rounded-full animate-pulse">
-                            <Wallet className="h-16 w-16" />
+                    <div className="flex flex-col items-center gap-4 text-white/20">
+                        <div className="p-5 bg-white/5 rounded-full">
+                            {isProcessing ? <Loader2 className="h-12 w-12 animate-spin text-primary" /> : <Wallet className="h-12 w-12" />}
                         </div>
-                        <p className="text-[11px] font-black uppercase tracking-[0.4em] text-center px-10 leading-relaxed">
-                            Pindai Kode QR <br/> di Kamera {facingMode === 'user' ? 'Depan' : 'Belakang'}
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-center px-10">
+                            {isProcessing ? "Mencari Data..." : "Arahkan Kartu QR"}
                         </p>
                     </div>
                 </div>
                 
-                <div className="mt-12 text-center space-y-4 px-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-                    <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                        <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
-                        <p className="text-emerald-400 font-bold text-xs uppercase tracking-widest">Sistem Aktif</p>
+                {!isProcessing && (
+                    <div className="mt-12 text-center space-y-4 px-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                        <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-primary/10 border border-primary/20 rounded-full">
+                            <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                            <p className="text-primary font-bold text-[10px] uppercase tracking-widest">Kamera {facingMode === 'user' ? 'Depan' : 'Belakang'} Aktif</p>
+                        </div>
+                        <p className="text-white/40 text-[9px] max-w-[250px] mx-auto font-medium leading-relaxed uppercase tracking-[0.2em]">
+                            Dekatkan kartu secara perlahan <br/> hingga terbaca otomatis
+                        </p>
                     </div>
-                    <p className="text-white/50 text-[10px] max-w-[280px] mx-auto font-medium leading-relaxed uppercase tracking-wider">
-                        Kamera {facingMode === 'user' ? 'Depan' : 'Belakang'} Aktif <br/> Pastikan kode QR terlihat jelas
-                    </p>
-                </div>
+                )}
             </div>
         )}
 
         {/* Overlay Saldo */}
         {showOverlay && studentData && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/70 backdrop-blur-2xl animate-in fade-in zoom-in duration-300">
-                <Card className="w-full max-w-lg bg-gradient-to-br from-primary via-primary to-blue-800 border-none shadow-[0_40px_150px_rgba(59,130,246,0.6)] overflow-hidden rounded-[4rem] relative">
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+            <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-300">
+                <Card className="w-full max-w-lg bg-gradient-to-br from-primary via-primary to-blue-800 border-none shadow-[0_40px_100px_rgba(0,0,0,0.5)] overflow-hidden rounded-[3.5rem] relative">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
                     
-                    <CardContent className="p-12 flex flex-col items-center text-center relative z-10">
-                        <div className="bg-white/20 p-6 rounded-full mb-8 backdrop-blur-md shadow-inner border border-white/20">
-                            <CheckCircle2 className="h-16 w-16 text-white" />
+                    <CardContent className="p-10 flex flex-col items-center text-center relative z-10">
+                        <div className="bg-white/20 p-5 rounded-full mb-6 backdrop-blur-md border border-white/20 shadow-inner">
+                            <CheckCircle2 className="h-12 w-12 text-white" />
                         </div>
 
-                        <div className="space-y-2 mb-10">
-                            <h2 className="text-4xl font-black text-white tracking-tight leading-tight">{studentData.name}</h2>
-                            <div className="inline-block px-4 py-1 bg-white/10 border border-white/20 rounded-full">
-                                <p className="text-white/80 font-bold uppercase tracking-[0.2em] text-xs">Kelas {studentData.class}</p>
-                            </div>
+                        <div className="space-y-1 mb-8">
+                            <h2 className="text-3xl font-black text-white tracking-tight leading-tight">{studentData.name}</h2>
+                            <p className="text-white/80 font-bold uppercase tracking-[0.2em] text-[10px]">Kelas {studentData.class}</p>
                         </div>
 
-                        <div className="w-full bg-white/10 backdrop-blur-3xl border border-white/20 p-12 rounded-[3rem] shadow-2xl">
-                            <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.5em] mb-4">Saldo Anda Saat Ini</p>
-                            <p className="text-6xl font-black text-white tracking-tighter drop-shadow-lg">
+                        <div className="w-full bg-white/10 backdrop-blur-3xl border border-white/20 p-10 rounded-[2.5rem] shadow-2xl">
+                            <p className="text-white/60 text-[9px] font-black uppercase tracking-[0.4em] mb-3">Saldo Tabungan</p>
+                            <p className="text-5xl font-black text-white tracking-tighter drop-shadow-lg">
                                 {studentData.balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                             </p>
                         </div>
 
-                        <div className="mt-12 flex flex-col items-center gap-6">
-                            <div className="flex gap-3">
-                                <div className="w-2.5 h-2.5 rounded-full bg-white animate-bounce [animation-delay:-0.3s]"></div>
-                                <div className="w-2.5 h-2.5 rounded-full bg-white animate-bounce [animation-delay:-0.15s]"></div>
-                                <div className="w-2.5 h-2.5 rounded-full bg-white animate-bounce"></div>
+                        <div className="mt-10 flex flex-col items-center gap-4">
+                            <div className="flex gap-2">
+                                <div className="w-2 h-2 rounded-full bg-white/40 animate-bounce [animation-delay:-0.3s]"></div>
+                                <div className="w-2 h-2 rounded-full bg-white/40 animate-bounce [animation-delay:-0.15s]"></div>
+                                <div className="w-2 h-2 rounded-full bg-white/40 animate-bounce"></div>
                             </div>
-                            <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.6em] animate-pulse">Siap untuk Scan Berikutnya</p>
+                            <p className="text-white/40 text-[8px] font-bold uppercase tracking-[0.5em] animate-pulse">Menutup otomatis...</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -286,14 +299,14 @@ export default function KioskPage() {
         {hasCameraPermission === false && (
             <div className="absolute inset-0 z-[100] bg-background flex flex-col items-center justify-center p-8 text-center">
                  <div className="bg-rose-100 p-8 rounded-full mb-8">
-                    <User className="h-16 w-16 text-rose-600" />
+                    <AlertCircle className="h-16 w-16 text-rose-600" />
                 </div>
-                <h2 className="text-2xl font-bold mb-4">Akses Kamera Diperlukan</h2>
+                <h2 className="text-2xl font-bold mb-4">Kamera Bermasalah</h2>
                 <p className="text-muted-foreground mb-10 max-w-sm leading-relaxed">
-                    Mode Kios membutuhkan akses kamera untuk memindai kartu. Silakan klik "Coba Lagi" dan izinkan kamera jika muncul permintaan.
+                    Pastikan Anda telah memberikan izin kamera dan tidak ada aplikasi lain yang menggunakan kamera.
                 </p>
                 <Button onClick={() => window.location.reload()} size="lg" className="rounded-2xl h-14 px-10 text-lg font-bold">
-                    Coba Lagi
+                    Segarkan Halaman
                 </Button>
             </div>
         )}
