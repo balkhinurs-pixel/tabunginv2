@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -11,6 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
+
+/**
+ * @fileOverview Halaman Mode Kios untuk cek saldo mandiri tanpa login.
+ * Menggunakan kamera depan dan sistem auto-reset setelah scan berhasil.
+ */
 
 export default function KioskPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -25,7 +29,7 @@ export default function KioskPage() {
   useEffect(() => {
     const getCameraPermission = async () => {
       try {
-        // Menggunakan kamera depan (facingMode: user) untuk mode kios
+        // Menggunakan kamera depan (facingMode: user) untuk mode kios agar siswa bisa melihat layar
         const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { facingMode: 'user' } 
         });
@@ -91,12 +95,14 @@ export default function KioskPage() {
   }, [hasCameraPermission, isProcessing]);
 
   const handleScanResult = async (data: string) => {
-    const [nis, schoolCode] = data.split(',');
+    // Format QR: "nis,schoolCode"
+    const [nis] = data.split(',');
     if (!nis) return;
 
     setIsProcessing(true);
     
     try {
+        // Ambil data siswa dan kalkulasi saldo secara langsung (Publik via NIS)
         const { data: student, error } = await supabase
             .from('students')
             .select('name, class, transactions(amount, type)')
@@ -115,7 +121,7 @@ export default function KioskPage() {
             });
             setShowOverlay(true);
 
-            // Auto-reset setelah 6 detik
+            // Auto-reset kembali ke mode scan setelah 6 detik
             setTimeout(() => {
                 setShowOverlay(false);
                 setStudentData(null);
@@ -125,7 +131,7 @@ export default function KioskPage() {
         } else {
             toast({
                 title: 'Data Tidak Ditemukan',
-                description: 'Kartu tidak dikenali atau siswa belum terdaftar.',
+                description: 'Kartu tidak dikenali atau belum terdaftar.',
                 variant: 'destructive',
             });
             setTimeout(() => setIsProcessing(false), 3000);
@@ -137,7 +143,7 @@ export default function KioskPage() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col relative overflow-hidden">
-        {/* Background Video Layer */}
+        {/* Layer Kamera sebagai background */}
         <div className="absolute inset-0 z-0">
              <video 
                 ref={videoRef} 
@@ -149,7 +155,7 @@ export default function KioskPage() {
             <canvas ref={canvasRef} className="hidden" />
         </div>
 
-        {/* Header UI */}
+        {/* Header Kios */}
         <div className="relative z-10 p-6 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
             <div className="flex flex-col">
                 <h1 className="text-2xl font-black tracking-tighter text-white">
@@ -158,18 +164,18 @@ export default function KioskPage() {
                 <p className="text-white/60 text-xs font-bold uppercase tracking-widest">Self-Service Station</p>
             </div>
             <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20" asChild>
-                <Link href="/student-login">
+                <Link href="/login">
                     <ArrowLeft className="mr-2 h-4 w-4" /> Keluar
                 </Link>
             </Button>
         </div>
 
-        {/* Scan Area UI */}
+        {/* Tampilan Scan (Aktif jika tidak sedang menampilkan saldo) */}
         {!showOverlay && (
             <div className="flex-1 flex flex-col items-center justify-center relative z-10">
-                <div className="relative w-64 h-64 sm:w-80 sm:h-80 border-2 border-white/30 rounded-[2rem] flex items-center justify-center overflow-hidden">
-                    <div className="absolute inset-0 border-4 border-primary/50 animate-pulse rounded-[2rem]" />
-                    <ScanLine className="absolute w-[120%] text-primary/80 h-1 animate-[bounce_3s_infinite]" />
+                <div className="relative w-64 h-64 sm:w-80 sm:h-80 border-2 border-white/30 rounded-[3rem] flex items-center justify-center overflow-hidden">
+                    <div className="absolute inset-0 border-4 border-primary/50 animate-pulse rounded-[3rem]" />
+                    <ScanLine className="absolute w-[120%] text-primary/80 h-1 animate-[bounce_4s_infinite]" />
                     <div className="flex flex-col items-center gap-3 text-white/80">
                         <Wallet className="h-12 w-12 opacity-20" />
                         <p className="text-xs font-black uppercase tracking-[0.3em] text-center px-4">Tunjukkan Kartu Anda</p>
@@ -181,19 +187,19 @@ export default function KioskPage() {
                         <div className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
                         <p className="text-white font-bold text-lg">Sistem Siap Pindai</p>
                     </div>
-                    <p className="text-white/40 text-sm max-w-xs mx-auto">
-                        Posisikan kode QR di tengah kotak untuk melihat saldo tabungan Anda secara otomatis.
+                    <p className="text-white/40 text-sm max-w-xs mx-auto font-medium">
+                        Posisikan kode QR di tengah kotak untuk melihat saldo Anda secara otomatis.
                     </p>
                 </div>
             </div>
         )}
 
-        {/* Balance Overlay UI */}
+        {/* Tampilan Overlay Saldo (Muncul setelah scan berhasil) */}
         {showOverlay && studentData && (
             <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-in fade-in zoom-in duration-300">
                 <Card className="w-full max-w-lg bg-gradient-to-br from-primary via-primary to-blue-800 border-none shadow-[0_30px_100px_rgba(59,130,246,0.5)] overflow-hidden rounded-[3rem]">
                     <CardContent className="p-10 flex flex-col items-center text-center relative">
-                        {/* Decorative Circles */}
+                        {/* Motif Lingkaran Estetik */}
                         <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
                         <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-400/20 rounded-full blur-2xl pointer-events-none" />
 
@@ -202,7 +208,7 @@ export default function KioskPage() {
                         </div>
 
                         <div className="space-y-1 mb-8">
-                            <h2 className="text-3xl font-black text-white tracking-tight">{studentData.name}</h2>
+                            <h2 className="text-3xl font-black text-white tracking-tight leading-tight">{studentData.name}</h2>
                             <p className="text-white/70 font-bold uppercase tracking-widest text-sm">Kelas {studentData.class}</p>
                         </div>
 
@@ -226,7 +232,7 @@ export default function KioskPage() {
             </div>
         )}
 
-        {/* Security Warning for camera permission */}
+        {/* Peringatan Izin Kamera */}
         {hasCameraPermission === false && (
             <div className="absolute inset-0 z-[100] bg-background flex flex-col items-center justify-center p-8 text-center">
                  <div className="bg-rose-100 p-6 rounded-full mb-6">

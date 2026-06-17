@@ -1,4 +1,3 @@
-
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
@@ -55,23 +54,21 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Optimization: Only refresh session if needed
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   const { pathname } = request.nextUrl;
 
+  // Menambahkan /kiosk ke rute yang bisa diakses tanpa login
   const isAuthRoute = ['/login', '/signup', '/student-login', '/scan-login', '/kiosk'].includes(pathname);
   const isStudentRoute = pathname.startsWith('/home');
   const isPublicRoute = isAuthRoute || pathname === '/auth/callback';
 
-  // If no session, and not a public route, redirect to login
   if (!session && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // If there is a session
   if (session) {
     const isStudent = session.user.email?.endsWith('.supabase.user');
 
@@ -83,12 +80,10 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/home', request.url));
       }
     } else { 
-      // Teacher/Admin Logic
       if (isStudentRoute) {
          return NextResponse.redirect(new URL('/dashboard', request.url));
       }
 
-      // Avoid heavy DB check on every single static asset or specific system routes
       if (!pathname.startsWith('/_next') && !pathname.includes('.')) {
         const { data: profile } = await supabase
           .from('profiles')
