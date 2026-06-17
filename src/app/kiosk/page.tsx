@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -8,21 +9,20 @@ import jsQR from 'jsqr';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
+import { getStudentKioskData } from './actions';
 
 export default function KioskPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const processingRef = useRef(false); // Kunci memori instan untuk mencegah spam request
+  const processingRef = useRef(false); 
   
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
-  const [isProcessing, setIsProcessing] = useState(false); // State UI untuk loading
+  const [isProcessing, setIsProcessing] = useState(false); 
   const [studentData, setStudentData] = useState<{ name: string; class: string; balance: number } | null>(null);
   const [showOverlay, setShowOverlay] = useState(false);
   const { toast } = useToast();
-  const supabase = createClient();
 
   useEffect(() => {
     const getCameraPermission = async () => {
@@ -35,8 +35,8 @@ export default function KioskPage() {
         const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { 
               facingMode: facingMode,
-              width: { ideal: 640 }, 
-              height: { ideal: 480 }
+              width: { ideal: 1280 }, 
+              height: { ideal: 720 }
             } 
         });
         setHasCameraPermission(true);
@@ -64,7 +64,6 @@ export default function KioskPage() {
     let animationFrameId: number;
 
     const tick = () => {
-      // MODE STANDBY: Hanya jalan jika tidak sedang memproses data
       if (!processingRef.current && videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
@@ -74,7 +73,6 @@ export default function KioskPage() {
             canvas.height = video.videoHeight;
             canvas.width = video.videoWidth;
 
-            // Mirroring logic untuk kamera depan
             context.save();
             if (facingMode === 'user') {
                 context.translate(canvas.width, 0);
@@ -89,7 +87,6 @@ export default function KioskPage() {
             });
 
             if (code && code.data) {
-                // LOCK: Berhenti memproses frame kamera segera setelah ada kode QR
                 processingRef.current = true; 
                 handleScanResult(code.data);
             }
@@ -98,14 +95,14 @@ export default function KioskPage() {
       animationFrameId = requestAnimationFrame(tick);
     };
 
-    if (hasCameraPermission) {
+    if (hasCameraPermission && !showOverlay) {
        animationFrameId = requestAnimationFrame(tick);
     }
    
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [hasCameraPermission, facingMode]);
+  }, [hasCameraPermission, facingMode, showOverlay]);
 
   const toggleCamera = () => {
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
@@ -116,70 +113,41 @@ export default function KioskPage() {
     const [nis, schoolCode] = data.split(',');
     
     if (!nis || !schoolCode) {
-        // Abaikan data tidak valid, tunggu 2 detik sebelum bisa scan lagi
         setTimeout(() => { processingRef.current = false; }, 2000);
         return;
     }
 
-    setIsProcessing(true); // Munculkan spinner di UI
+    setIsProcessing(true); 
     
-    try {
-        // TRIGGER REQUEST: Hanya terpanggil sekali per scan kartu
-        const { data: student, error } = await supabase
-            .from('students')
-            .select(`
-                name, 
-                class, 
-                transactions(amount, type),
-                profiles:user_id!inner(school_code)
-            `)
-            .eq('nis', nis.trim())
-            .eq('profiles.school_code', schoolCode.trim().toLowerCase())
-            .maybeSingle();
+    // Panggil Server Action sebagai ganti query langsung ke client SDK
+    const result = await getStudentKioskData(nis, schoolCode);
 
-        if (error) throw error;
-
-        if (student) {
-            const balance = (student.transactions || []).reduce((acc, tx) => {
-                return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
-            }, 0);
-
-            setStudentData({
-                name: student.name,
-                class: student.class,
-                balance: balance
-            });
-            setShowOverlay(true); // Munculkan kartu saldo
-
-            // Tampilkan hasil selama 6 detik (siswa bisa baca saldo)
-            setTimeout(() => {
-                setShowOverlay(false);
-                setStudentData(null);
-                setIsProcessing(false);
-                processingRef.current = false; // Buka kunci (Sistem kembali ke Standby)
-            }, 6000);
-
-        } else {
-            toast({
-                title: "Data Tidak Ditemukan",
-                description: `NIS ${nis} tidak terdaftar di sekolah ${schoolCode}.`,
-                variant: "destructive"
-            });
-            setTimeout(() => {
-                setIsProcessing(false);
-                processingRef.current = false; 
-            }, 3000);
-        }
-    } catch (err) {
-        console.error("Kiosk error:", err);
+    if (result.success && result.data) {
+        setStudentData(result.data);
+        setShowOverlay(true); 
         setIsProcessing(false);
-        processingRef.current = false;
+
+        // Tampilkan hasil selama 6 detik
+        setTimeout(() => {
+            setShowOverlay(false);
+            setStudentData(null);
+            processingRef.current = false; 
+        }, 6000);
+    } else {
+        toast({
+            title: "Data Tidak Ditemukan",
+            description: result.message || `NIS ${nis} tidak terdaftar di sekolah ${schoolCode}.`,
+            variant: "destructive"
+        });
+        setTimeout(() => {
+            setIsProcessing(false);
+            processingRef.current = false; 
+        }, 3000);
     }
   };
 
   return (
     <div className="min-h-screen bg-black flex flex-col relative overflow-hidden">
-        {/* Layer Kamera (Background) */}
         <div className="absolute inset-0 z-0">
              <video 
                 ref={videoRef} 
@@ -196,7 +164,6 @@ export default function KioskPage() {
             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60" />
         </div>
 
-        {/* Header Tetap Muncul */}
         <div className="relative z-10 p-6 flex justify-between items-center">
             <div className="flex flex-col">
                 <h1 className="text-2xl font-black tracking-tighter text-white">
@@ -220,14 +187,12 @@ export default function KioskPage() {
             </div>
         </div>
 
-        {/* Mode Standby (Scanner) */}
         {!showOverlay && (
             <div className="flex-1 flex flex-col items-center justify-center relative z-10">
                 <div className={cn(
                     "relative w-72 h-72 sm:w-80 sm:h-80 border border-white/20 rounded-[3rem] flex items-center justify-center overflow-hidden transition-all duration-500",
                     isProcessing ? "scale-90 opacity-0" : "scale-100 opacity-100"
                 )}>
-                    {/* Frame Visual Scanner */}
                     <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-primary rounded-tl-[3rem]" />
                     <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-primary rounded-tr-[3rem]" />
                     <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-primary rounded-bl-[3rem]" />
@@ -259,7 +224,6 @@ export default function KioskPage() {
             </div>
         )}
 
-        {/* Tampilan Saldo Muncul (Hanya Muncul Jika Data Masuk) */}
         {showOverlay && studentData && (
             <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in zoom-in-95 fade-in duration-300">
                 <Card className="w-full max-w-lg bg-gradient-to-br from-primary via-primary to-blue-800 border-none shadow-[0_40px_100px_rgba(0,0,0,0.5)] overflow-hidden rounded-[3.5rem] relative">
@@ -295,7 +259,6 @@ export default function KioskPage() {
             </div>
         )}
 
-        {/* Handling Izin Kamera */}
         {hasCameraPermission === false && (
             <div className="absolute inset-0 z-[100] bg-background flex flex-col items-center justify-center p-8 text-center">
                  <div className="bg-rose-100 p-8 rounded-full mb-8">
