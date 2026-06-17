@@ -70,17 +70,14 @@ export default function KioskPage() {
         const context = canvas.getContext('2d', { willReadFrequently: true });
         
         if (context) {
-            // Gunakan resolusi menengah untuk keseimbangan kecepatan & akurasi
             const processWidth = 640;
             const processHeight = Math.floor((video.videoHeight / video.videoWidth) * processWidth);
             
             canvas.width = processWidth;
             canvas.height = processHeight;
 
-            // Reset transformasi sebelum menggambar frame baru
             context.setTransform(1, 0, 0, 1, 0, 0);
             
-            // Handle un-mirroring untuk kamera depan agar QR terbaca normal
             if (facingMode === 'user') {
                 context.translate(processWidth, 0);
                 context.scale(-1, 1);
@@ -120,7 +117,6 @@ export default function KioskPage() {
     const [nis, schoolCode] = data.split(',');
     
     if (!nis || !schoolCode) {
-        // Jika format salah, tunggu sebentar lalu izinkan scan lagi
         setTimeout(() => { processingRef.current = false; }, 1500);
         return;
     }
@@ -134,7 +130,6 @@ export default function KioskPage() {
         setShowOverlay(true); 
         setIsProcessing(false);
 
-        // Tampilkan hasil selama 6 detik lalu reset ke mode standby
         setTimeout(() => {
             setShowOverlay(false);
             setStudentData(null);
@@ -161,7 +156,7 @@ export default function KioskPage() {
                 ref={videoRef} 
                 className={cn(
                     "w-full h-full object-cover opacity-60 grayscale-[0.2] transition-all duration-700",
-                    facingMode === 'user' && "-scale-x-100", // Mirroring UI untuk kenyamanan pengguna
+                    facingMode === 'user' && "-scale-x-100",
                     (isProcessing || showOverlay) && "blur-xl scale-110"
                 )} 
                 autoPlay 
@@ -203,13 +198,11 @@ export default function KioskPage() {
                     "relative w-72 h-72 sm:w-80 sm:h-80 border border-white/20 rounded-[3rem] flex items-center justify-center overflow-hidden transition-all duration-500",
                     isProcessing ? "scale-90 opacity-0" : "scale-100 opacity-100"
                 )}>
-                    {/* Corner Borders */}
                     <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-primary rounded-tl-[3rem]" />
                     <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-primary rounded-tr-[3rem]" />
                     <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-primary rounded-bl-[3rem]" />
                     <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-primary rounded-br-[3rem]" />
                     
-                    {/* Animated Scan Line */}
                     <ScanLine className="absolute w-full text-primary/80 h-1 animate-[bounce_2s_infinite] shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
                     
                     <div className="flex flex-col items-center gap-4 text-white/20">
@@ -236,36 +229,55 @@ export default function KioskPage() {
             </div>
         )}
 
-        {/* Result Overlay (Saldo) */}
+        {/* Result Overlay (Saldo) - UPDATED DESIGN */}
         {showOverlay && studentData && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in zoom-in-95 fade-in duration-300">
-                <Card className="w-full max-w-lg bg-gradient-to-br from-primary via-primary to-blue-800 border-none shadow-[0_40px_100px_rgba(0,0,0,0.5)] overflow-hidden rounded-[3.5rem] relative">
+            <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in zoom-in-95 fade-in duration-500">
+                <Card className="w-full max-w-lg bg-gradient-to-br from-primary via-blue-600 to-blue-800 border-none shadow-[0_50px_100px_rgba(0,0,0,0.6)] overflow-hidden rounded-[3rem] relative">
+                    {/* Decorative Elements for depth */}
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/10 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl pointer-events-none" />
                     
-                    <CardContent className="p-10 flex flex-col items-center text-center relative z-10">
-                        <div className="bg-white/20 p-5 rounded-full mb-6 backdrop-blur-md border border-white/20 shadow-inner">
-                            <CheckCircle2 className="h-12 w-12 text-white" />
+                    <CardContent className="p-8 sm:p-10 flex flex-col items-center text-center relative z-10">
+                        {/* Success Icon */}
+                        <div className="bg-white/10 p-5 rounded-full mb-8 backdrop-blur-md border border-white/20 shadow-[inset_0_2px_10px_rgba(255,255,255,0.1)]">
+                            <CheckCircle2 className="h-10 w-10 text-white" />
                         </div>
 
-                        <div className="space-y-1 mb-8">
-                            <h2 className="text-3xl font-black text-white tracking-tight leading-tight">{studentData.name}</h2>
-                            <p className="text-white/80 font-bold uppercase tracking-[0.2em] text-[10px]">Kelas {studentData.class}</p>
+                        {/* Student Name & Class */}
+                        <div className="space-y-2 mb-10">
+                            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-none drop-shadow-sm">
+                                {studentData.name}
+                            </h2>
+                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-black/10 rounded-full">
+                                <p className="text-white/70 font-black uppercase tracking-[0.25em] text-[9px]">
+                                    Kelas {studentData.class}
+                                </p>
+                            </div>
                         </div>
 
-                        <div className="w-full bg-white/10 backdrop-blur-3xl border border-white/20 p-10 rounded-[2.5rem] shadow-2xl">
-                            <p className="text-white/60 text-[9px] font-black uppercase tracking-[0.4em] mb-3">Saldo Tabungan</p>
-                            <p className="text-5xl font-black text-white tracking-tighter drop-shadow-lg">
+                        {/* Balance Container (Glassmorphism) */}
+                        <div className="w-full bg-white/10 backdrop-blur-2xl border border-white/20 p-8 sm:p-12 rounded-[2.5rem] shadow-[0_20px_40px_rgba(0,0,0,0.2)] relative overflow-hidden group">
+                            {/* Inner glass highlight */}
+                            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent pointer-events-none" />
+                            
+                            <p className="text-white/50 text-[10px] font-bold uppercase tracking-[0.3em] mb-4 relative z-10">
+                                Saldo Tabungan
+                            </p>
+                            <p className="text-4xl sm:text-5xl font-black text-white tracking-tighter drop-shadow-lg relative z-10 break-all">
                                 {studentData.balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                             </p>
                         </div>
 
-                        <div className="mt-10 flex flex-col items-center gap-4">
-                            <div className="flex gap-2">
-                                <div className="w-2 h-2 rounded-full bg-white/40 animate-bounce [animation-delay:-0.3s]"></div>
-                                <div className="w-2 h-2 rounded-full bg-white/40 animate-bounce [animation-delay:-0.15s]"></div>
-                                <div className="w-2 h-2 rounded-full bg-white/40 animate-bounce"></div>
+                        {/* Footer Status */}
+                        <div className="mt-12 flex flex-col items-center gap-5">
+                            <div className="flex gap-2.5">
+                                <div className="w-2 h-2 rounded-full bg-white/20 animate-bounce [animation-delay:-0.3s]"></div>
+                                <div className="w-2 h-2 rounded-full bg-white/20 animate-bounce [animation-delay:-0.15s]"></div>
+                                <div className="w-2 h-2 rounded-full bg-white/20 animate-bounce"></div>
                             </div>
-                            <p className="text-white/40 text-[8px] font-bold uppercase tracking-[0.5em] animate-pulse">Siap untuk siswa berikutnya...</p>
+                            <p className="text-white/30 text-[9px] font-black uppercase tracking-[0.4em] animate-pulse-slow">
+                                Menutup otomatis dalam beberapa detik...
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
