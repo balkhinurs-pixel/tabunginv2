@@ -1,3 +1,4 @@
+
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
@@ -36,7 +37,7 @@ export async function middleware(request: NextRequest) {
         remove(name: string, options: CookieOptions) {
           request.cookies.set({
             name,
-            value: '',
+            value,
             ...options,
           })
           response = NextResponse.next({
@@ -46,7 +47,7 @@ export async function middleware(request: NextRequest) {
           })
           response.cookies.set({
             name,
-            value: '',
+            value,
             ...options,
           })
         },
@@ -60,26 +61,31 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Menambahkan /kiosk ke rute yang bisa diakses tanpa login
+  // Rute publik yang bisa diakses tanpa login sama sekali
   const isAuthRoute = ['/login', '/signup', '/student-login', '/scan-login', '/kiosk'].includes(pathname);
   const isStudentRoute = pathname.startsWith('/home');
   const isPublicRoute = isAuthRoute || pathname === '/auth/callback';
 
+  // 1. Jika TIDAK ada sesi dan rute BUKAN publik, arahkan ke login guru
   if (!session && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
+  // 2. Jika ADA sesi
   if (session) {
     const isStudent = session.user.email?.endsWith('.supabase.user');
 
     if (isStudent) {
-      if (isAuthRoute) {
+      // LOGIKA UNTUK SISWA
+      if (isAuthRoute || pathname === '/') {
         return NextResponse.redirect(new URL('/home', request.url));
       }
-      if (!isStudentRoute && pathname !== '/auth/callback') {
+      // Jika siswa mencoba masuk ke dashboard guru atau admin
+      if (!isStudentRoute && !pathname.startsWith('/_next') && pathname !== '/auth/callback') {
         return NextResponse.redirect(new URL('/home', request.url));
       }
     } else { 
+      // LOGIKA UNTUK GURU/ADMIN
       if (isStudentRoute) {
          return NextResponse.redirect(new URL('/dashboard', request.url));
       }
@@ -92,6 +98,7 @@ export async function middleware(request: NextRequest) {
           .single();
         
         if (profile) {
+          // Jika guru belum setting kode sekolah, paksa ke halaman welcome
           if (!profile.school_code && pathname !== '/welcome') {
             return NextResponse.redirect(new URL('/welcome', request.url));
           }
@@ -100,11 +107,13 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL('/dashboard', request.url));
           }
 
+          // Arahkan guru yang sudah login menjauh dari halaman login
           if (isAuthRoute) {
             const destination = profile.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
             return NextResponse.redirect(new URL(destination, request.url));
           }
 
+          // Proteksi rute admin
           if (profile.role !== 'ADMIN' && pathname.startsWith('/admin')) {
             return NextResponse.redirect(new URL('/dashboard', request.url));
           }

@@ -6,14 +6,17 @@ import { createClient } from '@/lib/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 export async function studentLogin(formData: FormData) {
-  const schoolCode = formData.get('school_code') as string;
+  const schoolCodeRaw = formData.get('school_code') as string;
   const nis = formData.get('nis') as string;
   const pin = formData.get('pin') as string;
   const supabase = createClient();
 
-  if (!schoolCode || !nis || !pin) {
+  if (!schoolCodeRaw || !nis || !pin) {
     return redirect('/student-login?message=Kode Sekolah, NIS, dan PIN wajib diisi.');
   }
+
+  // Selalu gunakan huruf kecil untuk konsistensi
+  const schoolCode = schoolCodeRaw.toLowerCase().trim();
 
   // Construct the "shadow email" from the NIS and school code
   // This format must match what's used when creating the student auth user.
@@ -40,5 +43,3 @@ export async function studentLogin(formData: FormData) {
 
   return redirect('/student-login?message=Terjadi kesalahan yang tidak diketahui.');
 }
-
-    
