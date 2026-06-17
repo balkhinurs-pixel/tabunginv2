@@ -13,8 +13,8 @@ import { cn } from '@/lib/utils';
 
 /**
  * @fileOverview Halaman Mode Kios untuk cek saldo mandiri tanpa login.
- * Menggunakan kamera depan dan sistem auto-reset setelah scan berhasil.
- * Pencarian data dilakukan berdasarkan NIS dan Kode Sekolah dari barcode.
+ * Dioptimalkan untuk kamera depan dengan fitur un-mirroring otomatis 
+ * agar kode QR tetap terdeteksi dengan cepat dan akurat.
  */
 
 export default function KioskPage() {
@@ -30,9 +30,9 @@ export default function KioskPage() {
   useEffect(() => {
     const getCameraPermission = async () => {
       try {
-        // Menggunakan kamera depan (facingMode: user) untuk mode kios agar siswa bisa melihat layar
+        // Menggunakan kamera depan (facingMode: user)
         const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'user' } 
+            video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } 
         });
         setHasCameraPermission(true);
 
@@ -67,12 +67,20 @@ export default function KioskPage() {
       if (!isProcessing && videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        const context = canvas.getContext('2d');
+        const context = canvas.getContext('2d', { willReadFrequently: true });
         
         if (context) {
             canvas.height = video.videoHeight;
             canvas.width = video.videoWidth;
+
+            // PENTING: Karena kamera depan bersifat mirror, kita harus membaliknya kembali 
+            // di canvas agar jsQR bisa membaca kode QR dalam posisi normal/asli.
+            context.save();
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            context.restore();
+
             const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
             const code = jsQR(imageData.data, imageData.width, imageData.height, {
                 inversionAttempts: 'dontInvert',
@@ -96,18 +104,15 @@ export default function KioskPage() {
   }, [hasCameraPermission, isProcessing]);
 
   const handleScanResult = async (data: string) => {
-    // Format QR yang diharapkan: "nis,schoolCode"
     const [nis, schoolCode] = data.split(',');
     
     if (!nis || !schoolCode) {
-        // Abaikan jika format tidak sesuai agar tidak mengganggu scan berikutnya
         return;
     }
 
     setIsProcessing(true);
     
     try {
-        // Ambil data siswa dengan filter NIS dan Kode Sekolah (via join table profiles)
         const { data: student, error } = await supabase
             .from('students')
             .select(`
@@ -132,7 +137,7 @@ export default function KioskPage() {
             });
             setShowOverlay(true);
 
-            // Auto-reset kembali ke mode scan setelah 6 detik
+            // Tampilkan saldo selama 6 detik lalu reset untuk siswa berikutnya
             setTimeout(() => {
                 setShowOverlay(false);
                 setStudentData(null);
@@ -140,12 +145,7 @@ export default function KioskPage() {
             }, 6000);
 
         } else {
-            toast({
-                title: 'Siswa Tidak Ditemukan',
-                description: 'Data tidak cocok dengan sekolah manapun.',
-                variant: 'destructive',
-            });
-            // Reset lebih cepat jika error agar bisa coba lagi
+            // Jika tidak ditemukan, beri jeda singkat lalu izinkan scan lagi
             setTimeout(() => setIsProcessing(false), 2000);
         }
     } catch (err) {
@@ -155,11 +155,11 @@ export default function KioskPage() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col relative overflow-hidden">
-        {/* Layer Kamera sebagai background untuk kesan futuristik */}
+        {/* Layer Kamera sebagai background */}
         <div className="absolute inset-0 z-0">
              <video 
                 ref={videoRef} 
-                className="w-full h-full object-cover opacity-50 grayscale-[0.5]" 
+                className="w-full h-full object-cover opacity-50 grayscale-[0.5] -scale-x-100" 
                 autoPlay 
                 playsInline 
                 muted 
@@ -183,11 +183,11 @@ export default function KioskPage() {
             </Button>
         </div>
 
-        {/* Tampilan Scan (Aktif jika tidak sedang menampilkan saldo) */}
+        {/* Tampilan Scan */}
         {!showOverlay && (
             <div className="flex-1 flex flex-col items-center justify-center relative z-10">
                 <div className="relative w-72 h-72 sm:w-96 sm:h-96 border border-white/20 rounded-[3.5rem] flex items-center justify-center overflow-hidden backdrop-blur-[2px]">
-                    {/* Scanner Frame corner marks */}
+                    {/* Scanner Frame */}
                     <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-primary rounded-tl-[3.5rem]" />
                     <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-primary rounded-tr-[3.5rem]" />
                     <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-primary rounded-bl-[3.5rem]" />
@@ -211,17 +211,16 @@ export default function KioskPage() {
                         <p className="text-emerald-400 font-bold text-sm uppercase tracking-widest">Sistem Siap Pindai</p>
                     </div>
                     <p className="text-white/40 text-xs max-w-[240px] mx-auto font-medium leading-relaxed">
-                        Posisikan kode QR di tengah kotak. Saldo akan muncul secara otomatis.
+                        Kamera akan otomatis mendeteksi kartu meskipun tampilan terlihat terbalik (mirror).
                     </p>
                 </div>
             </div>
         )}
 
-        {/* Tampilan Overlay Saldo (Muncul setelah scan berhasil) */}
+        {/* Tampilan Overlay Saldo */}
         {showOverlay && studentData && (
             <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-xl animate-in fade-in zoom-in duration-300">
                 <Card className="w-full max-w-lg bg-gradient-to-br from-primary via-primary to-blue-800 border-none shadow-[0_40px_120px_rgba(59,130,246,0.6)] overflow-hidden rounded-[3.5rem] relative">
-                    {/* Motif Lingkaran Estetik di latar belakang kartu */}
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
                     <div className="absolute -bottom-20 -left-20 w-56 h-56 bg-blue-400/20 rounded-full blur-3xl pointer-events-none" />
                     
