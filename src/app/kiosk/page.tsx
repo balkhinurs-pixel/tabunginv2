@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 /**
  * @fileOverview Halaman Mode Kios untuk cek saldo mandiri tanpa login.
  * Menggunakan kamera depan dan sistem auto-reset setelah scan berhasil.
+ * Pencarian data dilakukan berdasarkan NIS dan Kode Sekolah dari barcode.
  */
 
 export default function KioskPage() {
@@ -39,7 +40,7 @@ export default function KioskPage() {
           videoRef.current.srcObject = stream;
         }
       } catch (error) {
-        console.error('Error accessing camera:', error);
+        console.error('Error mengakses kamera:', error);
         setHasCameraPermission(false);
         toast({
           variant: 'destructive',
@@ -95,19 +96,29 @@ export default function KioskPage() {
   }, [hasCameraPermission, isProcessing]);
 
   const handleScanResult = async (data: string) => {
-    // Format QR: "nis,schoolCode"
-    const [nis] = data.split(',');
-    if (!nis) return;
+    // Format QR yang diharapkan: "nis,schoolCode"
+    const [nis, schoolCode] = data.split(',');
+    
+    if (!nis || !schoolCode) {
+        // Abaikan jika format tidak sesuai agar tidak mengganggu scan berikutnya
+        return;
+    }
 
     setIsProcessing(true);
     
     try {
-        // Ambil data siswa dan kalkulasi saldo secara langsung (Publik via NIS)
+        // Ambil data siswa dengan filter NIS dan Kode Sekolah (via join table profiles)
         const { data: student, error } = await supabase
             .from('students')
-            .select('name, class, transactions(amount, type)')
+            .select(`
+                name, 
+                class, 
+                transactions(amount, type),
+                profiles:user_id!inner(school_code)
+            `)
             .eq('nis', nis)
-            .single();
+            .eq('profiles.school_code', schoolCode)
+            .maybeSingle();
 
         if (student && !error) {
             const balance = (student.transactions || []).reduce((acc, tx) => {
@@ -130,11 +141,12 @@ export default function KioskPage() {
 
         } else {
             toast({
-                title: 'Data Tidak Ditemukan',
-                description: 'Kartu tidak dikenali atau belum terdaftar.',
+                title: 'Siswa Tidak Ditemukan',
+                description: 'Data tidak cocok dengan sekolah manapun.',
                 variant: 'destructive',
             });
-            setTimeout(() => setIsProcessing(false), 3000);
+            // Reset lebih cepat jika error agar bisa coba lagi
+            setTimeout(() => setIsProcessing(false), 2000);
         }
     } catch (err) {
         setIsProcessing(false);
@@ -143,29 +155,30 @@ export default function KioskPage() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col relative overflow-hidden">
-        {/* Layer Kamera sebagai background */}
+        {/* Layer Kamera sebagai background untuk kesan futuristik */}
         <div className="absolute inset-0 z-0">
              <video 
                 ref={videoRef} 
-                className="w-full h-full object-cover opacity-60 grayscale-[0.3]" 
+                className="w-full h-full object-cover opacity-50 grayscale-[0.5]" 
                 autoPlay 
                 playsInline 
                 muted 
             />
             <canvas ref={canvasRef} className="hidden" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60" />
         </div>
 
         {/* Header Kios */}
-        <div className="relative z-10 p-6 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
+        <div className="relative z-10 p-6 flex justify-between items-center">
             <div className="flex flex-col">
                 <h1 className="text-2xl font-black tracking-tighter text-white">
-                    Tabung<span className="text-primary">.in</span> KIOS
+                    Tabung<span className="text-primary">.in</span> <span className="opacity-50">KIOS</span>
                 </h1>
-                <p className="text-white/60 text-xs font-bold uppercase tracking-widest">Self-Service Station</p>
+                <p className="text-white/60 text-[10px] font-bold uppercase tracking-[0.3em]">Smart Self-Service</p>
             </div>
-            <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20" asChild>
+            <Button variant="ghost" className="text-white/40 hover:text-white hover:bg-white/10 text-xs" asChild>
                 <Link href="/login">
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Keluar
+                    <ArrowLeft className="mr-2 h-3 w-3" /> Kembali ke Login
                 </Link>
             </Button>
         </div>
@@ -173,22 +186,32 @@ export default function KioskPage() {
         {/* Tampilan Scan (Aktif jika tidak sedang menampilkan saldo) */}
         {!showOverlay && (
             <div className="flex-1 flex flex-col items-center justify-center relative z-10">
-                <div className="relative w-64 h-64 sm:w-80 sm:h-80 border-2 border-white/30 rounded-[3rem] flex items-center justify-center overflow-hidden">
-                    <div className="absolute inset-0 border-4 border-primary/50 animate-pulse rounded-[3rem]" />
-                    <ScanLine className="absolute w-[120%] text-primary/80 h-1 animate-[bounce_4s_infinite]" />
-                    <div className="flex flex-col items-center gap-3 text-white/80">
-                        <Wallet className="h-12 w-12 opacity-20" />
-                        <p className="text-xs font-black uppercase tracking-[0.3em] text-center px-4">Tunjukkan Kartu Anda</p>
+                <div className="relative w-72 h-72 sm:w-96 sm:h-96 border border-white/20 rounded-[3.5rem] flex items-center justify-center overflow-hidden backdrop-blur-[2px]">
+                    {/* Scanner Frame corner marks */}
+                    <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-primary rounded-tl-[3.5rem]" />
+                    <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-primary rounded-tr-[3.5rem]" />
+                    <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-primary rounded-bl-[3.5rem]" />
+                    <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-primary rounded-br-[3.5rem]" />
+                    
+                    <ScanLine className="absolute w-[140%] text-primary/60 h-1.5 animate-[bounce_3s_infinite]" />
+                    
+                    <div className="flex flex-col items-center gap-4 text-white/40">
+                        <div className="p-5 bg-white/5 rounded-full animate-pulse">
+                            <Wallet className="h-14 w-14" />
+                        </div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-center px-8 leading-relaxed">
+                            Tunjukkan QR Kartu Anda <br/> ke Kamera Depan
+                        </p>
                     </div>
                 </div>
                 
-                <div className="mt-12 text-center space-y-4 px-6">
-                    <div className="flex items-center gap-2 justify-center">
+                <div className="mt-16 text-center space-y-4 px-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <div className="inline-flex items-center gap-3 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
                         <div className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-                        <p className="text-white font-bold text-lg">Sistem Siap Pindai</p>
+                        <p className="text-emerald-400 font-bold text-sm uppercase tracking-widest">Sistem Siap Pindai</p>
                     </div>
-                    <p className="text-white/40 text-sm max-w-xs mx-auto font-medium">
-                        Posisikan kode QR di tengah kotak untuk melihat saldo Anda secara otomatis.
+                    <p className="text-white/40 text-xs max-w-[240px] mx-auto font-medium leading-relaxed">
+                        Posisikan kode QR di tengah kotak. Saldo akan muncul secara otomatis.
                     </p>
                 </div>
             </div>
@@ -196,36 +219,38 @@ export default function KioskPage() {
 
         {/* Tampilan Overlay Saldo (Muncul setelah scan berhasil) */}
         {showOverlay && studentData && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-in fade-in zoom-in duration-300">
-                <Card className="w-full max-w-lg bg-gradient-to-br from-primary via-primary to-blue-800 border-none shadow-[0_30px_100px_rgba(59,130,246,0.5)] overflow-hidden rounded-[3rem]">
-                    <CardContent className="p-10 flex flex-col items-center text-center relative">
-                        {/* Motif Lingkaran Estetik */}
-                        <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-                        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-400/20 rounded-full blur-2xl pointer-events-none" />
-
-                        <div className="bg-white/20 p-4 rounded-full mb-6">
-                            <CheckCircle2 className="h-12 w-12 text-white" />
+            <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-xl animate-in fade-in zoom-in duration-300">
+                <Card className="w-full max-w-lg bg-gradient-to-br from-primary via-primary to-blue-800 border-none shadow-[0_40px_120px_rgba(59,130,246,0.6)] overflow-hidden rounded-[3.5rem] relative">
+                    {/* Motif Lingkaran Estetik di latar belakang kartu */}
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+                    <div className="absolute -bottom-20 -left-20 w-56 h-56 bg-blue-400/20 rounded-full blur-3xl pointer-events-none" />
+                    
+                    <CardContent className="p-12 flex flex-col items-center text-center relative z-10">
+                        <div className="bg-white/20 p-5 rounded-full mb-8 backdrop-blur-md shadow-inner border border-white/20">
+                            <CheckCircle2 className="h-14 w-14 text-white" />
                         </div>
 
-                        <div className="space-y-1 mb-8">
-                            <h2 className="text-3xl font-black text-white tracking-tight leading-tight">{studentData.name}</h2>
-                            <p className="text-white/70 font-bold uppercase tracking-widest text-sm">Kelas {studentData.class}</p>
+                        <div className="space-y-2 mb-10">
+                            <h2 className="text-4xl font-black text-white tracking-tight leading-tight drop-shadow-sm">{studentData.name}</h2>
+                            <div className="inline-block px-3 py-1 bg-white/10 border border-white/20 rounded-lg">
+                                <p className="text-white/80 font-bold uppercase tracking-[0.2em] text-xs">Kelas {studentData.class}</p>
+                            </div>
                         </div>
 
-                        <div className="w-full bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-[2rem] shadow-inner">
-                            <p className="text-white/60 text-xs font-black uppercase tracking-[0.3em] mb-3">Saldo Tabungan Saat Ini</p>
-                            <p className="text-5xl font-black text-white tracking-tighter drop-shadow-lg">
+                        <div className="w-full bg-white/10 backdrop-blur-2xl border border-white/20 p-10 rounded-[2.5rem] shadow-2xl">
+                            <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.4em] mb-4">Total Saldo Tabungan</p>
+                            <p className="text-6xl font-black text-white tracking-tighter drop-shadow-lg">
                                 {studentData.balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                             </p>
                         </div>
 
-                        <div className="mt-10 flex flex-col items-center gap-4">
-                            <div className="flex gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-white animate-bounce [animation-delay:-0.3s]"></div>
-                                <div className="w-1.5 h-1.5 rounded-full bg-white animate-bounce [animation-delay:-0.15s]"></div>
-                                <div className="w-1.5 h-1.5 rounded-full bg-white animate-bounce"></div>
+                        <div className="mt-12 flex flex-col items-center gap-5">
+                            <div className="flex gap-2.5">
+                                <div className="w-2 h-2 rounded-full bg-white animate-bounce [animation-delay:-0.3s]"></div>
+                                <div className="w-2 h-2 rounded-full bg-white animate-bounce [animation-delay:-0.15s]"></div>
+                                <div className="w-2 h-2 rounded-full bg-white animate-bounce"></div>
                             </div>
-                            <p className="text-white/50 text-[10px] font-bold uppercase tracking-[0.4em]">Kembali ke Scan Otomatis</p>
+                            <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.5em] animate-pulse">Menunggu Siswa Berikutnya</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -235,14 +260,14 @@ export default function KioskPage() {
         {/* Peringatan Izin Kamera */}
         {hasCameraPermission === false && (
             <div className="absolute inset-0 z-[100] bg-background flex flex-col items-center justify-center p-8 text-center">
-                 <div className="bg-rose-100 p-6 rounded-full mb-6">
-                    <User className="h-12 w-12 text-rose-600" />
+                 <div className="bg-rose-100 p-8 rounded-full mb-8">
+                    <User className="h-16 w-16 text-rose-600" />
                 </div>
                 <h2 className="text-2xl font-bold mb-4">Akses Kamera Diperlukan</h2>
-                <p className="text-muted-foreground mb-8 max-w-sm">
-                    Mode Kios membutuhkan akses kamera depan Anda untuk memindai kartu tabungan siswa.
+                <p className="text-muted-foreground mb-10 max-w-sm leading-relaxed">
+                    Mode Kios membutuhkan akses kamera depan untuk memindai kartu tabungan siswa. Silakan izinkan melalui pengaturan browser Anda.
                 </p>
-                <Button onClick={() => window.location.reload()} size="lg" className="rounded-xl">
+                <Button onClick={() => window.location.reload()} size="lg" className="rounded-2xl h-14 px-10 text-lg font-bold">
                     Coba Lagi
                 </Button>
             </div>
