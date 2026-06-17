@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -17,7 +18,7 @@ import { SubmitButton } from '@/components/SubmitButton';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, User, MonitorSmartphone } from 'lucide-react';
 import { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { MorphingSpinner } from '@/components/ui/morphing-spinner';
@@ -151,11 +152,18 @@ function LoginContent() {
       <Separator className="my-8" />
       
       <div className="space-y-4 text-center">
-         <Button variant="secondary" className="w-full h-12" asChild>
-            <Link href="/student-login">
-                <User className="mr-2 h-4 w-4" /> Login sebagai Siswa
-            </Link>
-         </Button>
+         <div className="grid grid-cols-2 gap-3">
+            <Button variant="secondary" className="h-12" asChild>
+                <Link href="/student-login">
+                    <User className="mr-2 h-4 w-4" /> Login Siswa
+                </Link>
+            </Button>
+            <Button variant="outline" className="h-12 border-primary/20 hover:bg-primary/5" asChild>
+                <Link href="/kiosk">
+                    <MonitorSmartphone className="mr-2 h-4 w-4 text-primary" /> Mode Kios
+                </Link>
+            </Button>
+         </div>
          <p className="text-sm text-muted-foreground">Belum punya akun guru?{' '}
             <Link href="/signup" className="text-primary hover:underline">
                 Daftar di sini

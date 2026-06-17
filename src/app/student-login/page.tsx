@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -16,7 +17,7 @@ import { studentLogin } from './actions';
 import { SubmitButton } from '@/components/SubmitButton';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { KeyRound, User, ArrowRight, Shield, QrCode, Delete } from 'lucide-react';
+import { KeyRound, User, ArrowRight, Shield, QrCode, Delete, MonitorSmartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
@@ -125,12 +126,20 @@ function ManualLoginForm() {
   
     return (
         <>
-            <Button variant="outline" className="w-full mb-6 h-12 text-base" asChild>
-                <Link href="/scan-login">
-                    <QrCode className="mr-2 h-5 w-5"/>
-                    Pindai Kode QR
-                </Link>
-            </Button>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+                <Button variant="outline" className="h-12 text-base" asChild>
+                    <Link href="/scan-login">
+                        <QrCode className="mr-2 h-5 w-5"/>
+                        Scan Login
+                    </Link>
+                </Button>
+                <Button variant="outline" className="h-12 text-base border-primary/20 bg-primary/5 hover:bg-primary/10" asChild>
+                    <Link href="/kiosk">
+                        <MonitorSmartphone className="mr-2 h-5 w-5 text-primary"/>
+                        Mode Kios
+                    </Link>
+                </Button>
+            </div>
             <div className="relative mb-6">
                 <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t" />

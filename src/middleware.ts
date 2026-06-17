@@ -62,7 +62,7 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const isAuthRoute = ['/login', '/signup', '/student-login', '/scan-login'].includes(pathname);
+  const isAuthRoute = ['/login', '/signup', '/student-login', '/scan-login', '/kiosk'].includes(pathname);
   const isStudentRoute = pathname.startsWith('/home');
   const isPublicRoute = isAuthRoute || pathname === '/auth/callback';
 
