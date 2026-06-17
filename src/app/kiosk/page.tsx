@@ -70,15 +70,17 @@ export default function KioskPage() {
         const context = canvas.getContext('2d', { willReadFrequently: true });
         
         if (context) {
-            // OPTIMASI: Gunakan resolusi lebih kecil untuk pemrosesan jsQR (lebih cepat)
-            // jsQR tidak butuh gambar HD untuk deteksi, 480p sudah cukup dan jauh lebih ringan
+            // Gunakan resolusi menengah untuk keseimbangan kecepatan & akurasi
             const processWidth = 640;
-            const processHeight = (video.videoHeight / video.videoWidth) * processWidth;
+            const processHeight = Math.floor((video.videoHeight / video.videoWidth) * processWidth);
             
             canvas.width = processWidth;
             canvas.height = processHeight;
 
-            // Handle un-mirroring untuk kamera depan
+            // Reset transformasi sebelum menggambar frame baru
+            context.setTransform(1, 0, 0, 1, 0, 0);
+            
+            // Handle un-mirroring untuk kamera depan agar QR terbaca normal
             if (facingMode === 'user') {
                 context.translate(processWidth, 0);
                 context.scale(-1, 1);
@@ -118,6 +120,7 @@ export default function KioskPage() {
     const [nis, schoolCode] = data.split(',');
     
     if (!nis || !schoolCode) {
+        // Jika format salah, tunggu sebentar lalu izinkan scan lagi
         setTimeout(() => { processingRef.current = false; }, 1500);
         return;
     }
@@ -131,7 +134,7 @@ export default function KioskPage() {
         setShowOverlay(true); 
         setIsProcessing(false);
 
-        // Tampilkan hasil selama 6 detik
+        // Tampilkan hasil selama 6 detik lalu reset ke mode standby
         setTimeout(() => {
             setShowOverlay(false);
             setStudentData(null);
@@ -152,12 +155,13 @@ export default function KioskPage() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col relative overflow-hidden">
+        {/* Background Video Layer */}
         <div className="absolute inset-0 z-0">
              <video 
                 ref={videoRef} 
                 className={cn(
                     "w-full h-full object-cover opacity-60 grayscale-[0.2] transition-all duration-700",
-                    facingMode === 'user' && "-scale-x-100",
+                    facingMode === 'user' && "-scale-x-100", // Mirroring UI untuk kenyamanan pengguna
                     (isProcessing || showOverlay) && "blur-xl scale-110"
                 )} 
                 autoPlay 
@@ -168,6 +172,7 @@ export default function KioskPage() {
             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60" />
         </div>
 
+        {/* Header UI */}
         <div className="relative z-10 p-6 flex justify-between items-center">
             <div className="flex flex-col">
                 <h1 className="text-2xl font-black tracking-tighter text-white">
@@ -191,17 +196,20 @@ export default function KioskPage() {
             </div>
         </div>
 
+        {/* Scanning View (Standby) */}
         {!showOverlay && (
             <div className="flex-1 flex flex-col items-center justify-center relative z-10">
                 <div className={cn(
                     "relative w-72 h-72 sm:w-80 sm:h-80 border border-white/20 rounded-[3rem] flex items-center justify-center overflow-hidden transition-all duration-500",
                     isProcessing ? "scale-90 opacity-0" : "scale-100 opacity-100"
                 )}>
+                    {/* Corner Borders */}
                     <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-primary rounded-tl-[3rem]" />
                     <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-primary rounded-tr-[3rem]" />
                     <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-primary rounded-bl-[3rem]" />
                     <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-primary rounded-br-[3rem]" />
                     
+                    {/* Animated Scan Line */}
                     <ScanLine className="absolute w-full text-primary/80 h-1 animate-[bounce_2s_infinite] shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
                     
                     <div className="flex flex-col items-center gap-4 text-white/20">
@@ -228,6 +236,7 @@ export default function KioskPage() {
             </div>
         )}
 
+        {/* Result Overlay (Saldo) */}
         {showOverlay && studentData && (
             <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in zoom-in-95 fade-in duration-300">
                 <Card className="w-full max-w-lg bg-gradient-to-br from-primary via-primary to-blue-800 border-none shadow-[0_40px_100px_rgba(0,0,0,0.5)] overflow-hidden rounded-[3.5rem] relative">
@@ -263,13 +272,14 @@ export default function KioskPage() {
             </div>
         )}
 
+        {/* Camera Access Error UI */}
         {hasCameraPermission === false && (
             <div className="absolute inset-0 z-[100] bg-background flex flex-col items-center justify-center p-8 text-center">
                  <div className="bg-rose-100 p-8 rounded-full mb-8">
                     <AlertCircle className="h-16 w-16 text-rose-600" />
                 </div>
                 <h2 className="text-2xl font-bold mb-4">Izin Kamera Diperlukan</h2>
-                <p className="text-muted-foreground mb-10 max-w-sm leading-relaxed">
+                <p className="text-muted-foreground mb-10 max-sm:px-4 max-w-sm leading-relaxed">
                     Mohon berikan akses kamera pada browser Anda untuk dapat melakukan pengecekan saldo mandiri.
                 </p>
                 <Button onClick={() => window.location.reload()} size="lg" className="rounded-2xl h-14 px-10 text-lg font-bold">
