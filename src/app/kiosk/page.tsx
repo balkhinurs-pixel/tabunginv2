@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ScanLine, ArrowLeft, Wallet, User, Loader2, CheckCircle2 } from 'lucide-react';
+import { ScanLine, ArrowLeft, Wallet, User, Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -13,13 +13,14 @@ import { cn } from '@/lib/utils';
 
 /**
  * @fileOverview Halaman Mode Kios untuk cek saldo mandiri tanpa login.
- * Dioptimalkan untuk kamera depan dengan resolusi HD dan fitur un-mirroring.
+ * Dilengkapi fitur toggle kamera depan/belakang untuk fleksibilitas pengujian.
  */
 
 export default function KioskPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [isProcessing, setIsProcessing] = useState(false);
   const [studentData, setStudentData] = useState<{ name: string; class: string; balance: number } | null>(null);
   const [showOverlay, setShowOverlay] = useState(false);
@@ -29,10 +30,15 @@ export default function KioskPage() {
   useEffect(() => {
     const getCameraPermission = async () => {
       try {
-        // Meminta resolusi HD untuk ketajaman maksimal agar tidak blur
+        // Stop any existing tracks first to clean up resources
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { 
-              facingMode: 'user', 
+              facingMode: facingMode, 
               width: { ideal: 1280 }, 
               height: { ideal: 720 },
               frameRate: { ideal: 30 }
@@ -49,7 +55,7 @@ export default function KioskPage() {
         toast({
           variant: 'destructive',
           title: 'Izin Kamera Ditolak',
-          description: 'Mohon aktifkan izin kamera depan dan pastikan pencahayaan cukup.',
+          description: 'Mohon aktifkan izin kamera dan pastikan pencahayaan cukup.',
         });
       }
     };
@@ -62,7 +68,7 @@ export default function KioskPage() {
             stream.getTracks().forEach(track => track.stop());
         }
     }
-  }, [toast]);
+  }, [toast, facingMode]);
 
   useEffect(() => {
     let animationFrameId: number;
@@ -71,17 +77,18 @@ export default function KioskPage() {
       if (!isProcessing && videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        // willReadFrequently mengoptimalkan pengambilan data pixel secara berulang
         const context = canvas.getContext('2d', { willReadFrequently: true });
         
         if (context) {
             canvas.height = video.videoHeight;
             canvas.width = video.videoWidth;
 
-            // Un-mirroring: Membalikkan gambar agar QR terbaca normal oleh sistem
             context.save();
-            context.translate(canvas.width, 0);
-            context.scale(-1, 1);
+            // Hanya un-mirroring jika menggunakan kamera depan
+            if (facingMode === 'user') {
+                context.translate(canvas.width, 0);
+                context.scale(-1, 1);
+            }
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
             context.restore();
 
@@ -105,7 +112,15 @@ export default function KioskPage() {
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [hasCameraPermission, isProcessing]);
+  }, [hasCameraPermission, isProcessing, facingMode]);
+
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+    toast({
+        title: "Beralih Kamera",
+        description: `Mengaktifkan kamera ${facingMode === 'user' ? 'belakang' : 'depan'}.`
+    });
+  };
 
   const handleScanResult = async (data: string) => {
     const [nis, schoolCode] = data.split(',');
@@ -139,7 +154,6 @@ export default function KioskPage() {
             });
             setShowOverlay(true);
 
-            // Tampilkan saldo selama 6 detik
             setTimeout(() => {
                 setShowOverlay(false);
                 setStudentData(null);
@@ -147,7 +161,6 @@ export default function KioskPage() {
             }, 6000);
 
         } else {
-            // Jika tidak ditemukan, beri jeda singkat lalu izinkan scan lagi
             setTimeout(() => setIsProcessing(false), 2000);
         }
     } catch (err) {
@@ -161,7 +174,10 @@ export default function KioskPage() {
         <div className="absolute inset-0 z-0">
              <video 
                 ref={videoRef} 
-                className="w-full h-full object-cover opacity-60 grayscale-[0.3] -scale-x-100" 
+                className={cn(
+                    "w-full h-full object-cover opacity-60 grayscale-[0.3]",
+                    facingMode === 'user' && "-scale-x-100" // Mirror UI hanya jika kamera depan
+                )} 
                 autoPlay 
                 playsInline 
                 muted 
@@ -178,11 +194,20 @@ export default function KioskPage() {
                 </h1>
                 <p className="text-white/60 text-[10px] font-bold uppercase tracking-[0.3em]">Smart Self-Service</p>
             </div>
-            <Button variant="ghost" className="text-white/40 hover:text-white hover:bg-white/10 text-xs" asChild>
-                <Link href="/login">
-                    <ArrowLeft className="mr-2 h-3 w-3" /> Kembali ke Login
-                </Link>
-            </Button>
+            <div className="flex gap-2">
+                <Button 
+                    variant="ghost" 
+                    className="text-white/40 hover:text-white hover:bg-white/10 text-xs"
+                    onClick={toggleCamera}
+                >
+                    <RefreshCw className="mr-2 h-3 w-3" /> Ganti Kamera
+                </Button>
+                <Button variant="ghost" className="text-white/40 hover:text-white hover:bg-white/10 text-xs" asChild>
+                    <Link href="/login">
+                        <ArrowLeft className="mr-2 h-3 w-3" /> Keluar
+                    </Link>
+                </Button>
+            </div>
         </div>
 
         {/* Scan Area */}
@@ -202,7 +227,7 @@ export default function KioskPage() {
                             <Wallet className="h-16 w-16" />
                         </div>
                         <p className="text-[11px] font-black uppercase tracking-[0.4em] text-center px-10 leading-relaxed">
-                            Arahkan Kode QR <br/> ke Tengah Kamera
+                            Pindai Kode QR <br/> di Kamera {facingMode === 'user' ? 'Depan' : 'Belakang'}
                         </p>
                     </div>
                 </div>
@@ -210,10 +235,10 @@ export default function KioskPage() {
                 <div className="mt-12 text-center space-y-4 px-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
                     <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
                         <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
-                        <p className="text-emerald-400 font-bold text-xs uppercase tracking-widest">Sistem Aktif & Tajam</p>
+                        <p className="text-emerald-400 font-bold text-xs uppercase tracking-widest">Sistem Aktif</p>
                     </div>
                     <p className="text-white/50 text-[10px] max-w-[280px] mx-auto font-medium leading-relaxed uppercase tracking-wider">
-                        Jaga jarak kartu ± 15cm dari kamera <br/> untuk fokus terbaik
+                        Kamera {facingMode === 'user' ? 'Depan' : 'Belakang'} Aktif <br/> Pastikan kode QR terlihat jelas
                     </p>
                 </div>
             </div>
