@@ -4,11 +4,26 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import type { Student, Transaction } from '@/types';
-import { Loader2, ArrowUpCircle, ArrowDownCircle, Wallet, EyeOff } from 'lucide-react';
+import { Loader2, ArrowUpCircle, ArrowDownCircle, Wallet, EyeOff, Settings, ShieldCheck, Save, KeyRound } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogClose,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { changeStudentPinAction } from './actions';
 
 
 const TransactionRow = ({ tx }: { tx: Transaction }) => {
@@ -43,9 +58,16 @@ const TransactionRow = ({ tx }: { tx: Transaction }) => {
 
 export default function StudentDashboardPage() {
     const supabase = createClient();
+    const { toast } = useToast();
     const [student, setStudent] = useState<Student | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    
+    // Change PIN State
+    const [newPin, setNewPin] = useState('');
+    const [confirmPin, setConfirmPin] = useState('');
+    const [changingPin, setChangingPin] = useState(false);
+    const [dialogOpen, setDialogOpen] = useState(false);
 
     useEffect(() => {
         const fetchStudentData = async () => {
@@ -62,7 +84,7 @@ export default function StudentDashboardPage() {
                 
                 if (fetchError) {
                     console.error("Error fetching student data:", fetchError);
-                    setError("Gagal memuat data. Ini bisa terjadi jika kebijakan RLS (Row Level Security) di Supabase belum diatur.");
+                    setError("Gagal memuat data.");
                 } else if (data) {
                     const typedStudent = data as Student;
                     typedStudent.transactions = (typedStudent.transactions || []).sort((a,b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
@@ -71,12 +93,36 @@ export default function StudentDashboardPage() {
                     setError("Profil siswa tidak ditemukan.");
                 }
             } else {
-                setError("Sesi pengguna tidak ditemukan. Silakan login kembali.");
+                setError("Sesi pengguna tidak ditemukan.");
             }
             setLoading(false);
         };
         fetchStudentData();
     }, [supabase]);
+
+    const handleChangePin = async () => {
+        if (newPin.length < 6) {
+            toast({ title: "PIN Terlalu Pendek", description: "PIN harus minimal 6 digit.", variant: "destructive" });
+            return;
+        }
+        if (newPin !== confirmPin) {
+            toast({ title: "PIN Tidak Cocok", description: "Konfirmasi PIN tidak sesuai.", variant: "destructive" });
+            return;
+        }
+
+        setChangingPin(true);
+        const result = await changeStudentPinAction(newPin);
+        setChangingPin(false);
+
+        if (result.success) {
+            toast({ title: "Berhasil", description: result.message });
+            setDialogOpen(false);
+            setNewPin('');
+            setConfirmPin('');
+        } else {
+            toast({ title: "Gagal", description: result.message, variant: "destructive" });
+        }
+    };
 
     if (loading) {
         return (
@@ -87,7 +133,7 @@ export default function StudentDashboardPage() {
     }
 
     if (error || !student) {
-        return <p className="text-center text-destructive bg-destructive/10 p-4 rounded-md">{error || "Terjadi kesalahan yang tidak diketahui."}</p>
+        return <p className="text-center text-destructive bg-destructive/10 p-4 rounded-md">{error || "Terjadi kesalahan."}</p>
     }
 
     const { income, expense, balance } = (student.transactions || []).reduce(
@@ -102,9 +148,66 @@ export default function StudentDashboardPage() {
 
     return (
         <div className="space-y-6 pb-8">
-            {/* Main Balance Card with Gradient and Modern Motif */}
+            <div className="flex justify-between items-center">
+                <h1 className="text-xl font-bold">Dashboard Tabungan</h1>
+                
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="rounded-full bg-white shadow-sm border-gray-100">
+                            <Settings className="h-4 w-4 mr-2 text-gray-500" /> Pengaturan
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Pengaturan Akun</DialogTitle>
+                            <DialogDescription>Gunakan fitur ini untuk memperbarui PIN keamanan Anda.</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="newPin">PIN Baru (6 Digit)</Label>
+                                <div className="relative">
+                                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <Input 
+                                        id="newPin" 
+                                        type="password" 
+                                        inputMode="numeric"
+                                        maxLength={6}
+                                        placeholder="Masukkan PIN baru" 
+                                        className="pl-10"
+                                        value={newPin}
+                                        onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="confirmPin">Konfirmasi PIN Baru</Label>
+                                <div className="relative">
+                                    <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <Input 
+                                        id="confirmPin" 
+                                        type="password" 
+                                        inputMode="numeric"
+                                        maxLength={6}
+                                        placeholder="Ulangi PIN baru" 
+                                        className="pl-10"
+                                        value={confirmPin}
+                                        onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={handleChangePin} disabled={changingPin} className="w-full">
+                                {changingPin ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                Simpan PIN Baru
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
+
+            {/* Main Balance Card */}
             <Card className="bg-gradient-to-br from-primary via-primary to-blue-700 text-primary-foreground shadow-xl border-none relative overflow-hidden h-[220px]">
-                {/* Artistic Overlapping Circles (Matching User Request) */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
                 <div className="absolute top-1/2 -right-16 w-48 h-48 bg-white/5 rounded-full pointer-events-none" />
                 <div className="absolute -bottom-12 -left-8 w-32 h-32 bg-blue-300/20 rounded-full blur-2xl pointer-events-none" />
@@ -127,7 +230,6 @@ export default function StudentDashboardPage() {
                             {balance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                         </p>
                         
-                        {/* Glassmorphism Badge for Student Info */}
                         <div className="mt-4 inline-flex items-center gap-2 bg-white/10 border border-white/20 px-3 py-1.5 rounded-xl backdrop-blur-md">
                             <p className="text-[10px] font-black tracking-widest uppercase">Kelas {student.class}</p>
                         </div>
@@ -135,7 +237,6 @@ export default function StudentDashboardPage() {
                 </CardContent>
             </Card>
             
-            {/* Income and Expense Summary */}
             <div className="grid grid-cols-2 gap-4">
                 <Card className="border-none shadow-sm">
                     <CardContent className="p-4 flex items-center gap-3">
@@ -165,7 +266,6 @@ export default function StudentDashboardPage() {
                 </Card>
             </div>
 
-            {/* Recent Transactions */}
             <Card className="border-none shadow-sm">
                 <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-bold">Riwayat Transaksi</CardTitle>
