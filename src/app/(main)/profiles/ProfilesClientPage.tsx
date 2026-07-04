@@ -23,7 +23,7 @@ import {
   } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2, Save, Loader2, Info, ArrowRight } from 'lucide-react';
+import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2, Save, Loader2, Info, ArrowRight, RotateCcw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -136,7 +136,17 @@ const EditStudentDialog = ({ student, onStudentUpdated, updateStudentAction }: {
                         <Input id="edit-whatsapp" name="whatsapp_number" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="Contoh: 6281234567890" />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="edit-pin">PIN Siswa (6 Digit Angka)</Label>
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="edit-pin">PIN Siswa (6 Digit Angka)</Label>
+                            <Button 
+                                type="button" 
+                                variant="link" 
+                                className="h-auto p-0 text-[10px] font-bold text-primary"
+                                onClick={() => setPin('123456')}
+                            >
+                                <RotateCcw className="mr-1 h-3 w-3" /> Gunakan 123456
+                            </Button>
+                        </div>
                         <Input 
                             id="edit-pin" 
                             name="pin" 
@@ -149,7 +159,7 @@ const EditStudentDialog = ({ student, onStudentUpdated, updateStudentAction }: {
                          <Alert variant="default" className="mt-2 text-blue-800 bg-blue-50 border-blue-200">
                            <Info className="h-4 w-4 !text-blue-800" />
                            <AlertDescription>
-                            Isi hanya jika Anda ingin mereset PIN siswa. Gunakan 6 digit angka.
+                            Isi hanya jika Anda ingin mereset PIN siswa. Biarkan kosong untuk tetap menggunakan PIN lama.
                            </AlertDescription>
                         </Alert>
                     </div>
