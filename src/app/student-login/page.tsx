@@ -122,6 +122,13 @@ function PinKeypad({ studentName, schoolCode, nis }: { studentName: string, scho
 function ManualLoginForm() {
     const searchParams = useSearchParams();
     const errorMessage = searchParams.get('message');
+    const [manualPin, setManualPin] = useState('');
+
+    const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // Hanya angka dan maksimal 6 digit
+        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+        setManualPin(val);
+    };
   
     return (
         <>
@@ -187,6 +194,10 @@ function ManualLoginForm() {
                     id="pin" 
                     name="pin" 
                     type="password"
+                    inputMode="numeric"
+                    value={manualPin}
+                    onChange={handlePinChange}
+                    maxLength={6}
                     placeholder="Masukkan PIN Anda"
                     className="pl-10 h-12"
                     required
