@@ -246,6 +246,13 @@ export default function ProfilesClientPage({
   const [addLoading, setAddLoading] = useState(false);
   const [addPin, setAddPin] = useState('123456');
 
+  // Efek untuk mereset PIN ke default 123456 setiap kali dialog dibuka
+  useEffect(() => {
+    if (addDialogOpen) {
+      setAddPin('123456');
+    }
+  }, [addDialogOpen]);
+
   const studentQuota = profile?.plan === 'PRO' ? 40 : 5;
   const proStudentQuota = 40;
 
@@ -415,6 +422,7 @@ export default function ProfilesClientPage({
                         maxLength={6}
                         inputMode="numeric"
                       />
+                      <p className="text-[10px] text-muted-foreground italic">Default PIN otomatis: 123456</p>
                   </div>
                 </div>
                 <DialogFooter className="grid grid-cols-2 gap-2">

@@ -1,4 +1,3 @@
-
 'use server';
 
 import type { Student } from '@/types';
@@ -54,11 +53,12 @@ export async function addStudentAction(
   const newNis = formData.get('nis') as string;
   const newName = formData.get('name') as string;
   const newStudentClass = formData.get('class') as string;
-  const newPin = formData.get('pin') as string;
+  // Gunakan fallback 123456 jika PIN kosong
+  const newPin = (formData.get('pin') as string) || '123456';
   const newWhatsappNumber = formData.get('whatsapp_number') as string | null;
 
-  if (!newNis || !newName || !newStudentClass || !newPin) {
-    return { success: false, message: 'Data tidak lengkap. Mohon isi NIS, Nama, Kelas, dan PIN.' };
+  if (!newNis || !newName || !newStudentClass) {
+    return { success: false, message: 'Data tidak lengkap. Mohon isi NIS, Nama, dan Kelas.' };
   }
   
   // 4. Get Admin client ONLY when needed
