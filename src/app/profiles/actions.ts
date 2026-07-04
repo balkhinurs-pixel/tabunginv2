@@ -63,7 +63,7 @@ export async function addStudentAction(
   
   // 4. Get Admin client ONLY when needed
   const supabaseAdmin = getSupabaseAdmin();
-  // Gunakan school_code dalam huruf kecil untuk shadow email
+  // Gunakan school_code dalam huruf kecil untuk shadow email agar konsisten dengan login
   const shadowEmail = `${newNis}@${profile.school_code.toLowerCase()}.supabase.user`;
   
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -147,7 +147,7 @@ export async function updateStudentAction(
     }
 
     // 2. If a new PIN is provided, update the auth user
-    if (pin) {
+    if (pin && pin.trim().length > 0) {
         const supabaseAdmin = getSupabaseAdmin();
         const { error: updateUserError } = await supabaseAdmin.auth.admin.updateUserById(
             id, { password: pin }

@@ -63,7 +63,8 @@ export async function addStudentAction(
   
   // 4. Get Admin client ONLY when needed
   const supabaseAdmin = getSupabaseAdmin();
-  const shadowEmail = `${newNis}@${profile.school_code}.supabase.user`;
+  // FORCE lowercase on school code to prevent login issues
+  const shadowEmail = `${newNis}@${profile.school_code.toLowerCase()}.supabase.user`;
   
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: shadowEmail,
@@ -146,7 +147,7 @@ export async function updateStudentAction(
     }
 
     // 2. If a new PIN is provided, update the auth user
-    if (pin) {
+    if (pin && pin.trim().length > 0) {
         const supabaseAdmin = getSupabaseAdmin();
         const { error: updateUserError } = await supabaseAdmin.auth.admin.updateUserById(
             id, { password: pin }
@@ -254,7 +255,7 @@ export async function importStudentsAction(csvContent: string): Promise<ImportRe
   const errors: string[] = [];
 
   for (const student of studentsToImport) {
-    const shadowEmail = `${student.nis}@${profile.school_code}.supabase.user`;
+    const shadowEmail = `${student.nis}@${profile.school_code.toLowerCase()}.supabase.user`;
     
     // Create auth user first
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
