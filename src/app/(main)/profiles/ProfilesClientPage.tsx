@@ -71,6 +71,15 @@ const EditStudentDialog = ({ student, onStudentUpdated, updateStudentAction }: {
     }, [student, open]);
 
     const handleSubmit = async (formData: FormData) => {
+        if (pin && pin.length !== 6) {
+            toast({
+                title: 'PIN Tidak Valid',
+                description: 'PIN harus terdiri dari tepat 6 digit angka.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
         setLoading(true);
         const result = await updateStudentAction(formData);
         setLoading(false);
@@ -90,6 +99,11 @@ const EditStudentDialog = ({ student, onStudentUpdated, updateStudentAction }: {
             });
         }
     }
+
+    const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+        setPin(value);
+    };
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -122,12 +136,20 @@ const EditStudentDialog = ({ student, onStudentUpdated, updateStudentAction }: {
                         <Input id="edit-whatsapp" name="whatsapp_number" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="Contoh: 6281234567890" />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="edit-pin">PIN Siswa (untuk Login)</Label>
-                        <Input id="edit-pin" name="pin" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Biarkan untuk tidak mengubah" />
+                        <Label htmlFor="edit-pin">PIN Siswa (6 Digit Angka)</Label>
+                        <Input 
+                            id="edit-pin" 
+                            name="pin" 
+                            value={pin} 
+                            onChange={handlePinChange} 
+                            placeholder="Biarkan kosong jika tidak diubah" 
+                            maxLength={6}
+                            inputMode="numeric"
+                        />
                          <Alert variant="default" className="mt-2 text-blue-800 bg-blue-50 border-blue-200">
                            <Info className="h-4 w-4 !text-blue-800" />
                            <AlertDescription>
-                            Isi hanya jika Anda ingin mereset PIN siswa. Biarkan kosong jika tidak ada perubahan.
+                            Isi hanya jika Anda ingin mereset PIN siswa. Gunakan 6 digit angka.
                            </AlertDescription>
                         </Alert>
                     </div>
@@ -222,6 +244,7 @@ export default function ProfilesClientPage({
   // State for AddStudentDialog
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
+  const [addPin, setAddPin] = useState('123456');
 
   const studentQuota = profile?.plan === 'PRO' ? 40 : 5;
   const proStudentQuota = 40;
@@ -239,6 +262,15 @@ export default function ProfilesClientPage({
   };
   
   const handleAddStudentSubmit = async (formData: FormData) => {
+    if (addPin.length !== 6) {
+        toast({
+            title: 'PIN Tidak Valid',
+            description: 'PIN harus terdiri dari tepat 6 digit angka.',
+            variant: 'destructive',
+        });
+        return;
+    }
+
     setAddLoading(true);
     const result = await addStudentAction(formData);
     setAddLoading(false);
@@ -252,6 +284,7 @@ export default function ProfilesClientPage({
              setStudents(prev => [...prev, result.student!].sort((a,b) => a.name.localeCompare(b.name)));
         }
         formRef.current?.reset();
+        setAddPin('123456');
         setAddDialogOpen(false);
     } else {
         toast({
@@ -372,8 +405,16 @@ export default function ProfilesClientPage({
                       <Input id="whatsapp" name="whatsapp_number" placeholder="Contoh: 6281234567890" />
                   </div>
                   <div className="space-y-2">
-                      <Label htmlFor="pin">PIN Awal Siswa (untuk Login)</Label>
-                      <Input id="pin" name="pin" defaultValue="123456" required />
+                      <Label htmlFor="pin">PIN Awal Siswa (6 Digit Angka)</Label>
+                      <Input 
+                        id="pin" 
+                        name="pin" 
+                        value={addPin} 
+                        onChange={(e) => setAddPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        required 
+                        maxLength={6}
+                        inputMode="numeric"
+                      />
                   </div>
                 </div>
                 <DialogFooter className="grid grid-cols-2 gap-2">
