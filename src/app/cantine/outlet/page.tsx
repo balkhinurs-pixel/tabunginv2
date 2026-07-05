@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,18 +11,16 @@ import {
   Loader2,
   Clock,
   ChevronRight,
-  Wallet,
-  AlertCircle
+  Wallet
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { createClient } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { getCantineTransactionsAction } from '../actions';
 
 export default function CantineOutletPage() {
-  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
       todaySales: 0,
@@ -32,46 +29,32 @@ export default function CantineOutletPage() {
       recentTransactions: [] as any[]
   });
 
-  useEffect(() => {
-    const fetchCantineData = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
+  const loadData = async () => {
+    setLoading(true);
+    const transactions = await getCantineTransactionsAction();
+    
+    if (transactions) {
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
-        // Ambil transaksi belanja kantin beserta data siswa melalui relasi (JOIN)
-        // Kita menggunakan left join standar agar transaksi tetap muncul meski RLS diblokir (sebagai debug)
-        const { data: transactions } = await supabase
-            .from('transactions')
-            .select(`
-                *,
-                students (
-                    name, 
-                    class
-                )
-            `)
-            .eq('user_id', user.id)
-            .eq('category', 'BELANJA_KANTIN')
-            .order('created_at', { ascending: false });
+        const todayTxs = transactions.filter(tx => new Date(tx.created_at) >= todayStart);
+        const totalToday = todayTxs.reduce((acc, tx) => acc + tx.amount, 0);
+        const unsettled = transactions.filter(tx => !tx.is_settled).reduce((acc, tx) => acc + tx.amount, 0);
+        const customers = new Set(todayTxs.map(tx => tx.student_id)).size;
 
-        if (transactions) {
-            const todayTxs = transactions.filter(tx => new Date(tx.created_at) >= todayStart);
-            const totalToday = todayTxs.reduce((acc, tx) => acc + tx.amount, 0);
-            const unsettled = transactions.filter(tx => !tx.is_settled).reduce((acc, tx) => acc + tx.amount, 0);
-            const customers = new Set(todayTxs.map(tx => tx.student_id)).size;
+        setStats({
+            todaySales: totalToday,
+            unsettledBalance: unsettled,
+            customerCount: customers,
+            recentTransactions: transactions.slice(0, 10)
+        });
+    }
+    setLoading(false);
+  };
 
-            setStats({
-                todaySales: totalToday,
-                unsettledBalance: unsettled,
-                customerCount: customers,
-                recentTransactions: transactions.slice(0, 10)
-            });
-        }
-        setLoading(false);
-    };
-    fetchCantineData();
-  }, [supabase]);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   if (loading) {
       return (
@@ -146,7 +129,7 @@ export default function CantineOutletPage() {
                               </div>
                               <div className="flex flex-col">
                                   <p className="font-black text-sm text-gray-900 leading-tight">
-                                      {tx.students?.name || 'Siswa (Butuh Izin SQL)'}
+                                      {tx.students?.name || 'Siswa'}
                                   </p>
                                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
                                       {format(new Date(tx.created_at), 'HH:mm', { locale: id })} • Kelas {tx.students?.class || '-'}

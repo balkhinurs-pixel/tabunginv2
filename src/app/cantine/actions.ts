@@ -1,10 +1,44 @@
-
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { createClient } from '@/lib/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
+
+/**
+ * Mengambil daftar transaksi khusus untuk outlet yang sedang login.
+ * Menggunakan admin client untuk bypass RLS agar nama siswa bisa muncul tanpa kendala izin SQL.
+ */
+export async function getCantineTransactionsAction() {
+    const supabaseUser = createClient();
+    const { data: { user } } = await supabaseUser.auth.getUser();
+    
+    if (!user) return [];
+
+    const supabaseAdmin = getSupabaseAdmin();
+    
+    // Ambil transaksi milik merchant ini beserta data siswanya
+    const { data, error } = await supabaseAdmin
+        .from('transactions')
+        .select(`
+            *,
+            students (
+                name,
+                class,
+                nis
+            )
+        `)
+        .eq('user_id', user.id)
+        .eq('category', 'BELANJA_KANTIN')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('[GET_CANTINE_TX_ERROR]', error);
+        return [];
+    }
+
+    return data || [];
+}
 
 /**
  * Mengambil data ringkas siswa untuk divalidasi di layar POS kasir sebelum minta PIN.

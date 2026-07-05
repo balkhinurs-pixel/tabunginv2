@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -23,6 +22,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { getCantineTransactionsAction } from '../actions';
 
 export default function CantineHistoryPage() {
   const supabase = createClient();
@@ -33,33 +33,22 @@ export default function CantineHistoryPage() {
   const [merchantName, setMerchantName] = useState('');
   const { toast } = useToast();
 
+  const loadHistory = async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase.from('profiles').select('school_name').eq('id', user.id).single();
+    setMerchantName(profile?.school_name || user.email?.split('@')[0].toUpperCase() || 'KANTIN');
+
+    const data = await getCantineTransactionsAction();
+    if (data) setTransactions(data);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchHistory = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data: profile } = await supabase.from('profiles').select('school_name').eq('id', user.id).single();
-        setMerchantName(profile?.school_name || user.email?.split('@')[0].toUpperCase() || 'KANTIN');
-
-        const { data } = await supabase
-            .from('transactions')
-            .select(`
-                *, 
-                students (
-                    name, 
-                    class, 
-                    nis
-                )
-            `)
-            .eq('user_id', user.id)
-            .eq('category', 'BELANJA_KANTIN')
-            .order('created_at', { ascending: false });
-
-        if (data) setTransactions(data);
-        setLoading(false);
-    };
-    fetchHistory();
-  }, [supabase]);
+    loadHistory();
+  }, []);
 
   const handlePrintReport = () => {
     if (transactions.length === 0) return;
@@ -162,7 +151,7 @@ export default function CantineHistoryPage() {
                             </div>
                             <div className="flex flex-col">
                                 <p className="font-black text-gray-900 leading-tight">
-                                    {tx.students?.name || 'Siswa (Butuh Izin SQL)'}
+                                    {tx.students?.name || 'Siswa'}
                                 </p>
                                 <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
                                     <Calendar className="h-3 w-3" />
