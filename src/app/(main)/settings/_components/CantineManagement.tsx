@@ -11,7 +11,8 @@ import {
   Trash2, 
   Loader2, 
   UtensilsCrossed,
-  Info
+  Info,
+  AlertTriangle
 } from 'lucide-react';
 import { addCantineAction, deleteCantineAction, getCantineOutletsAction } from '../actions';
 import { useToast } from '@/hooks/use-toast';
@@ -30,8 +31,14 @@ export default function CantineManagement() {
   const [outlets, setOutlets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [cantineId, setCantineId] = useState('');
   const [pin, setPin] = useState('');
+  
+  // Delete Verification States
+  const [outletToDelete, setOutletToDelete] = useState<any>(null);
+  const [confirmDeleteName, setConfirmDeleteName] = useState('');
+  
   const { toast } = useToast();
 
   const fetchOutlets = async () => {
@@ -77,12 +84,17 @@ export default function CantineManagement() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Hapus akun outlet ini?')) return;
+  const handleDelete = async () => {
+    if (!outletToDelete) return;
     
-    const result = await deleteCantineAction(id);
+    setDeleting(true);
+    const result = await deleteCantineAction(outletToDelete.id);
+    setDeleting(false);
+
     if (result.success) {
         toast({ title: "Berhasil", description: result.message });
+        setOutletToDelete(null);
+        setConfirmDeleteName('');
         fetchOutlets();
     } else {
         toast({ title: "Gagal", description: result.message, variant: "destructive" });
@@ -162,14 +174,57 @@ export default function CantineManagement() {
                             <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Aktif sebagai Outlet</p>
                         </div>
                     </div>
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-muted-foreground hover:text-rose-600 hover:bg-rose-50"
-                        onClick={() => handleDelete(outlet.id)}
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    
+                    <Dialog open={outletToDelete?.id === outlet.id} onOpenChange={(open) => {
+                        if (!open) {
+                            setOutletToDelete(null);
+                            setConfirmDeleteName('');
+                        }
+                    }}>
+                        <DialogTrigger asChild>
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="text-muted-foreground hover:text-rose-600 hover:bg-rose-50"
+                                onClick={() => setOutletToDelete(outlet)}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <div className="flex items-center gap-2 text-rose-600 mb-2">
+                                    <AlertTriangle className="h-6 w-6" />
+                                    <DialogTitle>Hapus Akun Outlet?</DialogTitle>
+                                </div>
+                                <DialogDescription className="space-y-3">
+                                    <p>Tindakan ini akan menghapus akun akses untuk <strong>{outlet.displayId}</strong> secara permanen. Petugas tidak akan bisa login lagi.</p>
+                                    <div className="bg-rose-50 p-4 rounded-xl border border-rose-100 space-y-2">
+                                        <p className="text-xs font-bold text-rose-700 uppercase tracking-widest">Konfirmasi Penghapusan</p>
+                                        <p className="text-[11px] text-rose-600">Ketik kembali ID kantin <span className="font-black underline">{outlet.displayId}</span> di bawah untuk melanjutkan:</p>
+                                        <Input 
+                                            value={confirmDeleteName}
+                                            onChange={(e) => setConfirmDeleteName(e.target.value)}
+                                            placeholder="Ketik ID kantin di sini..."
+                                            className="bg-white border-rose-200 focus:ring-rose-500 text-sm font-bold"
+                                        />
+                                    </div>
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter className="flex gap-2">
+                                <Button variant="ghost" onClick={() => setOutletToDelete(null)} disabled={deleting}>Batal</Button>
+                                <Button 
+                                    variant="destructive" 
+                                    disabled={confirmDeleteName !== outlet.displayId || deleting}
+                                    onClick={handleDelete}
+                                    className="flex-1"
+                                >
+                                    {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                    Hapus Permanen
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             ))
         ) : (
