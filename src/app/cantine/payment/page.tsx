@@ -32,7 +32,6 @@ export default function CantinePaymentPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  // Kamera Scanner
   useEffect(() => {
     if (state !== 'SCANNING') return;
 
@@ -129,7 +128,6 @@ export default function CantinePaymentPage() {
       setIsProcessingQR(false);
   };
 
-  // Keyboard Component
   const Keypad = ({ value, onChange, onConfirm, label }: any) => (
     <div className="w-full max-w-sm space-y-6 animate-in slide-in-from-bottom-4">
         <div className="text-center space-y-2">

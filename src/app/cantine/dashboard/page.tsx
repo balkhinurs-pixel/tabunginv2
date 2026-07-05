@@ -67,7 +67,6 @@ export default function CantineDashboard() {
 
   return (
     <div className="space-y-6 pb-20">
-      {/* Header Banner */}
       <Card className="bg-gradient-to-br from-orange-500 to-rose-600 border-none rounded-3xl overflow-hidden shadow-xl">
         <CardContent className="p-8 relative">
             <div className="absolute top-0 right-0 p-4 opacity-10">
@@ -102,7 +101,6 @@ export default function CantineDashboard() {
         </CardContent>
       </Card>
 
-      {/* Quick Actions */}
       <div className="grid grid-cols-1 gap-4">
           <Button asChild size="lg" className="h-20 rounded-3xl bg-primary hover:bg-primary/90 text-lg font-black shadow-lg shadow-primary/20">
               <Link href="/cantine/payment">
@@ -111,7 +109,6 @@ export default function CantineDashboard() {
           </Button>
       </div>
 
-      {/* Recent History */}
       <Card className="border-none shadow-sm rounded-3xl">
           <CardContent className="p-6">
               <div className="flex justify-between items-center mb-6">

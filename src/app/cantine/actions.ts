@@ -51,7 +51,6 @@ export async function processCantinePayment(params: {
     const supabaseUser = createClient();
     
     try {
-        // 1. Verifikasi PIN Siswa menggunakan login bayangan
         const shadowEmail = `${nis}@${schoolCode}.supabase.user`;
         const { error: authError } = await supabaseUser.auth.signInWithPassword({
             email: shadowEmail,
@@ -60,11 +59,9 @@ export async function processCantinePayment(params: {
 
         if (authError) return { success: false, message: 'PIN Siswa Salah.' };
 
-        // 2. Ambil Sesi Merchant (Akun Kantin)
         const { data: { user: activeMerchant } } = await supabaseUser.auth.getUser();
         if (!activeMerchant) return { success: false, message: 'Sesi merchant berakhir.' };
 
-        // 3. Verifikasi Saldo Siswa
         const { data: student, error: studentError } = await supabaseAdmin
             .from('students')
             .select('transactions(amount, type)')
@@ -79,7 +76,6 @@ export async function processCantinePayment(params: {
 
         if (amount > balance) return { success: false, message: 'Saldo Siswa Tidak Mencukupi.' };
 
-        // 4. Catat Transaksi Belanja
         const { error: txError } = await supabaseAdmin.from('transactions').insert({
             student_id: studentId,
             user_id: activeMerchant.id,
@@ -91,7 +87,6 @@ export async function processCantinePayment(params: {
 
         if (txError) throw txError;
 
-        // Keluar dari sesi bayangan siswa agar kembali ke sesi merchant
         await supabaseUser.auth.signOut();
 
         return { success: true, message: 'Pembayaran Berhasil.' };

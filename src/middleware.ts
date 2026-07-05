@@ -60,23 +60,19 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Rute publik yang bisa diakses tanpa login sama sekali
   const isAuthRoute = ['/login', '/signup', '/student-login', '/scan-login', '/kiosk'].includes(pathname);
   const isStudentRoute = pathname.startsWith('/home');
   const isCantineRoute = pathname.startsWith('/cantine');
   const isPublicRoute = isAuthRoute || pathname === '/auth/callback';
 
-  // 1. Jika TIDAK ada sesi dan rute BUKAN publik, arahkan ke login guru
   if (!session && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // 2. Jika ADA sesi
   if (session) {
     const isStudent = session.user.email?.endsWith('.supabase.user');
 
     if (isStudent) {
-      // LOGIKA UNTUK SISWA
       if (isAuthRoute || pathname === '/') {
         return NextResponse.redirect(new URL('/home', request.url));
       }
@@ -84,7 +80,6 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/home', request.url));
       }
     } else { 
-      // LOGIKA UNTUK GURU/KANTIN/ADMIN
       if (!pathname.startsWith('/_next') && !pathname.includes('.')) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -93,7 +88,6 @@ export async function middleware(request: NextRequest) {
           .single();
         
         if (profile) {
-          // Jika belum setting kode sekolah, paksa ke halaman welcome
           if (!profile.school_code && pathname !== '/welcome') {
             return NextResponse.redirect(new URL('/welcome', request.url));
           }
@@ -103,17 +97,14 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL(destination, request.url));
           }
 
-          // Arahkan akun Kantine menjauh dari Dashboard Guru
           if (profile.role === 'CANTINE' && !isCantineRoute && !pathname.startsWith('/_next') && pathname !== '/auth/callback') {
               return NextResponse.redirect(new URL('/cantine/dashboard', request.url));
           }
           
-          // Arahkan akun Guru menjauh dari rute Kantine
           if (profile.role === 'ADMIN' && isCantineRoute) {
               return NextResponse.redirect(new URL('/dashboard', request.url));
           }
 
-          // Arahkan yang sudah login menjauh dari halaman login
           if (isAuthRoute) {
             const destination = profile.role === 'CANTINE' ? '/cantine/dashboard' : '/dashboard';
             return NextResponse.redirect(new URL(destination, request.url));
