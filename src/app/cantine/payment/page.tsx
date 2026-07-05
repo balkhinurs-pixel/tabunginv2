@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -114,7 +113,7 @@ export default function CantinePaymentPage() {
 
     if (result.success) {
         setState('SUCCESS');
-        setTimeout(() => router.push('/cantine/dashboard'), 5000);
+        setTimeout(() => router.push('/cantine/outlet'), 5000);
     } else {
         setErrorMessage(result.message);
         setState('ERROR');
@@ -234,7 +233,7 @@ export default function CantinePaymentPage() {
                           </div>
                       </CardContent>
                   </Card>
-                  <Button size="lg" className="w-full rounded-2xl h-14 font-black" onClick={() => router.push('/cantine/dashboard')}>
+                  <Button size="lg" className="w-full rounded-2xl h-14 font-black" onClick={() => router.push('/cantine/outlet')}>
                       SELESAI
                   </Button>
               </div>

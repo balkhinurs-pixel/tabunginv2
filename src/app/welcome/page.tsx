@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -87,7 +86,7 @@ export default function WelcomePage() {
         toast({ title: "Pendaftaran Gagal", description: "Terjadi kesalahan saat menyimpan profil Anda.", variant: 'destructive' });
     } else {
         toast({ title: "Berhasil!", description: "Profil Anda telah dikonfigurasi." });
-        const destination = role === 'CANTINE' ? '/cantine/dashboard' : '/dashboard';
+        const destination = role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
         router.push(destination);
         router.refresh();
     }

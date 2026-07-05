@@ -1,4 +1,3 @@
-
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
@@ -94,12 +93,12 @@ export async function middleware(request: NextRequest) {
           }
 
           if (profile.school_code && pathname === '/welcome') {
-            const destination = profile.role === 'CANTINE' ? '/cantine/dashboard' : '/dashboard';
+            const destination = profile.role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
             return NextResponse.redirect(new URL(destination, request.url));
           }
 
           if (profile.role === 'CANTINE' && !isCantineRoute && !pathname.startsWith('/_next') && pathname !== '/auth/callback') {
-              return NextResponse.redirect(new URL('/cantine/dashboard', request.url));
+              return NextResponse.redirect(new URL('/cantine/outlet', request.url));
           }
           
           if (profile.role === 'ADMIN' && isCantineRoute) {
@@ -107,7 +106,7 @@ export async function middleware(request: NextRequest) {
           }
 
           if (isAuthRoute) {
-            const destination = profile.role === 'CANTINE' ? '/cantine/dashboard' : '/dashboard';
+            const destination = profile.role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
             return NextResponse.redirect(new URL(destination, request.url));
           }
         }

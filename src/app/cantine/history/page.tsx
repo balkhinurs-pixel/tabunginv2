@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -49,7 +48,7 @@ export default function CantineHistoryPage() {
     <div className="space-y-6 pb-20">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-            <Link href="/cantine/dashboard"><ArrowLeft /></Link>
+            <Link href="/cantine/outlet"><ArrowLeft /></Link>
         </Button>
         <h2 className="text-xl font-black tracking-tight">Riwayat Penjualan</h2>
       </div>

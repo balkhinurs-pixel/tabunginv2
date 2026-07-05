@@ -1,4 +1,3 @@
-
 'use client';
 
 import { 
@@ -13,8 +12,8 @@ import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase';
 
 const CANTINE_NAV = [
-    { title: 'Dashboard', icon: LayoutGrid, href: '/cantine/dashboard' },
-    { title: 'History', icon: History, href: '/cantine/history' },
+    { title: 'Outlet', icon: LayoutGrid, href: '/cantine/outlet' },
+    { title: 'Riwayat', icon: History, href: '/cantine/history' },
 ];
 
 export default function CantineLayout({ children }: { children: React.ReactNode }) {
