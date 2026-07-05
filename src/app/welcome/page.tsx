@@ -7,13 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, Loader2, School, UtensilsCrossed, ShieldCheck } from 'lucide-react';
+import { Save, Loader2, School, UtensilsCrossed, ShieldCheck, Info } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import type { AuthUser } from '@supabase/supabase-js';
 import { AppLogo } from '@/components/AppLogo';
 import { cn } from '@/lib/utils';
 import { registerUserRoleAction } from './actions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function WelcomePage() {
   const supabase = createClient();
@@ -32,14 +33,13 @@ export default function WelcomePage() {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (authUser) {
             setUser(authUser);
-            // Cek apakah profil sudah punya peran (mencegah akses berulang)
             const { data: profile } = await supabase
                 .from('profiles')
                 .select('role, school_code')
                 .eq('id', authUser.id)
                 .maybeSingle();
             
-            if (profile && profile.role !== 'USER') {
+            if (profile && profile.role !== 'USER' && profile.role !== 'STUDENT') {
                 const destination = profile.role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
                 router.replace(destination);
             }
@@ -82,8 +82,6 @@ export default function WelcomePage() {
         });
     } else {
         toast({ title: "Berhasil!", description: "Profil Anda telah dikonfigurasi." });
-        
-        // Redirect ke dashboard yang sesuai
         const destination = role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
         router.push(destination);
         router.refresh();
@@ -131,6 +129,15 @@ export default function WelcomePage() {
                 </button>
             </div>
 
+            {role === 'CANTINE' && (
+                <Alert className="bg-blue-50 border-blue-200 text-blue-800 animate-in fade-in zoom-in-95 duration-300">
+                    <Info className="h-4 w-4 text-blue-700" />
+                    <AlertDescription className="text-[11px] leading-relaxed">
+                        Akun Kantin harus terhubung ke sekolah. Silakan masukkan <strong>Kode Unik Sekolah</strong> yang diberikan oleh pihak Guru/Admin sekolah Anda.
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <div className="space-y-4 pt-2">
                 {role === 'ADMIN' && (
                     <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
@@ -158,21 +165,21 @@ export default function WelcomePage() {
                             id="schoolCode" 
                             value={schoolCode} 
                             onChange={(e) => setSchoolCode(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} 
-                            placeholder="Contoh: al-ikhlas" 
-                            className="pl-10 h-12 rounded-xl"
+                            placeholder={role === 'ADMIN' ? "Contoh: al-ikhlas" : "Masukkan kode dari Guru"} 
+                            className="pl-10 h-12 rounded-xl border-2 focus:ring-primary focus:border-primary"
                         />
                     </div>
                     <p className="text-[9px] text-muted-foreground italic">
                         {role === 'ADMIN' 
-                            ? 'Gunakan huruf kecil, angka, dan tanda hubung. Tanpa spasi.' 
-                            : 'Minta kode unik ini kepada pihak Guru/Sekolah Anda.'}
+                            ? 'Gunakan huruf kecil dan angka saja. Kode ini akan dipakai login oleh siswa & kantin.' 
+                            : 'Minta kode unik sekolah kepada Guru Anda.'}
                     </p>
                 </div>
             </div>
 
-            <Button onClick={handleSaveSettings} disabled={saving} className="w-full h-14 rounded-2xl text-base font-bold shadow-xl shadow-primary/20">
+            <Button onClick={handleSaveSettings} disabled={saving} className="w-full h-14 rounded-2xl text-base font-bold shadow-xl shadow-primary/20 transition-all active:scale-95">
               {saving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-              {role === 'ADMIN' ? 'Daftarkan Sekolah Saya' : 'Gabung ke Sekolah'}
+              {role === 'ADMIN' ? 'Daftarkan Sekolah Saya' : 'Hubungkan ke Sekolah'}
             </Button>
         </CardContent>
       </Card>
