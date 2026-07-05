@@ -6,10 +6,13 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 
 /**
- * Mengambil daftar transaksi khusus untuk outlet yang sedang login.
- * Menggunakan admin client untuk bypass RLS agar nama siswa bisa muncul tanpa kendala izin SQL.
+ * Mengambil daftar transaksi khusus untuk outlet yang sedang login dengan dukungan filter.
  */
-export async function getCantineTransactionsAction() {
+export async function getCantineTransactionsAction(filters?: {
+    dateFrom?: string;
+    dateTo?: string;
+    unsettledOnly?: boolean;
+}) {
     const supabaseUser = createClient();
     const { data: { user } } = await supabaseUser.auth.getUser();
     
@@ -17,8 +20,7 @@ export async function getCantineTransactionsAction() {
 
     const supabaseAdmin = getSupabaseAdmin();
     
-    // Ambil transaksi milik merchant ini beserta data siswanya
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
         .from('transactions')
         .select(`
             *,
@@ -29,8 +31,22 @@ export async function getCantineTransactionsAction() {
             )
         `)
         .eq('user_id', user.id)
-        .eq('category', 'BELANJA_KANTIN')
-        .order('created_at', { ascending: false });
+        .eq('category', 'BELANJA_KANTIN');
+
+    // Filter Status Pencairan
+    if (filters?.unsettledOnly) {
+        query = query.eq('is_settled', false);
+    }
+
+    // Filter Rentang Tanggal
+    if (filters?.dateFrom) {
+        query = query.gte('created_at', `${filters.dateFrom}T00:00:00Z`);
+    }
+    if (filters?.dateTo) {
+        query = query.lte('created_at', `${filters.dateTo}T23:59:59Z`);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
         console.error('[GET_CANTINE_TX_ERROR]', error);
@@ -94,7 +110,7 @@ export async function processCantinePayment(params: {
     const supabaseUser = createClient();
     
     try {
-        // 1. Verifikasi PIN menggunakan Client Tanpa Sesi
+        // 1. Verifikasi PIN
         const authVerifier = createSupabaseClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -117,11 +133,10 @@ export async function processCantinePayment(params: {
             return { success: false, message: 'PIN Siswa Salah.' };
         }
 
-        // 2. Ambil data merchant aktif (Kantin) untuk mendapatkan identitasnya
+        // 2. Identitas Merchant
         const { data: { user: activeMerchant } } = await supabaseUser.auth.getUser();
         if (!activeMerchant) return { success: false, message: 'Sesi outlet berakhir.' };
 
-        // Ambil nama asli outlet dari profil
         const { data: merchantProfile } = await supabaseAdmin
             .from('profiles')
             .select('school_name')
@@ -146,7 +161,7 @@ export async function processCantinePayment(params: {
             return { success: false, message: `Saldo Tidak Cukup (Sisa: Rp ${currentBalance.toLocaleString('id-ID')})` };
         }
 
-        // 3. Masukkan transaksi dengan nama merchant dan status unsettled
+        // 3. Insert Transaksi
         const { error: txError } = await supabaseAdmin.from('transactions').insert({
             student_id: studentId,
             user_id: activeMerchant.id,
@@ -159,7 +174,6 @@ export async function processCantinePayment(params: {
 
         if (txError) throw txError;
 
-        // Revalidasi Global
         revalidatePath('/', 'layout'); 
         revalidatePath('/dashboard');
         revalidatePath('/home');
