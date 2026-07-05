@@ -1,7 +1,7 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { Users, QrCode, FileText, ShieldCheck, Search, ArrowRight, EyeOff, Loader2 } from 'lucide-react';
+import { Users, QrCode, FileText, ShieldCheck, Search, ArrowRight, EyeOff, Loader2, Banknote, UtensilsCrossed } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,7 @@ const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, la
       <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-secondary hover:bg-primary/10 border-0">
         <Icon className="h-6 w-6 text-primary" />
       </Button>
-      <span className="text-xs text-muted-foreground font-medium">{label}</span>
+      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter text-center leading-tight">{label}</span>
     </div>
   );
 
@@ -47,8 +47,6 @@ async function DashboardData() {
       return <p className="text-destructive text-center p-4">Gagal memuat data: Profil pengguna tidak ditemukan.</p>;
   }
 
-  // 1. Ambil data siswa yang dikelola guru ini beserta SEMUA transaksinya (termasuk kantin)
-  // RLS harus disesuaikan agar Guru bisa melihat transaksi siswa miliknya
   const { data: studentsData, error: studentsError } = await supabase
     .from('students')
     .select(`id, nis, name, class, transactions (id, type, amount, created_at, description)`)
@@ -61,7 +59,6 @@ async function DashboardData() {
   const students = studentsData as Student[];
   const profile = profileData as Profile;
   
-  // Hitung Total Saldo Global (Semua siswa)
   const totalBalance = students.reduce((total, student) => {
     const studentBalance = (student.transactions || []).reduce((acc, tx) => {
       return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
@@ -69,7 +66,6 @@ async function DashboardData() {
     return total + studentBalance;
   }, 0);
 
-  // Ambil 5 transaksi terbaru dari SEMUA siswa guru ini untuk tabel "Transaksi Terkini"
   const allTransactions = students.flatMap(s => 
     (s.transactions || []).map(tx => ({
       ...tx,
@@ -136,10 +132,11 @@ async function DashboardData() {
       <SearchStudent />
       
       <Card className="border-none shadow-sm">
-        <CardContent className="p-4 flex justify-around">
+        <CardContent className="p-4 flex justify-between gap-2">
             <ActionButton icon={Users} label="Data Siswa" href="/profiles" />
-            <ActionButton icon={QrCode} label="Cetak Kartu" href="/print-cards"/>
+            <ActionButton icon={Banknote} label="Settlement" href="/settlement"/>
             <ActionButton icon={FileText} label="Laporan" href="/reports"/>
+            <ActionButton icon={QrCode} label="Kartu" href="/print-cards"/>
             <ActionButton icon={ShieldCheck} label="Aktivasi" href="/activation" />
         </CardContent>
       </Card>
