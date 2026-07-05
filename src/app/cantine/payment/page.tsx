@@ -12,7 +12,7 @@ import {
   XCircle,
   Banknote,
   KeyRound,
-  History
+  Clock
 } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getStudentDataForPayment, processCantinePayment } from '../actions';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 type PaymentState = 'AMOUNT_INPUT' | 'SCANNING' | 'PIN_INPUT' | 'PROCESSING' | 'SUCCESS' | 'ERROR';
 
