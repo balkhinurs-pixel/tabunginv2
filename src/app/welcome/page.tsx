@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -52,7 +53,6 @@ export default function WelcomePage() {
     setSaving(true);
     const sanitizedCode = schoolCode.toLowerCase().replace(/[^a-z0-9-]/g, '');
 
-    // Cari tahu apakah sekolah ini ada (untuk Kantin)
     if (role === 'CANTINE') {
         const { data: schoolCheck } = await supabase
             .from('profiles')
@@ -107,7 +107,6 @@ export default function WelcomePage() {
             </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-4">
-            
             <div className="grid grid-cols-2 gap-3">
                 <button 
                     onClick={() => setRole('ADMIN')}
