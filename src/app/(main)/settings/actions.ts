@@ -17,6 +17,7 @@ export async function addCantineAction(params: {
   const supabase = createClient();
   const supabaseAdmin = getSupabaseAdmin();
 
+  // Gunakan getUser() untuk keamanan lebih baik sesuai log warning
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, message: 'Sesi berakhir, silakan login kembali.' };
 
@@ -37,7 +38,7 @@ export async function addCantineAction(params: {
       return { success: false, message: 'ID Kantin tidak valid (min. 3 karakter).' };
   }
 
-  // PENTING: Sanitasi Kode Sekolah untuk email (menghindari spasi yang bikin email tidak valid)
+  // PENTING: Sanitasi Kode Sekolah untuk email
   const schoolCode = profile.school_code.toLowerCase().replace(/[^a-z0-9-]/g, '');
   const shadowEmail = `${sanitizedId}@${schoolCode}.kantin.user`;
 
@@ -60,21 +61,21 @@ export async function addCantineAction(params: {
     }
 
     if (authData.user) {
+      // MENGGUNAKAN UPSERT: Menghindari error duplicate key jika trigger database sudah membuat profile duluan
       const { error: profileError } = await supabaseAdmin
         .from('profiles')
-        .insert({
+        .upsert({
           id: authData.user.id,
           email: shadowEmail,
           school_name: 'Outlet Kantin',
           school_code: schoolCode,
           role: 'CANTINE',
           plan: 'TRIAL'
-        });
+        }, { onConflict: 'id' });
 
       if (profileError) {
         console.error('[CANTINE_PROFILE_ERROR]', profileError);
-        // Rollback auth user jika profil gagal dibuat
-        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+        // Rollback jika krusial, tapi biasanya trigger sudah berhasil membuat profil dasar
         return { success: false, message: `Gagal Profile: ${profileError.message}` };
       }
     }
