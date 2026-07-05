@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
@@ -62,7 +61,6 @@ export async function processCantinePayment(params: {
     
     try {
         // 1. Verifikasi PIN Siswa secara aman tanpa merusak sesi petugas kantin
-        // Kita membuat client baru tanpa persistensi session agar cookies tidak berubah
         const authVerifier = createSupabaseClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -104,12 +102,10 @@ export async function processCantinePayment(params: {
         }, 0);
 
         if (amount > currentBalance) {
-            return { success: false, message: `Saldo Tidak Cukup. Saldo: Rp ${currentBalance.toLocaleString('id-ID')}` };
+            return { success: false, message: `Saldo Tidak Cukup. Saldo Anda: Rp ${currentBalance.toLocaleString('id-ID')}` };
         }
 
         // 4. Catat Transaksi Pembayaran
-        // user_id: ID outlet kantin (merchant)
-        // student_id: ID siswa yang membayar
         const { error: txError } = await supabaseAdmin.from('transactions').insert({
             student_id: studentId,
             user_id: activeMerchant.id,
@@ -124,11 +120,12 @@ export async function processCantinePayment(params: {
             throw txError;
         }
 
-        // 5. Revalidasi data agar UI dashboard kantin & siswa terupdate
-        revalidatePath('/cantine/outlet');
-        revalidatePath('/cantine/history');
-        revalidatePath('/home'); // Dashboard Siswa
+        // 5. Revalidasi menyeluruh agar data langsung sinkron di semua antarmuka
+        revalidatePath('/cantine/outlet'); // Dashboard Kantin
+        revalidatePath('/cantine/history'); // Riwayat Kantin
+        revalidatePath('/dashboard'); // Dashboard Guru (Total Saldo)
         revalidatePath(`/profiles/${studentId}`); // Profil Siswa di sisi Guru
+        revalidatePath('/home'); // Dashboard Siswa (Saldo Sendiri)
 
         return { success: true, message: 'Pembayaran Berhasil Diproses.' };
     } catch (err: any) {

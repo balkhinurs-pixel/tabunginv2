@@ -1,8 +1,9 @@
-
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { createClient } from '@/lib/utils/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { revalidatePath } from 'next/cache';
 
 export async function getStudentKioskData(nis: string, schoolCode: string) {
   const supabaseAdmin = getSupabaseAdmin();
@@ -67,12 +68,21 @@ export async function processKioskWithdrawal(params: {
     const supabaseAdmin = getSupabaseAdmin();
     
     try {
-        // 1. Verifikasi PIN menggunakan login (Shadow Email)
-        const shadowEmail = `${nis}@${schoolCode}.supabase.user`;
-        
-        // Kita gunakan client standar untuk mencoba login (verifikasi PIN)
-        const supabase = createClient();
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        // 1. Verifikasi PIN menggunakan Non-Persisting Client (Tanpa merusak cookie)
+        const authVerifier = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
+                    detectSessionInUrl: false
+                }
+            }
+        );
+
+        const shadowEmail = `${nis}@${schoolCode.toLowerCase()}.supabase.user`;
+        const { error: authError } = await authVerifier.auth.signInWithPassword({
             email: shadowEmail,
             password: pin
         });
@@ -81,7 +91,7 @@ export async function processKioskWithdrawal(params: {
             return { success: false, message: 'PIN yang Anda masukkan salah.' };
         }
 
-        // 2. Cek Saldo Terkini
+        // 2. Cek Saldo Terkini via Admin (Bypass RLS)
         const { data: student, error: studentError } = await supabaseAdmin
             .from('students')
             .select(`
@@ -106,18 +116,22 @@ export async function processKioskWithdrawal(params: {
         // 3. Catat Transaksi Penarikan
         const { error: txError } = await supabaseAdmin.from('transactions').insert({
             student_id: studentId,
-            user_id: student.user_id, // Gunakan user_id milik guru
+            user_id: student.user_id, // Terikat ke Guru yang bersangkutan
             amount: amount,
             type: 'Pengeluaran',
+            category: 'TARIK_TUNAI',
             description: 'Tarik Tunai via Kios ATM'
         });
 
         if (txError) {
+            console.error('[KIOS_INSERT_TX_ERROR]', txError);
             return { success: false, message: 'Gagal memproses penarikan di database.' };
         }
 
-        // Sign out agar tidak ada sesi tersisa di server
-        await supabase.auth.signOut();
+        // 4. Sinkronisasi Global (Hapus Cache di semua dashboard terkait)
+        revalidatePath('/dashboard'); // Dashboard Guru
+        revalidatePath(`/profiles/${studentId}`); // Profil Siswa di sisi Guru
+        revalidatePath('/home'); // Dashboard Siswa
 
         return { 
             success: true, 
