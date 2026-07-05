@@ -32,6 +32,11 @@ export async function login(formData: FormData) {
         revalidatePath('/', 'layout');
         return redirect('/admin/dashboard');
     }
+    
+    if (profile && profile.role === 'TEACHER') {
+        revalidatePath('/', 'layout');
+        return redirect('/dashboard');
+    }
   }
 
   revalidatePath('/', 'layout');
