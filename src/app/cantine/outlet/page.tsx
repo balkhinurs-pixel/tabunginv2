@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 export default function CantineOutletPage() {
   const supabase = createClient();
