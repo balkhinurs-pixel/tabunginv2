@@ -1,3 +1,4 @@
+
 'use server';
 
 import { createClient } from '@/lib/utils/supabase/server';
@@ -17,7 +18,7 @@ export async function addCantineAction(params: {
   const supabaseAdmin = getSupabaseAdmin();
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, message: 'Unauthorized' };
+  if (!user) return { success: false, message: 'Sesi berakhir, silakan login kembali.' };
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -26,30 +27,36 @@ export async function addCantineAction(params: {
     .single();
 
   if (!profile?.school_code) {
-    return { success: false, message: 'Atur kode sekolah Anda terlebih dahulu.' };
+    return { success: false, message: 'Mohon atur ulang Kode Sekolah Anda di tab Umum terlebih dahulu.' };
   }
 
+  // Sanitasi ID Kantin: huruf kecil, tanpa spasi/karakter aneh
   const sanitizedId = params.cantineId.toLowerCase().trim().replace(/[^a-z0-9-]/g, '');
   
-  if (!sanitizedId) {
-      return { success: false, message: 'ID Kantin tidak valid.' };
+  if (!sanitizedId || sanitizedId.length < 3) {
+      return { success: false, message: 'ID Kantin tidak valid (min. 3 karakter).' };
   }
 
-  const schoolCode = profile.school_code.toLowerCase();
+  // PENTING: Sanitasi Kode Sekolah untuk email (menghindari spasi yang bikin email tidak valid)
+  const schoolCode = profile.school_code.toLowerCase().replace(/[^a-z0-9-]/g, '');
   const shadowEmail = `${sanitizedId}@${schoolCode}.kantin.user`;
+
+  console.log(`[CANTINE_CREATE] Mencoba membuat akun: ${shadowEmail}`);
 
   try {
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: shadowEmail,
       password: params.pin,
       email_confirm: true,
+      user_metadata: { role: 'CANTINE', school_code: schoolCode }
     });
 
     if (authError) {
+      console.error('[CANTINE_AUTH_ERROR]', authError);
       if (authError.message.includes('unique') || authError.message.includes('already exists')) {
-        return { success: false, message: `ID Kantin "${sanitizedId}" sudah digunakan di sekolah Anda.` };
+        return { success: false, message: `ID Kantin "${sanitizedId}" sudah terdaftar di sekolah ini.` };
       }
-      throw authError;
+      return { success: false, message: `Gagal Auth: ${authError.message}` };
     }
 
     if (authData.user) {
@@ -65,28 +72,33 @@ export async function addCantineAction(params: {
         });
 
       if (profileError) {
+        console.error('[CANTINE_PROFILE_ERROR]', profileError);
         // Rollback auth user jika profil gagal dibuat
         await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-        throw profileError;
+        return { success: false, message: `Gagal Profile: ${profileError.message}` };
       }
     }
 
     revalidatePath('/settings');
     return { success: true, message: `Akun outlet "${sanitizedId}" berhasil dibuat.` };
   } catch (error: any) {
-    console.error('Error creating cantine account:', error);
-    return { success: false, message: error.message || 'Terjadi kesalahan sistem.' };
+    console.error('[CANTINE_FATAL_ERROR]', error);
+    return { success: false, message: error.message || 'Terjadi kesalahan sistem internal.' };
   }
 }
 
 export async function deleteCantineAction(cantineUserId: string): Promise<ActionResult> {
   const supabaseAdmin = getSupabaseAdmin();
-  const { error } = await supabaseAdmin.auth.admin.deleteUser(cantineUserId);
-  
-  if (error) return { success: false, message: error.message };
-  
-  revalidatePath('/settings');
-  return { success: true, message: 'Akun outlet berhasil dihapus.' };
+  try {
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(cantineUserId);
+      if (error) throw error;
+      
+      revalidatePath('/settings');
+      return { success: true, message: 'Akun outlet berhasil dihapus.' };
+  } catch (err: any) {
+      console.error('[CANTINE_DELETE_ERROR]', err);
+      return { success: false, message: err.message };
+  }
 }
 
 export async function exportUserData() {

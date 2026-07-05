@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, DatabaseZap, Loader2, UtensilsCrossed } from 'lucide-react';
+import { Save, DatabaseZap, Loader2, UtensilsCrossed, AlertTriangle } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import type { Profile } from '@/types';
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 import BackupRestore from './_components/BackupRestore';
 import CantineManagement from './_components/CantineManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function SettingsPage() {
   const supabase = createClient();
@@ -54,8 +56,12 @@ export default function SettingsPage() {
 
   const handleSaveSettings = async () => {
     if (!user) return;
-    if (!schoolCode) {
-        toast({ title: "Kode Sekolah Wajib Diisi", description: "Mohon isi kode unik untuk sekolah Anda.", variant: 'destructive' });
+    
+    // Pembersihan kode sekolah
+    const cleanCode = schoolCode.toLowerCase().trim().replace(/[^a-z0-9-]/g, '');
+    
+    if (!cleanCode) {
+        toast({ title: "Kode Sekolah Wajib Diisi", description: "Mohon isi kode unik tanpa spasi/karakter khusus.", variant: 'destructive' });
         return;
     }
 
@@ -64,7 +70,7 @@ export default function SettingsPage() {
         .from('profiles')
         .update({
             school_name: schoolName,
-            school_code: schoolCode.toLowerCase().replace(/[^a-z0-9-]/g, ''), 
+            school_code: cleanCode, 
         })
         .eq('id', user.id);
     
@@ -73,6 +79,7 @@ export default function SettingsPage() {
         toast({ title: "Gagal Menyimpan", description: "Kode sekolah mungkin sudah digunakan. Coba kode lain.", variant: 'destructive' });
     } else {
         toast({ title: "Pengaturan Disimpan", description: "Informasi sekolah Anda telah diperbarui." });
+        setSchoolCode(cleanCode); // Update state dengan yang sudah bersih
     }
   }
 
@@ -96,9 +103,9 @@ export default function SettingsPage() {
                 <CardContent className="space-y-4">
                 {loading ? (
                     <div className="space-y-4">
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
+                        <div className="h-10 w-full animate-pulse bg-muted rounded-md" />
+                        <div className="h-10 w-full animate-pulse bg-muted rounded-md" />
+                        <div className="h-10 w-full animate-pulse bg-muted rounded-md" />
                     </div>
                 ) : (
                 <>
@@ -108,7 +115,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-2">
                     <Label htmlFor="schoolCode">Kode Unik Sekolah (untuk Login)</Label>
-                    <Input id="schoolCode" value={schoolCode} onChange={(e) => setSchoolCode(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} placeholder="Contoh: alikhlas" />
+                    <Input id="schoolCode" value={schoolCode} onChange={(e) => setSchoolCode(e.target.value)} placeholder="Contoh: alikhlas" />
                     <p className="text-[10px] text-muted-foreground italic">Gunakan huruf kecil dan angka saja. Tanpa spasi.</p>
                     </div>
                     <Button onClick={handleSaveSettings} disabled={saving} className="w-full">
@@ -131,7 +138,16 @@ export default function SettingsPage() {
                     <CardDescription>Buat dan kelola akses untuk petugas kantin sekolah Anda.</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-6">
-                    <CantineManagement />
+                    {schoolCode ? (
+                        <CantineManagement />
+                    ) : (
+                        <Alert variant="destructive">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertDescription>
+                                Anda harus mengatur <strong>Kode Sekolah</strong> di tab Umum terlebih dahulu sebelum bisa menambah outlet kantin.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                 </CardContent>
             </Card>
         </TabsContent>
@@ -154,8 +170,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-// Helper component for skeleton loading
-const Skeleton = ({ className }: { className?: string }) => (
-    <div className={cn("animate-pulse rounded-md bg-muted", className)} />
-);
