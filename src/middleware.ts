@@ -74,7 +74,7 @@ export async function middleware(request: NextRequest) {
   if (session) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, school_code')
+      .select('role, school_code, school_name')
       .eq('id', session.user.id)
       .single();
 
@@ -100,13 +100,12 @@ export async function middleware(request: NextRequest) {
     // C. Alur Guru (TEACHER) & Admin Pusat (ADMIN)
     if (!pathname.startsWith('/_next') && !pathname.includes('.')) {
         if (profile) {
-          // Jika role masih 'USER', wajib ke /welcome
-          if (profile.role === 'USER' && pathname !== '/welcome') {
-            return NextResponse.redirect(new URL('/welcome', request.url));
-          }
+          // LOGIKA TRANSISI: Jika role ADMIN/USER tapi punya school_code, perlakukan sebagai TEACHER
+          const isActuallyTeacher = profile.role === 'TEACHER' || (profile.school_code && profile.role !== 'CANTINE' && profile.role !== 'STUDENT' && profile.role !== 'ADMIN');
+          const isActuallyAdmin = profile.role === 'ADMIN' && !profile.school_code;
 
           // Super Admin (ADMIN) ke panel khusus
-          if (profile.role === 'ADMIN') {
+          if (isActuallyAdmin) {
               if (isAuthRoute || pathname === '/dashboard') {
                   return NextResponse.redirect(new URL('/admin/dashboard', request.url));
               }
@@ -114,23 +113,20 @@ export async function middleware(request: NextRequest) {
           }
 
           // Guru (TEACHER)
-          if (profile.role === 'TEACHER') {
+          if (isActuallyTeacher) {
               if (isAuthRoute || pathname === '/welcome' || pathname.startsWith('/admin')) {
                   return NextResponse.redirect(new URL('/dashboard', request.url));
               }
               return response;
           }
           
-          // Mencegah masuk ke /welcome jika sudah punya peran
-          if (profile.role !== 'USER' && pathname === '/welcome') {
-            let dest = '/dashboard';
-            if (profile.role === 'CANTINE') dest = '/cantine/outlet';
-            if (profile.role === 'ADMIN') dest = '/admin/dashboard';
-            return NextResponse.redirect(new URL(dest, request.url));
+          // Jika belum ada data sekolah sama sekali, wajib ke /welcome
+          if (!profile.school_code && pathname !== '/welcome' && pathname !== '/auth/callback') {
+            return NextResponse.redirect(new URL('/welcome', request.url));
           }
         } else {
             // Jika belum ada profile sama sekali
-            if (pathname !== '/welcome' && pathname !== '/auth/callback' && pathname !== '/logout') {
+            if (pathname !== '/welcome' && pathname !== '/auth/callback') {
                 return NextResponse.redirect(new URL('/welcome', request.url));
             }
         }

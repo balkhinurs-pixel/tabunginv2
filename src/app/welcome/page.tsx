@@ -7,14 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, Loader2, School, UtensilsCrossed, ShieldCheck, Info } from 'lucide-react';
+import { Save, Loader2, School, ShieldCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import type { AuthUser } from '@supabase/supabase-js';
 import { AppLogo } from '@/components/AppLogo';
-import { cn } from '@/lib/utils';
 import { registerUserRoleAction } from './actions';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function WelcomePage() {
   const supabase = createClient();
@@ -23,8 +21,6 @@ export default function WelcomePage() {
   
   const [user, setUser] = useState<AuthUser | null>(null);
   const [saving, setSaving] = useState(false);
-  const [role, setRole] = useState<'TEACHER' | 'CANTINE'>('TEACHER');
-
   const [schoolName, setSchoolName] = useState('');
   const [schoolCode, setSchoolCode] = useState('');
 
@@ -39,12 +35,9 @@ export default function WelcomePage() {
                 .eq('id', authUser.id)
                 .maybeSingle();
             
-            if (profile && profile.role !== 'USER' && profile.role !== 'STUDENT') {
-                let destination = '/dashboard';
-                if (profile.role === 'CANTINE') destination = '/cantine/outlet';
-                if (profile.role === 'ADMIN') destination = '/admin/dashboard';
-                
-                router.replace(destination);
+            // Jika sudah punya kode sekolah, langsung lempar ke dashboard
+            if (profile?.school_code) {
+                router.replace('/dashboard');
             }
         } else {
             router.push('/login');
@@ -56,7 +49,7 @@ export default function WelcomePage() {
   const handleSaveSettings = async () => {
     if (!user || !user.email) return;
     
-    if (role === 'TEACHER' && !schoolName) {
+    if (!schoolName) {
         toast({ title: "Nama Sekolah Wajib Diisi", variant: 'destructive' });
         return;
     }
@@ -67,8 +60,9 @@ export default function WelcomePage() {
 
     setSaving(true);
     
+    // Default role untuk pendaftaran baru lewat sini adalah TEACHER
     const result = await registerUserRoleAction({
-        role: role,
+        role: 'TEACHER',
         schoolName: schoolName,
         schoolCode: schoolCode
     });
@@ -82,9 +76,8 @@ export default function WelcomePage() {
             variant: 'destructive' 
         });
     } else {
-        toast({ title: "Berhasil!", description: "Profil Anda telah dikonfigurasi." });
-        const destination = role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
-        router.push(destination);
+        toast({ title: "Berhasil!", description: "Sekolah Anda telah terdaftar." });
+        router.push('/dashboard');
         router.refresh();
     }
   }
@@ -99,68 +92,30 @@ export default function WelcomePage() {
             <div className="mb-6 flex justify-center">
                 <AppLogo />
             </div>
-            <CardTitle className="text-2xl font-black tracking-tight">Pilih Peran Anda</CardTitle>
+            <CardTitle className="text-2xl font-black tracking-tight">Konfigurasi Sekolah</CardTitle>
             <CardDescription>
-                Sesuaikan pengalaman Anda berdasarkan tanggung jawab di sekolah.
+                Selamat datang! Mohon lengkapi profil sekolah Anda untuk mulai mengelola tabungan siswa.
             </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-4">
-            <div className="grid grid-cols-2 gap-3">
-                <button 
-                    onClick={() => setRole('TEACHER')}
-                    className={cn(
-                        "flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all",
-                        role === 'TEACHER' ? "border-primary bg-primary/5 ring-4 ring-primary/10" : "border-gray-100 hover:border-gray-200"
-                    )}
-                >
-                    <div className={cn("p-2 rounded-full", role === 'TEACHER' ? "bg-primary text-white" : "bg-gray-100 text-gray-400")}>
-                        <School className="h-6 w-6" />
-                    </div>
-                    <span className={cn("text-xs font-bold uppercase tracking-widest", role === 'TEACHER' ? "text-primary" : "text-gray-500")}>GURU</span>
-                </button>
-                <button 
-                    onClick={() => setRole('CANTINE')}
-                    className={cn(
-                        "flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all",
-                        role === 'CANTINE' ? "border-primary bg-primary/5 ring-4 ring-primary/10" : "border-gray-100 hover:border-gray-200"
-                    )}
-                >
-                    <div className={cn("p-2 rounded-full", role === 'CANTINE' ? "bg-primary text-white" : "bg-gray-100 text-gray-400")}>
-                        <UtensilsCrossed className="h-6 w-6" />
-                    </div>
-                    <span className={cn("text-xs font-bold uppercase tracking-widest", role === 'CANTINE' ? "text-primary" : "text-gray-500")}>KANTIN</span>
-                </button>
-            </div>
-
-            {role === 'CANTINE' && (
-                <Alert className="bg-blue-50 border-blue-200 text-blue-800 animate-in fade-in zoom-in-95 duration-300">
-                    <Info className="h-4 w-4 text-blue-700" />
-                    <AlertDescription className="text-[11px] leading-relaxed">
-                        Anda harus terhubung ke sekolah. Silakan masukkan <strong>Kode Sekolah</strong> yang diberikan oleh pihak Guru/Admin sekolah Anda.
-                    </AlertDescription>
-                </Alert>
-            )}
-
             <div className="space-y-4 pt-2">
-                {role === 'TEACHER' && (
-                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <Label htmlFor="schoolName" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nama Sekolah / Instansi</Label>
-                        <div className="relative">
-                            <School className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                id="schoolName" 
-                                value={schoolName} 
-                                onChange={(e) => setSchoolName(e.target.value)} 
-                                placeholder="Contoh: SDIT Al-Ikhlas"
-                                className="pl-10 h-12 rounded-xl"
-                            />
-                        </div>
+                <div className="space-y-2">
+                    <Label htmlFor="schoolName" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nama Sekolah / Instansi</Label>
+                    <div className="relative">
+                        <School className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            id="schoolName" 
+                            value={schoolName} 
+                            onChange={(e) => setSchoolName(e.target.value)} 
+                            placeholder="Contoh: SDIT Al-Ikhlas"
+                            className="pl-10 h-12 rounded-xl"
+                        />
                     </div>
-                )}
+                </div>
                 
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="space-y-2">
                     <Label htmlFor="schoolCode" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        {role === 'TEACHER' ? 'Buat Kode Sekolah Unik' : 'Masukkan Kode Sekolah'}
+                        Buat Kode Sekolah Unik
                     </Label>
                     <div className="relative">
                         <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -168,21 +123,19 @@ export default function WelcomePage() {
                             id="schoolCode" 
                             value={schoolCode} 
                             onChange={(e) => setSchoolCode(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} 
-                            placeholder={role === 'TEACHER' ? "Contoh: al-ikhlas" : "Masukkan kode dari Guru"} 
+                            placeholder="Contoh: al-ikhlas" 
                             className="pl-10 h-12 rounded-xl border-2 focus:ring-primary focus:border-primary"
                         />
                     </div>
                     <p className="text-[9px] text-muted-foreground italic">
-                        {role === 'TEACHER' 
-                            ? 'PENTING: Kode ini akan digunakan siswa & kantin untuk terhubung dengan data Anda.' 
-                            : 'Minta kode unik sekolah kepada Guru Anda.'}
+                        PENTING: Kode ini akan digunakan oleh siswa untuk login ke akun mereka.
                     </p>
                 </div>
             </div>
 
             <Button onClick={handleSaveSettings} disabled={saving} className="w-full h-14 rounded-2xl text-base font-bold shadow-xl shadow-primary/20 transition-all active:scale-95">
               {saving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-              {role === 'TEACHER' ? 'Daftarkan Sekolah Saya' : 'Hubungkan ke Sekolah'}
+              Daftarkan Sekolah Sekarang
             </Button>
         </CardContent>
       </Card>
