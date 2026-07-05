@@ -1,50 +1,36 @@
--- =========================================================
--- SNIPPET PEMBARUAN FITUR KANTIN (UPDATE ONLY)
--- Jalankan ini di SQL Editor Supabase jika sudah ada data lama
--- =========================================================
+-- SNIPPET UPDATE FITUR KANTIN (AMAN UNTUK DATA LAMA)
 
--- 1. Hapus constraint lama agar tidak bentrok (Menyelesaikan error 23514)
+-- 1. Hapus constraint lama agar kita bisa membersihkan data yang melanggar
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
 
--- 2. Tambahkan kembali constraint role dengan menyertakan 'CANTINE'
+-- 2. Bersihkan data: Jika ada role yang NULL atau isinya bukan ADMIN/CANTINE, set ke 'ADMIN'
+-- Ini dilakukan agar langkah selanjutnya tidak error
+UPDATE public.profiles 
+SET role = 'ADMIN' 
+WHERE role IS NULL OR role NOT IN ('ADMIN', 'CANTINE');
+
+-- 3. Pasang kembali constraint yang sudah mendukung peran CANTINE
 ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('ADMIN', 'CANTINE'));
 
--- 3. Tambahkan kolom category pada tabel transaksi jika belum ada
-ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'TABUNGAN';
+-- 4. Tambahkan kolom 'category' ke tabel transactions jika belum ada
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name='transactions' AND column_name='category') THEN
+        ALTER TABLE public.transactions ADD COLUMN category text DEFAULT 'TABUNGAN';
+    END IF;
+END $$;
 
--- 4. Tambahkan Aturan Keamanan (RLS) untuk Akun Kantin
--- Izinkan kantin melihat data siswa yang berada di kode sekolah yang sama
-DROP POLICY IF EXISTS "Cantine can view students in same school" ON public.students;
-CREATE POLICY "Cantine can view students in same school" ON public.students
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles merchant
-            JOIN public.profiles guru ON guru.school_code = merchant.school_code
-            WHERE merchant.id = auth.uid()
-            AND merchant.role = 'CANTINE'
-            AND guru.id = students.user_id
-        )
-    );
+-- 5. Update constraint category agar mendukung kategori belanja kantin
+ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_category_check;
+ALTER TABLE public.transactions ADD CONSTRAINT transactions_category_check CHECK (category IN ('TABUNGAN', 'BELANJA_KANTIN', 'TARIK_TUNAI'));
 
--- Izinkan kantin untuk mencatat transaksi baru (pembayaran)
-DROP POLICY IF EXISTS "Cantine can insert transactions" ON public.transactions;
-CREATE POLICY "Cantine can insert transactions" ON public.transactions
-    FOR INSERT WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE profiles.id = auth.uid()
-            AND profiles.role = 'CANTINE'
-        )
-    );
+-- 6. Pastikan kolom 'custom_quota' juga tersedia (untuk keamanan migrasi)
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name='profiles' AND column_name='custom_quota') THEN
+        ALTER TABLE public.profiles ADD COLUMN custom_quota integer DEFAULT NULL;
+    END IF;
+END $$;
 
--- 5. Izinkan guru/admin untuk melihat transaksi kategori kantin di sekolah mereka
-DROP POLICY IF EXISTS "Admins can view cantine transactions" ON public.transactions;
-CREATE POLICY "Admins can view cantine transactions" ON public.transactions
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE profiles.id = auth.uid()
-            AND profiles.role = 'ADMIN'
-            AND profiles.id = transactions.user_id
-        )
-    );
+-- 7. Isi kategori 'TABUNGAN' untuk semua transaksi lama yang masih kosong
+UPDATE public.transactions SET category = 'TABUNGAN' WHERE category IS NULL;
