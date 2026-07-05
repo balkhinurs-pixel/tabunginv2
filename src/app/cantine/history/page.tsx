@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -37,11 +38,20 @@ export default function CantineHistoryPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        setMerchantName(user.email?.split('@')[0].toUpperCase() || 'KANTIN');
+        // Ambil nama outlet dari profil untuk header laporan
+        const { data: profile } = await supabase.from('profiles').select('school_name').eq('id', user.id).single();
+        setMerchantName(profile?.school_name || user.email?.split('@')[0].toUpperCase() || 'KANTIN');
 
         const { data } = await supabase
             .from('transactions')
-            .select(`*, students(name, class, nis)`)
+            .select(`
+                *, 
+                students!inner(
+                    name, 
+                    class, 
+                    nis
+                )
+            `)
             .eq('user_id', user.id)
             .eq('category', 'BELANJA_KANTIN')
             .order('created_at', { ascending: false });
@@ -154,7 +164,7 @@ export default function CantineHistoryPage() {
                             </div>
                             <div className="flex flex-col">
                                 <p className="font-black text-gray-900 leading-tight">
-                                    {tx.students?.name || 'Siswa'}
+                                    {tx.students?.name || 'Siswa Tanpa Nama'}
                                 </p>
                                 <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
                                     <Calendar className="h-3 w-3" />

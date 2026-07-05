@@ -83,12 +83,18 @@ export async function processCantinePayment(params: {
             return { success: false, message: 'PIN Siswa Salah.' };
         }
 
-        // 2. Ambil data merchant aktif
+        // 2. Ambil data merchant aktif (Kantin) untuk mendapatkan identitasnya
         const { data: { user: activeMerchant } } = await supabaseUser.auth.getUser();
         if (!activeMerchant) return { success: false, message: 'Sesi outlet berakhir.' };
 
-        // Ambil nama outlet dari email shadow merchant
-        const merchantDisplayName = activeMerchant.email?.split('@')[0] || 'Kantin';
+        // Ambil nama asli outlet dari profil
+        const { data: merchantProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('school_name')
+            .eq('id', activeMerchant.id)
+            .single();
+
+        const merchantDisplayName = merchantProfile?.school_name || activeMerchant.email?.split('@')[0].toUpperCase() || 'KANTIN';
 
         const { data: student, error: studentError } = await supabaseAdmin
             .from('students')
@@ -113,13 +119,13 @@ export async function processCantinePayment(params: {
             amount: amount,
             type: 'Pengeluaran',
             category: 'BELANJA_KANTIN',
-            description: `Belanja: ${merchantDisplayName.toUpperCase()}`,
+            description: `Belanja: ${merchantDisplayName}`,
             is_settled: false
         });
 
         if (txError) throw txError;
 
-        // Revalidasi Global agar Guru & Siswa langsung sinkron
+        // Revalidasi Global
         revalidatePath('/', 'layout'); 
         revalidatePath('/dashboard');
         revalidatePath('/home');
