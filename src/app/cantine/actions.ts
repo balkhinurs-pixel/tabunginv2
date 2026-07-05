@@ -1,7 +1,10 @@
+
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { createClient } from '@/lib/utils/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Mengambil data ringkas siswa untuk divalidasi di layar POS kasir sebelum minta PIN.
@@ -58,16 +61,32 @@ export async function processCantinePayment(params: {
     const supabaseUser = createClient();
     
     try {
-        // 1. Verifikasi PIN Siswa (Login via Shadow Email)
-        const shadowEmail = `${nis}@${schoolCode}.supabase.user`;
-        const { error: authError } = await supabaseUser.auth.signInWithPassword({
+        // 1. Verifikasi PIN Siswa secara aman tanpa merusak sesi petugas kantin
+        // Kita membuat client baru tanpa persistensi session agar cookies tidak berubah
+        const authVerifier = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
+                    detectSessionInUrl: false
+                }
+            }
+        );
+
+        const shadowEmail = `${nis}@${schoolCode.toLowerCase()}.supabase.user`;
+        const { error: authError } = await authVerifier.auth.signInWithPassword({
             email: shadowEmail,
             password: pin
         });
 
-        if (authError) return { success: false, message: 'PIN Siswa Salah.' };
+        if (authError) {
+            console.error('[PIN_VERIFY_ERROR]', authError.message);
+            return { success: false, message: 'PIN Siswa Salah atau Akun tidak ditemukan.' };
+        }
 
-        // 2. Dapatkan identitas outlet kantin yang aktif
+        // 2. Dapatkan identitas outlet kantin yang sedang login
         const { data: { user: activeMerchant } } = await supabaseUser.auth.getUser();
         if (!activeMerchant) return { success: false, message: 'Sesi outlet berakhir, silakan login ulang.' };
 
@@ -80,14 +99,17 @@ export async function processCantinePayment(params: {
 
         if (studentError) return { success: false, message: 'Gagal memverifikasi saldo siswa.' };
 
-        const balance = (student.transactions || []).reduce((acc: number, tx: any) => {
+        const currentBalance = (student.transactions || []).reduce((acc: number, tx: any) => {
             return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
         }, 0);
 
-        if (amount > balance) return { success: false, message: 'Saldo Tabungan Siswa Tidak Mencukupi.' };
+        if (amount > currentBalance) {
+            return { success: false, message: `Saldo Tidak Cukup. Saldo: Rp ${currentBalance.toLocaleString('id-ID')}` };
+        }
 
         // 4. Catat Transaksi Pembayaran
-        // user_id di sini adalah ID outlet kantin agar saldo masuk ke omzet kantin
+        // user_id: ID outlet kantin (merchant)
+        // student_id: ID siswa yang membayar
         const { error: txError } = await supabaseAdmin.from('transactions').insert({
             student_id: studentId,
             user_id: activeMerchant.id,
@@ -97,14 +119,20 @@ export async function processCantinePayment(params: {
             description: 'Pembayaran Kantin Digital'
         });
 
-        if (txError) throw txError;
+        if (txError) {
+            console.error('[INSERT_TX_ERROR]', txError);
+            throw txError;
+        }
 
-        // 5. Logout sesi siswa (kembali ke sesi merchant)
-        await supabaseUser.auth.signOut();
+        // 5. Revalidasi data agar UI dashboard kantin & siswa terupdate
+        revalidatePath('/cantine/outlet');
+        revalidatePath('/cantine/history');
+        revalidatePath('/home'); // Dashboard Siswa
+        revalidatePath(`/profiles/${studentId}`); // Profil Siswa di sisi Guru
 
         return { success: true, message: 'Pembayaran Berhasil Diproses.' };
-    } catch (err) {
+    } catch (err: any) {
         console.error('[POS_PAYMENT_ERROR]', err);
-        return { success: false, message: 'Gagal memproses transaksi. Silakan coba lagi.' };
+        return { success: false, message: 'Gagal memproses transaksi: ' + (err.message || 'Error internal') };
     }
 }
