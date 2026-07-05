@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
@@ -24,7 +25,6 @@ export async function getStudentDataForPayment(nis: string, schoolCode: string) 
         
         if (error || !data) return { success: false, message: 'Siswa tidak ditemukan di sekolah ini.' };
 
-        // Hitung saldo real-time
         const balance = (data.transactions || []).reduce((acc: number, tx: any) => {
             return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
         }, 0);
@@ -60,7 +60,6 @@ export async function processCantinePayment(params: {
     const supabaseUser = createClient();
     
     try {
-        // 1. Verifikasi PIN Siswa secara aman tanpa merusak sesi petugas kantin
         const authVerifier = createSupabaseClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -80,56 +79,47 @@ export async function processCantinePayment(params: {
         });
 
         if (authError) {
-            console.error('[PIN_VERIFY_ERROR]', authError.message);
-            return { success: false, message: 'PIN Siswa Salah atau Akun tidak ditemukan.' };
+            return { success: false, message: 'PIN Siswa Salah.' };
         }
 
-        // 2. Dapatkan identitas outlet kantin yang sedang login
         const { data: { user: activeMerchant } } = await supabaseUser.auth.getUser();
-        if (!activeMerchant) return { success: false, message: 'Sesi outlet berakhir, silakan login ulang.' };
+        if (!activeMerchant) return { success: false, message: 'Sesi outlet berakhir.' };
 
-        // 3. Verifikasi saldo terakhir siswa melalui admin (bypass RLS)
         const { data: student, error: studentError } = await supabaseAdmin
             .from('students')
             .select('transactions(amount, type)')
             .eq('id', studentId)
             .single();
 
-        if (studentError) return { success: false, message: 'Gagal memverifikasi saldo siswa.' };
+        if (studentError) return { success: false, message: 'Gagal verifikasi saldo.' };
 
         const currentBalance = (student.transactions || []).reduce((acc: number, tx: any) => {
             return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
         }, 0);
 
         if (amount > currentBalance) {
-            return { success: false, message: `Saldo Tidak Cukup. Saldo Anda: Rp ${currentBalance.toLocaleString('id-ID')}` };
+            return { success: false, message: `Saldo Tidak Cukup (Sisa: Rp ${currentBalance.toLocaleString('id-ID')})` };
         }
 
-        // 4. Catat Transaksi Pembayaran
         const { error: txError } = await supabaseAdmin.from('transactions').insert({
             student_id: studentId,
             user_id: activeMerchant.id,
             amount: amount,
             type: 'Pengeluaran',
             category: 'BELANJA_KANTIN',
-            description: 'Pembayaran Kantin Digital'
+            description: 'Pembayaran Kantin'
         });
 
-        if (txError) {
-            console.error('[INSERT_TX_ERROR]', txError);
-            throw txError;
-        }
+        if (txError) throw txError;
 
-        // 5. Revalidasi menyeluruh agar data langsung sinkron di semua antarmuka
-        revalidatePath('/cantine/outlet'); // Dashboard Kantin
-        revalidatePath('/cantine/history'); // Riwayat Kantin
-        revalidatePath('/dashboard'); // Dashboard Guru (Total Saldo)
-        revalidatePath(`/profiles/${studentId}`); // Profil Siswa di sisi Guru
-        revalidatePath('/home'); // Dashboard Siswa (Saldo Sendiri)
+        // Revalidasi Global agar Guru & Siswa langsung sinkron
+        revalidatePath('/', 'layout'); 
+        revalidatePath('/dashboard');
+        revalidatePath('/home');
+        revalidatePath(`/profiles/${studentId}`);
 
-        return { success: true, message: 'Pembayaran Berhasil Diproses.' };
+        return { success: true, message: 'Pembayaran Berhasil.' };
     } catch (err: any) {
-        console.error('[POS_PAYMENT_ERROR]', err);
-        return { success: false, message: 'Gagal memproses transaksi: ' + (err.message || 'Error internal') };
+        return { success: false, message: 'Gagal: ' + (err.message || 'Error internal') };
     }
 }

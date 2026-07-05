@@ -44,25 +44,37 @@ async function DashboardData() {
     .maybeSingle();
   
   if (profileError || !profileData) {
-      return <p className="text-destructive text-center p-4">Gagal memuat data: Profil pengguna tidak ditemukan. Pastikan tabel profiles sudah memiliki kolom custom_quota.</p>;
+      return <p className="text-destructive text-center p-4">Gagal memuat data: Profil pengguna tidak ditemukan.</p>;
   }
 
+  // 1. Ambil data siswa yang dikelola guru ini
+  const { data: studentsData, error: studentsError } = await supabase
+    .from('students')
+    .select(`id, nis, name, class, transactions (id, type, amount)`)
+    .eq('user_id', user.id);
 
-  const [
-    { data: studentsData, error: studentsError },
-    { data: transactionsData, error: transactionsError },
-  ] = await Promise.all([
-    supabase.from('students').select(`id, nis, name, class, transactions (id, type, amount)`).eq('user_id', user.id),
-    supabase.from('transactions').select(`*, students (id, name)`).eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
-  ]);
-
-  if (studentsError || transactionsError) {
-    return <p className="text-destructive">Gagal memuat data.</p>;
+  if (studentsError || !studentsData) {
+    return <p className="text-destructive">Gagal memuat data siswa.</p>;
   }
 
   const students = studentsData as Student[];
-  const transactions = transactionsData as Transaction[];
   const profile = profileData as Profile;
+  const studentIds = students.map(s => s.id);
+
+  // 2. Ambil transaksi terbaru untuk SEMUA siswa tersebut (termasuk dari Kantin & Kios)
+  let transactions: Transaction[] = [];
+  if (studentIds.length > 0) {
+      const { data: txData, error: txError } = await supabase
+        .from('transactions')
+        .select(`*, students (id, name)`)
+        .in('student_id', studentIds)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (!txError && txData) {
+          transactions = txData as Transaction[];
+      }
+  }
   
   const totalBalance = students.reduce((total, student) => {
     const studentBalance = student.transactions.reduce((acc, tx) => {
@@ -71,7 +83,6 @@ async function DashboardData() {
     return total + studentBalance;
   }, 0);
 
-  // Kuota diprioritaskan dari custom_quota, jika tidak ada baru berdasarkan plan
   const studentQuota = profile.custom_quota || (profile.plan === 'PRO' ? 40 : 5);
 
   const recentTransactions = transactions.map(tx => ({
@@ -80,13 +91,12 @@ async function DashboardData() {
       type: tx.type,
       amount: tx.amount,
       studentId: tx.student_id,
-      studentName: tx.students!.name,
+      studentName: tx.students?.name || 'Siswa',
   }));
 
   return (
     <>
        <Card className="bg-gradient-to-br from-primary via-primary to-blue-700 text-primary-foreground shadow-xl border-none relative overflow-hidden h-[240px]">
-        {/* Artistic Circles Pattern */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
         <div className="absolute top-1/4 -right-10 w-48 h-48 bg-white/5 rounded-full pointer-events-none" />
         <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-400/20 rounded-full blur-2xl pointer-events-none" />
@@ -142,7 +152,7 @@ async function DashboardData() {
       <Card className="border-none shadow-sm">
           <CardContent className="p-4">
             <div className="flex justify-between items-center mb-2">
-                <h3 className="font-bold text-sm">Transaksi Terkini</h3>
+                <h3 className="font-bold text-sm">Transaksi Terkini (Semua)</h3>
                 <Button variant="link" className="text-primary h-auto p-0 text-xs font-semibold" asChild>
                     <Link href="/reports">
                       Lihat Semua <ArrowRight className="ml-1 h-3 w-3" />
