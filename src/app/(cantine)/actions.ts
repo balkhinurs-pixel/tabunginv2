@@ -48,24 +48,23 @@ export async function processCantinePayment(params: {
 }) {
     const { studentId, nis, schoolCode, amount, pin } = params;
     const supabaseAdmin = getSupabaseAdmin();
+    const supabaseUser = createClient();
     
     try {
-        // 1. Verifikasi PIN Siswa
+        // 1. Verifikasi PIN Siswa menggunakan login bayangan
         const shadowEmail = `${nis}@${schoolCode}.supabase.user`;
-        const supabase = createClient();
-        const { error: authError } = await supabase.auth.signInWithPassword({
+        const { error: authError } = await supabaseUser.auth.signInWithPassword({
             email: shadowEmail,
             password: pin
         });
 
         if (authError) return { success: false, message: 'PIN Siswa Salah.' };
 
-        // 2. Cek Saldo & Hak Akses Merchant
-        const { data: { user: merchant } } = await supabaseAdmin.auth.getUser(); // Ini salah, butuh auth merchant
-        // Karena ini Server Action, kita pakai client standar untuk cek sesi merchant
-        const { data: { user: activeMerchant } } = await createClient().auth.getUser();
+        // 2. Ambil Sesi Merchant (Akun Kantin)
+        const { data: { user: activeMerchant } } = await supabaseUser.auth.getUser();
         if (!activeMerchant) return { success: false, message: 'Sesi merchant berakhir.' };
 
+        // 3. Verifikasi Saldo Siswa
         const { data: student, error: studentError } = await supabaseAdmin
             .from('students')
             .select('transactions(amount, type)')
@@ -80,7 +79,7 @@ export async function processCantinePayment(params: {
 
         if (amount > balance) return { success: false, message: 'Saldo Siswa Tidak Mencukupi.' };
 
-        // 3. Catat Transaksi Belanja
+        // 4. Catat Transaksi Belanja
         const { error: txError } = await supabaseAdmin.from('transactions').insert({
             student_id: studentId,
             user_id: activeMerchant.id,
@@ -92,11 +91,12 @@ export async function processCantinePayment(params: {
 
         if (txError) throw txError;
 
-        // Logout sesi bayangan siswa agar tidak mengganggu merchant
-        await supabase.auth.signOut();
+        // Keluar dari sesi bayangan siswa agar kembali ke sesi merchant
+        await supabaseUser.auth.signOut();
 
         return { success: true, message: 'Pembayaran Berhasil.' };
     } catch (err) {
+        console.error('Cantine Payment Error:', err);
         return { success: false, message: 'Terjadi kesalahan internal.' };
     }
 }

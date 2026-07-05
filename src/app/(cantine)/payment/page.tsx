@@ -83,11 +83,19 @@ export default function CantinePaymentPage() {
 
     return () => {
       cancelAnimationFrame(animId);
-      stream?.getTracks().forEach(t => track.stop());
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+      }
     };
   }, [state, isProcessingQR, toast]);
 
   const handleScan = async (data: string) => {
+    if (!data.includes(',')) {
+        toast({ title: "Format QR Tidak Valid", variant: "destructive" });
+        setTimeout(() => setIsProcessingQR(false), 2000);
+        return;
+    }
+
     const [nis, schoolCode] = data.split(',');
     const result = await getStudentDataForPayment(nis, schoolCode);
 
@@ -147,7 +155,7 @@ export default function CantinePaymentPage() {
                     onClick={() => {
                         if (k === 'C') onChange('');
                         else if (k === 'DEL') onChange(value.slice(0, -1));
-                        else if (value.length < (state === 'PIN_INPUT' ? 6 : 9)) onChange(value + k);
+                        else if (value.length < (state === 'PIN_INPUT' ? 6 : 9)) onChange(value + k.toString());
                     }}
                 >
                     {k === 'DEL' ? <Delete /> : k}
