@@ -11,7 +11,7 @@ interface RegisterRoleResult {
 }
 
 export async function registerUserRoleAction(params: {
-  role: 'ADMIN' | 'CANTINE';
+  role: 'TEACHER' | 'CANTINE';
   schoolName: string;
   schoolCode: string;
 }): Promise<RegisterRoleResult> {
@@ -19,7 +19,6 @@ export async function registerUserRoleAction(params: {
   const supabase = createClient();
   const supabaseAdmin = getSupabaseAdmin();
   
-  // 0. Keamanan: Ambil user dari sesi server asli (Bukan kiriman client)
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
       return { success: false, message: 'Sesi tidak valid. Silakan login kembali.' };
@@ -37,7 +36,7 @@ export async function registerUserRoleAction(params: {
         .from('profiles')
         .select('id, school_name')
         .eq('school_code', sanitizedCode)
-        .eq('role', 'ADMIN')
+        .eq('role', 'TEACHER') // Kantin harus mencari Guru (TEACHER)
         .maybeSingle();
 
       if (checkError) throw checkError;
@@ -50,13 +49,13 @@ export async function registerUserRoleAction(params: {
       }
     }
 
-    // 2. Verifikasi untuk peran ADMIN (mencegah duplikasi kode sekolah antar guru)
-    if (role === 'ADMIN') {
+    // 2. Verifikasi untuk peran TEACHER (mencegah duplikasi kode sekolah antar guru)
+    if (role === 'TEACHER') {
         const { data: duplicateCheck } = await supabaseAdmin
             .from('profiles')
             .select('id, email')
             .eq('school_code', sanitizedCode)
-            .eq('role', 'ADMIN')
+            .eq('role', 'TEACHER')
             .neq('id', user.id)
             .maybeSingle();
         
@@ -68,13 +67,13 @@ export async function registerUserRoleAction(params: {
         }
     }
 
-    // 3. Update Profil menggunakan Upsert (Menghindari Duplicate PKEY Error)
+    // 3. Update Profil menggunakan Upsert
     const { error: updateError } = await supabaseAdmin
       .from('profiles')
       .upsert({
         id: user.id,
         email: user.email,
-        school_name: role === 'ADMIN' ? schoolName : 'Outlet Kantin',
+        school_name: role === 'TEACHER' ? schoolName : 'Outlet Kantin',
         school_code: sanitizedCode,
         role: role,
         plan: 'TRIAL' 

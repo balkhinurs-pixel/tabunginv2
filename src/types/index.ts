@@ -32,7 +32,7 @@ export interface Profile {
   id: string;
   email?: string;
   plan: 'TRIAL' | 'PRO';
-  role: 'ADMIN' | 'CANTINE' | 'USER' | 'STUDENT';
+  role: 'ADMIN' | 'TEACHER' | 'CANTINE' | 'USER' | 'STUDENT';
   school_name?: string | null;
   school_code?: string | null;
   custom_quota?: number | null;
