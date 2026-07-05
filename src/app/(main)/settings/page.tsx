@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, DatabaseZap, Loader2, UtensilsCrossed, AlertTriangle } from 'lucide-react';
+import { Save, DatabaseZap, Loader2, UtensilsCrossed, AlertTriangle, Banknote } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import type { Profile } from '@/types';
@@ -14,6 +14,7 @@ import type { AuthUser } from '@supabase/supabase-js';
 import { cn } from "@/lib/utils";
 import BackupRestore from './_components/BackupRestore';
 import CantineManagement from './_components/CantineManagement';
+import SettlementManagement from './_components/SettlementManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -85,13 +86,16 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold tracking-tight">Pengaturan Aplikasi</h2>
+      <h2 className="text-2xl font-bold tracking-tight text-primary">Pengaturan & Keuangan</h2>
 
       <Tabs defaultValue="school" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-4 rounded-xl bg-muted/50 p-1">
-          <TabsTrigger value="school" className="rounded-lg">Umum</TabsTrigger>
-          <TabsTrigger value="cantine" className="rounded-lg">Kantin</TabsTrigger>
-          <TabsTrigger value="data" className="rounded-lg">Backup</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 mb-6 rounded-2xl bg-muted/50 p-1.5 h-14">
+          <TabsTrigger value="school" className="rounded-xl font-bold text-xs uppercase tracking-wider">Umum</TabsTrigger>
+          <TabsTrigger value="cantine" className="rounded-xl font-bold text-xs uppercase tracking-wider">Kantin</TabsTrigger>
+          <TabsTrigger value="settle" className="rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-1">
+             Settlement
+          </TabsTrigger>
+          <TabsTrigger value="data" className="rounded-xl font-bold text-xs uppercase tracking-wider">Backup</TabsTrigger>
         </TabsList>
 
         <TabsContent value="school" className="space-y-4">
@@ -148,6 +152,21 @@ export default function SettingsPage() {
                             </AlertDescription>
                         </Alert>
                     )}
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent value="settle" className="space-y-4">
+            <Card className="shadow-sm border-emerald-100 overflow-hidden">
+                <CardHeader className="bg-emerald-50/50 border-b border-emerald-100">
+                    <div className="flex items-center gap-2">
+                        <Banknote className="h-5 w-5 text-emerald-600" />
+                        <CardTitle>Settlement Kantin</CardTitle>
+                    </div>
+                    <CardDescription>Proses pencairan saldo virtual siswa menjadi uang tunai bagi pihak kantin.</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                    <SettlementManagement />
                 </CardContent>
             </Card>
         </TabsContent>

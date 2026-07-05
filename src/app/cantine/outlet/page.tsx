@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,7 +11,9 @@ import {
   ArrowRight,
   Loader2,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Wallet,
+  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +26,7 @@ export default function CantineOutletPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
       todaySales: 0,
+      unsettledBalance: 0,
       customerCount: 0,
       recentTransactions: [] as any[]
   });
@@ -44,11 +48,13 @@ export default function CantineOutletPage() {
 
         if (transactions) {
             const todayTxs = transactions.filter(tx => new Date(tx.created_at) >= todayStart);
-            const total = todayTxs.reduce((acc, tx) => acc + tx.amount, 0);
+            const totalToday = todayTxs.reduce((acc, tx) => acc + tx.amount, 0);
+            const unsettled = transactions.filter(tx => !tx.is_settled).reduce((acc, tx) => acc + tx.amount, 0);
             const customers = new Set(todayTxs.map(tx => tx.student_id)).size;
 
             setStats({
-                todaySales: total,
+                todaySales: totalToday,
+                unsettledBalance: unsettled,
                 customerCount: customers,
                 recentTransactions: transactions.slice(0, 5)
             });
@@ -79,7 +85,7 @@ export default function CantineOutletPage() {
                     <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
                         <UtensilsCrossed className="h-5 w-5 text-white" />
                     </div>
-                    <span className="text-white/80 font-black text-[10px] uppercase tracking-[0.3em]">Outlet Aktif</span>
+                    <span className="text-white/80 font-black text-[10px] uppercase tracking-[0.3em]">Outlet POS</span>
                 </div>
                 
                 <div className="space-y-1">
@@ -89,15 +95,14 @@ export default function CantineOutletPage() {
                     </h2>
                 </div>
 
-                <div className="flex gap-3">
-                    <div className="bg-white/10 px-4 py-2 rounded-2xl backdrop-blur-md border border-white/10 flex-1">
-                        <p className="text-[9px] text-white/60 font-bold uppercase tracking-widest">Pelanggan</p>
-                        <p className="text-white font-black text-lg">{stats.customerCount}</p>
+                <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-md border border-white/10 flex justify-between items-center">
+                    <div>
+                        <p className="text-[10px] text-white/60 font-bold uppercase tracking-widest">Saldo Belum Cair</p>
+                        <p className="text-white font-black text-xl">
+                            {stats.unsettledBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                        </p>
                     </div>
-                    <div className="bg-emerald-400/20 px-4 py-2 rounded-2xl backdrop-blur-md border border-white/10 flex-1">
-                        <p className="text-[9px] text-white/60 font-bold uppercase tracking-widest">Status</p>
-                        <p className="text-emerald-300 font-black text-lg">BUKA</p>
-                    </div>
+                    <Wallet className="h-6 w-6 text-white/40" />
                 </div>
             </div>
         </CardContent>
@@ -138,9 +143,17 @@ export default function CantineOutletPage() {
                                   </p>
                               </div>
                           </div>
-                          <p className="font-black text-emerald-600 text-lg">
-                              +{tx.amount.toLocaleString('id-ID')}
-                          </p>
+                          <div className="text-right">
+                            <p className="font-black text-emerald-600 text-lg">
+                                +{tx.amount.toLocaleString('id-ID')}
+                            </p>
+                            <p className={cn(
+                                "text-[7px] font-black uppercase tracking-widest",
+                                tx.is_settled ? "text-blue-500" : "text-amber-500"
+                            )}>
+                                {tx.is_settled ? "Sudah Cair" : "Belum Cair"}
+                            </p>
+                          </div>
                       </div>
                   ))}
               </div>

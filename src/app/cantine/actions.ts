@@ -60,6 +60,7 @@ export async function processCantinePayment(params: {
     const supabaseUser = createClient();
     
     try {
+        // 1. Verifikasi PIN menggunakan Client Tanpa Sesi
         const authVerifier = createSupabaseClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -82,8 +83,12 @@ export async function processCantinePayment(params: {
             return { success: false, message: 'PIN Siswa Salah.' };
         }
 
+        // 2. Ambil data merchant aktif
         const { data: { user: activeMerchant } } = await supabaseUser.auth.getUser();
         if (!activeMerchant) return { success: false, message: 'Sesi outlet berakhir.' };
+
+        // Ambil nama outlet dari email shadow merchant
+        const merchantDisplayName = activeMerchant.email?.split('@')[0] || 'Kantin';
 
         const { data: student, error: studentError } = await supabaseAdmin
             .from('students')
@@ -101,13 +106,15 @@ export async function processCantinePayment(params: {
             return { success: false, message: `Saldo Tidak Cukup (Sisa: Rp ${currentBalance.toLocaleString('id-ID')})` };
         }
 
+        // 3. Masukkan transaksi dengan nama merchant dan status unsettled
         const { error: txError } = await supabaseAdmin.from('transactions').insert({
             student_id: studentId,
             user_id: activeMerchant.id,
             amount: amount,
             type: 'Pengeluaran',
             category: 'BELANJA_KANTIN',
-            description: 'Pembayaran Kantin'
+            description: `Belanja: ${merchantDisplayName.toUpperCase()}`,
+            is_settled: false
         });
 
         if (txError) throw txError;

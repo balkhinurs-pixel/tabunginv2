@@ -42,6 +42,73 @@ export async function getCantineOutletsAction() {
   })) || [];
 }
 
+/**
+ * Mengambil statistik settlement untuk Guru
+ */
+export async function getMerchantSettlementStatsAction() {
+    const supabase = createClient();
+    const supabaseAdmin = getSupabaseAdmin();
+    
+    const { data: { user: teacher } } = await supabase.auth.getUser();
+    if (!teacher) return [];
+
+    // 1. Dapatkan daftar merchant di sekolah yang sama
+    const { data: teacherProfile } = await supabase.from('profiles').select('school_code').eq('id', teacher.id).single();
+    if (!teacherProfile) return [];
+
+    const { data: merchants } = await supabaseAdmin
+        .from('profiles')
+        .select('id, email')
+        .eq('school_code', teacherProfile.school_code)
+        .eq('role', 'CANTINE');
+
+    if (!merchants || merchants.length === 0) return [];
+
+    // 2. Untuk setiap merchant, hitung total transaksi BELANJA_KANTIN yang belum settled (is_settled = false)
+    const stats = await Promise.all(merchants.map(async (m) => {
+        const { data: txs } = await supabaseAdmin
+            .from('transactions')
+            .select('amount')
+            .eq('user_id', m.id)
+            .eq('category', 'BELANJA_KANTIN')
+            .eq('is_settled', false);
+        
+        const totalUnsettled = (txs || []).reduce((acc, curr) => acc + curr.amount, 0);
+
+        return {
+            merchantId: m.id,
+            merchantName: m.email.split('@')[0].toUpperCase(),
+            unsettledAmount: totalUnsettled
+        };
+    }));
+
+    return stats;
+}
+
+/**
+ * Guru melakukan pencairan dana ke merchant
+ */
+export async function settleMerchantTransactionsAction(merchantId: string) {
+    const supabaseAdmin = getSupabaseAdmin();
+    
+    try {
+        const { error } = await supabaseAdmin
+            .from('transactions')
+            .update({ is_settled: true })
+            .eq('user_id', merchantId)
+            .eq('category', 'BELANJA_KANTIN')
+            .eq('is_settled', false);
+
+        if (error) throw error;
+
+        revalidatePath('/settings');
+        revalidatePath('/cantine/outlet');
+        return { success: true, message: 'Settlement berhasil diproses.' };
+    } catch (err: any) {
+        return { success: false, message: err.message };
+    }
+}
+
 export async function addCantineAction(params: {
   cantineId: string;
   pin: string;

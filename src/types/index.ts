@@ -8,6 +8,7 @@ export interface Transaction {
   student_id: string; 
   user_id?: string;
   category: 'TABUNGAN' | 'BELANJA_KANTIN' | 'TARIK_TUNAI';
+  is_settled: boolean;
   // Joined properties
   students?: {
     id: string;
