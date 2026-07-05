@@ -10,6 +10,38 @@ interface ActionResult {
   message: string;
 }
 
+export async function getCantineOutletsAction() {
+  const supabase = createClient();
+  const supabaseAdmin = getSupabaseAdmin();
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: teacherProfile } = await supabase
+    .from('profiles')
+    .select('school_code')
+    .eq('id', user.id)
+    .single();
+
+  if (!teacherProfile?.school_code) return [];
+
+  const { data: outlets, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email')
+    .eq('school_code', teacherProfile.school_code)
+    .eq('role', 'CANTINE');
+
+  if (error) {
+    console.error('[GET_CANTINE_ERROR]', error);
+    return [];
+  }
+
+  return outlets.map(p => ({
+    id: p.id,
+    displayId: p.email.split('@')[0]
+  })) || [];
+}
+
 export async function addCantineAction(params: {
   cantineId: string;
   pin: string;
@@ -17,7 +49,6 @@ export async function addCantineAction(params: {
   const supabase = createClient();
   const supabaseAdmin = getSupabaseAdmin();
 
-  // Gunakan getUser() untuk keamanan lebih baik sesuai log warning
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, message: 'Sesi berakhir, silakan login kembali.' };
 
@@ -31,18 +62,14 @@ export async function addCantineAction(params: {
     return { success: false, message: 'Mohon atur ulang Kode Sekolah Anda di tab Umum terlebih dahulu.' };
   }
 
-  // Sanitasi ID Kantin: huruf kecil, tanpa spasi/karakter aneh
   const sanitizedId = params.cantineId.toLowerCase().trim().replace(/[^a-z0-9-]/g, '');
   
   if (!sanitizedId || sanitizedId.length < 3) {
       return { success: false, message: 'ID Kantin tidak valid (min. 3 karakter).' };
   }
 
-  // PENTING: Sanitasi Kode Sekolah untuk email
   const schoolCode = profile.school_code.toLowerCase().replace(/[^a-z0-9-]/g, '');
   const shadowEmail = `${sanitizedId}@${schoolCode}.kantin.user`;
-
-  console.log(`[CANTINE_CREATE] Mencoba membuat akun: ${shadowEmail}`);
 
   try {
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -53,7 +80,6 @@ export async function addCantineAction(params: {
     });
 
     if (authError) {
-      console.error('[CANTINE_AUTH_ERROR]', authError);
       if (authError.message.includes('unique') || authError.message.includes('already exists')) {
         return { success: false, message: `ID Kantin "${sanitizedId}" sudah terdaftar di sekolah ini.` };
       }
@@ -61,7 +87,6 @@ export async function addCantineAction(params: {
     }
 
     if (authData.user) {
-      // MENGGUNAKAN UPSERT: Menghindari error duplicate key jika trigger database sudah membuat profile duluan
       const { error: profileError } = await supabaseAdmin
         .from('profiles')
         .upsert({
@@ -74,8 +99,6 @@ export async function addCantineAction(params: {
         }, { onConflict: 'id' });
 
       if (profileError) {
-        console.error('[CANTINE_PROFILE_ERROR]', profileError);
-        // Rollback jika krusial, tapi biasanya trigger sudah berhasil membuat profil dasar
         return { success: false, message: `Gagal Profile: ${profileError.message}` };
       }
     }
@@ -83,7 +106,6 @@ export async function addCantineAction(params: {
     revalidatePath('/settings');
     return { success: true, message: `Akun outlet "${sanitizedId}" berhasil dibuat.` };
   } catch (error: any) {
-    console.error('[CANTINE_FATAL_ERROR]', error);
     return { success: false, message: error.message || 'Terjadi kesalahan sistem internal.' };
   }
 }
@@ -97,7 +119,6 @@ export async function deleteCantineAction(cantineUserId: string): Promise<Action
       revalidatePath('/settings');
       return { success: true, message: 'Akun outlet berhasil dihapus.' };
   } catch (err: any) {
-      console.error('[CANTINE_DELETE_ERROR]', err);
       return { success: false, message: err.message };
   }
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,9 +13,8 @@ import {
   UtensilsCrossed,
   Info
 } from 'lucide-react';
-import { addCantineAction, deleteCantineAction } from '../actions';
+import { addCantineAction, deleteCantineAction, getCantineOutletsAction } from '../actions';
 import { useToast } from '@/hooks/use-toast';
-import { createClient } from '@/lib/supabase';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -34,38 +33,17 @@ export default function CantineManagement() {
   const [cantineId, setCantineId] = useState('');
   const [pin, setPin] = useState('');
   const { toast } = useToast();
-  const supabase = createClient();
 
   const fetchOutlets = async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Ambil kode sekolah guru
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('school_code')
-        .eq('id', user.id)
-        .single();
-
-    if (profile?.school_code) {
-        // PENTING: Gunakan toLowerCase() agar pencarian konsisten dengan sistem pendaftaran
-        const searchCode = profile.school_code.toLowerCase();
-        
-        const { data: cantineProfiles } = await supabase
-            .from('profiles')
-            .select('id, email')
-            .eq('school_code', searchCode)
-            .eq('role', 'CANTINE');
-        
-        if (cantineProfiles) {
-            setOutlets(cantineProfiles.map(p => ({
-                id: p.id,
-                displayId: p.email.split('@')[0]
-            })));
-        }
+    try {
+      const data = await getCantineOutletsAction();
+      setOutlets(data);
+    } catch (error) {
+      console.error('Failed to fetch outlets:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
