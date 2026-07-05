@@ -47,10 +47,11 @@ async function DashboardData() {
       return <p className="text-destructive text-center p-4">Gagal memuat data: Profil pengguna tidak ditemukan.</p>;
   }
 
-  // 1. Ambil data siswa yang dikelola guru ini
+  // 1. Ambil data siswa yang dikelola guru ini beserta SEMUA transaksinya (termasuk kantin)
+  // RLS harus disesuaikan agar Guru bisa melihat transaksi siswa miliknya
   const { data: studentsData, error: studentsError } = await supabase
     .from('students')
-    .select(`id, nis, name, class, transactions (id, type, amount)`)
+    .select(`id, nis, name, class, transactions (id, type, amount, created_at, description)`)
     .eq('user_id', user.id);
 
   if (studentsError || !studentsData) {
@@ -59,40 +60,34 @@ async function DashboardData() {
 
   const students = studentsData as Student[];
   const profile = profileData as Profile;
-  const studentIds = students.map(s => s.id);
-
-  // 2. Ambil transaksi terbaru untuk SEMUA siswa tersebut (termasuk dari Kantin & Kios)
-  let transactions: Transaction[] = [];
-  if (studentIds.length > 0) {
-      const { data: txData, error: txError } = await supabase
-        .from('transactions')
-        .select(`*, students (id, name)`)
-        .in('student_id', studentIds)
-        .order('created_at', { ascending: false })
-        .limit(5);
-      
-      if (!txError && txData) {
-          transactions = txData as Transaction[];
-      }
-  }
   
+  // Hitung Total Saldo Global (Semua siswa)
   const totalBalance = students.reduce((total, student) => {
-    const studentBalance = student.transactions.reduce((acc, tx) => {
+    const studentBalance = (student.transactions || []).reduce((acc, tx) => {
       return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
     }, 0);
     return total + studentBalance;
   }, 0);
 
-  const studentQuota = profile.custom_quota || (profile.plan === 'PRO' ? 40 : 5);
+  // Ambil 5 transaksi terbaru dari SEMUA siswa guru ini untuk tabel "Transaksi Terkini"
+  const allTransactions = students.flatMap(s => 
+    (s.transactions || []).map(tx => ({
+      ...tx,
+      studentName: s.name,
+      studentId: s.id
+    }))
+  ).sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
 
-  const recentTransactions = transactions.map(tx => ({
+  const recentTransactions = allTransactions.slice(0, 5).map(tx => ({
       id: tx.id,
       date: format(parseISO(tx.created_at!), 'dd/MM/yy'),
       type: tx.type,
       amount: tx.amount,
-      studentId: tx.student_id,
-      studentName: tx.students?.name || 'Siswa',
+      studentId: tx.studentId,
+      studentName: tx.studentName,
   }));
+
+  const studentQuota = profile.custom_quota || (profile.plan === 'PRO' ? 40 : 5);
 
   return (
     <>

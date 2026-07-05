@@ -60,6 +60,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
   const studentId = params.id;
   const supabase = createClient();
   
+  // Ambil data siswa beserta SEMUA transaksi (termasuk dari kantin/kios)
   const { data: studentData, error } = await supabase
     .from('students')
     .select('*, transactions (*)')
@@ -79,6 +80,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
   }
 
   const student = studentData as Student;
+  // Urutkan transaksi terbaru di atas
   student.transactions = (student.transactions || []).sort((a,b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
 
   const { income, expense, balance } = (student?.transactions || []).reduce(

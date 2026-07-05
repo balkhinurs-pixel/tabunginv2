@@ -38,6 +38,7 @@ async function ReportsData({ searchParams }: ReportsPageProps) {
     const supabase = createClient();
     const { from, to, class: selectedClass = 'all' } = searchParams;
     
+    // Ambil semua siswa guru ini beserta seluruh transaksinya (terlepas siapa penginputnya)
     let studentsQuery = supabase
         .from('students')
         .select(`
@@ -59,19 +60,16 @@ async function ReportsData({ searchParams }: ReportsPageProps) {
         return <p className="text-destructive text-center">Gagal memuat data: {error.message}</p>
     }
 
-    const filteredStudentsByDate = (students as Student[]).map(student => ({
-        ...student,
-        transactions: student.transactions.filter(tx => {
+    const reportData: ReportRow[] = (students as Student[]).map(student => {
+        // Filter transaksi berdasarkan rentang tanggal
+        const filteredTxs = (student.transactions || []).filter(tx => {
             const txDate = new Date(tx.created_at!).getTime();
             const fromDate = from ? new Date(from).getTime() : 0;
             const toDate = to ? new Date(to).setHours(23, 59, 59, 999) : Date.now();
             return txDate >= fromDate && txDate <= toDate;
-        })
-    }));
+        });
 
-
-    const reportData: ReportRow[] = filteredStudentsByDate.map(student => {
-        const { income, expense } = student.transactions.reduce(
+        const { income, expense } = filteredTxs.reduce(
             (acc, tx) => {
                 if (tx.type === 'Pemasukan') acc.income += tx.amount;
                 else acc.expense += tx.amount;
@@ -79,6 +77,7 @@ async function ReportsData({ searchParams }: ReportsPageProps) {
             },
             { income: 0, expense: 0 }
         );
+
         return {
             nis: student.nis,
             name: student.name,
