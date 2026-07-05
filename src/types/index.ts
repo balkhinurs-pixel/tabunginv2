@@ -1,4 +1,3 @@
-
 export interface Transaction {
   id: string;
   created_at?: string;
@@ -7,10 +6,13 @@ export interface Transaction {
   amount: number;
   student_id: string; 
   user_id?: string;
+  category: 'TABUNGAN' | 'BELANJA_KANTIN' | 'TARIK_TUNAI';
   // Joined properties
   students?: {
     id: string;
     name: string;
+    class: string;
+    nis: string;
   }
 }
 
@@ -29,7 +31,7 @@ export interface Profile {
   id: string;
   email?: string;
   plan: 'TRIAL' | 'PRO';
-  role: 'ADMIN' | 'USER';
+  role: 'ADMIN' | 'CANTINE';
   school_name?: string | null;
   school_code?: string | null;
   custom_quota?: number | null;
