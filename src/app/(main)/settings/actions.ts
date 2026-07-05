@@ -30,7 +30,13 @@ export async function addCantineAction(params: {
   }
 
   const sanitizedId = params.cantineId.toLowerCase().trim().replace(/[^a-z0-9-]/g, '');
-  const shadowEmail = `${sanitizedId}@${profile.school_code.toLowerCase()}.kantin.user`;
+  
+  if (!sanitizedId) {
+      return { success: false, message: 'ID Kantin tidak valid.' };
+  }
+
+  const schoolCode = profile.school_code.toLowerCase();
+  const shadowEmail = `${sanitizedId}@${schoolCode}.kantin.user`;
 
   try {
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -40,8 +46,8 @@ export async function addCantineAction(params: {
     });
 
     if (authError) {
-      if (authError.message.includes('unique')) {
-        return { success: false, message: 'ID Kantin ini sudah digunakan.' };
+      if (authError.message.includes('unique') || authError.message.includes('already exists')) {
+        return { success: false, message: `ID Kantin "${sanitizedId}" sudah digunakan di sekolah Anda.` };
       }
       throw authError;
     }
@@ -53,19 +59,20 @@ export async function addCantineAction(params: {
           id: authData.user.id,
           email: shadowEmail,
           school_name: 'Outlet Kantin',
-          school_code: profile.school_code.toLowerCase(),
+          school_code: schoolCode,
           role: 'CANTINE',
           plan: 'TRIAL'
         });
 
       if (profileError) {
+        // Rollback auth user jika profil gagal dibuat
         await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
         throw profileError;
       }
     }
 
     revalidatePath('/settings');
-    return { success: true, message: `Akun outlet ${sanitizedId} berhasil dibuat.` };
+    return { success: true, message: `Akun outlet "${sanitizedId}" berhasil dibuat.` };
   } catch (error: any) {
     console.error('Error creating cantine account:', error);
     return { success: false, message: error.message || 'Terjadi kesalahan sistem.' };

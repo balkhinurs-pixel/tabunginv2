@@ -9,7 +9,6 @@ import {
   Plus, 
   Trash2, 
   Loader2, 
-  KeyRound, 
   UtensilsCrossed,
   Info
 } from 'lucide-react';
@@ -50,11 +49,13 @@ export default function CantineManagement() {
         .single();
 
     if (profile?.school_code) {
-        // Cari semua profil dengan role CANTINE yang memiliki school_code sama
+        // PENTING: Gunakan toLowerCase() agar pencarian konsisten dengan sistem pendaftaran
+        const searchCode = profile.school_code.toLowerCase();
+        
         const { data: cantineProfiles } = await supabase
             .from('profiles')
             .select('id, email')
-            .eq('school_code', profile.school_code)
+            .eq('school_code', searchCode)
             .eq('role', 'CANTINE');
         
         if (cantineProfiles) {
@@ -72,13 +73,20 @@ export default function CantineManagement() {
   }, []);
 
   const handleAddCantine = async () => {
-    if (!cantineId || pin.length < 6) {
-        toast({ title: "Data Tidak Lengkap", description: "ID Kantin dan PIN (6 digit) wajib diisi.", variant: "destructive" });
+    const sanitizedId = cantineId.toLowerCase().trim().replace(/[^a-z0-9-]/g, '');
+    
+    if (!sanitizedId || sanitizedId.length < 3) {
+        toast({ title: "ID Terlalu Pendek", description: "ID Kantin minimal 3 karakter huruf/angka.", variant: "destructive" });
+        return;
+    }
+
+    if (pin.length < 6) {
+        toast({ title: "PIN Tidak Valid", description: "PIN harus terdiri dari 6 digit angka.", variant: "destructive" });
         return;
     }
 
     setAdding(true);
-    const result = await addCantineAction({ cantineId, pin });
+    const result = await addCantineAction({ cantineId: sanitizedId, pin });
     setAdding(false);
 
     if (result.success) {
@@ -92,6 +100,8 @@ export default function CantineManagement() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm('Hapus akun outlet ini?')) return;
+    
     const result = await deleteCantineAction(id);
     if (result.success) {
         toast({ title: "Berhasil", description: result.message });
@@ -132,8 +142,9 @@ export default function CantineManagement() {
                             id="c_id" 
                             placeholder="Misal: kantin1" 
                             value={cantineId}
-                            onChange={(e) => setCantineId(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                            onChange={(e) => setCantineId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                         />
+                        <p className="text-[10px] text-muted-foreground italic">Contoh: kantin-sehat, kedai-ibu, dll.</p>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="c_pin">PIN Login (6 Digit Angka)</Label>
