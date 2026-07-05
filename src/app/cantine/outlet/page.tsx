@@ -41,11 +41,12 @@ export default function CantineOutletPage() {
         todayStart.setHours(0, 0, 0, 0);
 
         // Ambil transaksi belanja kantin beserta data siswa melalui relasi (JOIN)
+        // Kita menggunakan left join standar agar transaksi tetap muncul meski RLS diblokir (sebagai debug)
         const { data: transactions } = await supabase
             .from('transactions')
             .select(`
                 *,
-                students!inner (
+                students (
                     name, 
                     class
                 )
@@ -129,7 +130,7 @@ export default function CantineOutletPage() {
       <div className="space-y-4">
           <div className="flex justify-between items-center px-2">
               <h3 className="font-black text-sm uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
-                  <Clock className="h-4 w-4" /> Riwayat Terakhir</h2>
+                  <Clock className="h-4 w-4" /> Riwayat Terakhir</h3>
               <Button variant="link" size="sm" className="text-primary font-bold text-xs p-0 h-auto" asChild>
                   <Link href="/cantine/history">Lihat Semua <ChevronRight className="ml-1 h-3 w-3" /></Link>
               </Button>
@@ -144,9 +145,8 @@ export default function CantineOutletPage() {
                                   <TrendingUp className="h-6 w-6 text-emerald-500" />
                               </div>
                               <div className="flex flex-col">
-                                  {/* Tampilkan nama asli siswa, bukan tulisan "Siswa" */}
                                   <p className="font-black text-sm text-gray-900 leading-tight">
-                                      {tx.students?.name || 'Siswa Tanpa Nama'}
+                                      {tx.students?.name || 'Siswa (Butuh Izin SQL)'}
                                   </p>
                                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
                                       {format(new Date(tx.created_at), 'HH:mm', { locale: id })} • Kelas {tx.students?.class || '-'}

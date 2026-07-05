@@ -130,9 +130,9 @@ export default function CantineDashboard() {
                                       <TrendingUp className="h-5 w-5 text-emerald-500" />
                                   </div>
                                   <div>
-                                      <p className="font-bold text-sm text-gray-900">{tx.students?.name}</p>
+                                      <p className="font-bold text-sm text-gray-900">{tx.students?.name || 'Siswa (Butuh Izin SQL)'}</p>
                                       <p className="text-[10px] text-gray-500 font-medium">
-                                          {format(new Date(tx.created_at), 'HH:mm', { locale: id })} • Kelas {tx.students?.class}
+                                          {format(new Date(tx.created_at), 'HH:mm', { locale: id })} • Kelas {tx.students?.class || '-'}
                                       </p>
                                   </div>
                               </div>

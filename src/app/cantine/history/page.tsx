@@ -38,7 +38,6 @@ export default function CantineHistoryPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // Ambil nama outlet dari profil untuk header laporan
         const { data: profile } = await supabase.from('profiles').select('school_name').eq('id', user.id).single();
         setMerchantName(profile?.school_name || user.email?.split('@')[0].toUpperCase() || 'KANTIN');
 
@@ -46,7 +45,7 @@ export default function CantineHistoryPage() {
             .from('transactions')
             .select(`
                 *, 
-                students!inner(
+                students (
                     name, 
                     class, 
                     nis
@@ -70,7 +69,6 @@ export default function CantineHistoryPage() {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
 
-        // Header
         doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
         doc.text('LAPORAN PENJUALAN MERCHANT', pageWidth / 2, 20, { align: 'center' });
@@ -164,7 +162,7 @@ export default function CantineHistoryPage() {
                             </div>
                             <div className="flex flex-col">
                                 <p className="font-black text-gray-900 leading-tight">
-                                    {tx.students?.name || 'Siswa Tanpa Nama'}
+                                    {tx.students?.name || 'Siswa (Butuh Izin SQL)'}
                                 </p>
                                 <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
                                     <Calendar className="h-3 w-3" />
