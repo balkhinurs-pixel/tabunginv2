@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -27,9 +28,20 @@ export default function WelcomePage() {
 
   useEffect(() => {
     const fetchUser = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            setUser(user);
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+            setUser(authUser);
+            // Cek apakah profil sudah ada (untuk user Google baru)
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('school_code')
+                .eq('id', authUser.id)
+                .maybeSingle();
+            
+            // Jika sudah punya school_code, pindahkan ke dashboard yang sesuai
+            if (profile?.school_code) {
+                router.replace('/dashboard');
+            }
         } else {
             router.push('/login');
         }
@@ -50,20 +62,21 @@ export default function WelcomePage() {
     }
 
     setSaving(true);
-    const sanitizedCode = schoolCode.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const sanitizedCode = schoolCode.toLowerCase().trim().replace(/[^a-z0-9-]/g, '');
 
+    // Verifikasi kode sekolah jika peran adalah KANTIN
     if (role === 'CANTINE') {
-        const { data: schoolCheck } = await supabase
+        const { data: schoolCheck, error: checkError } = await supabase
             .from('profiles')
             .select('school_name')
             .eq('school_code', sanitizedCode)
             .eq('role', 'ADMIN')
             .maybeSingle();
         
-        if (!schoolCheck) {
+        if (checkError || !schoolCheck) {
             toast({ 
                 title: "Sekolah Tidak Ditemukan", 
-                description: "Pastikan kode sekolah yang Anda masukkan sudah didaftarkan oleh Guru.", 
+                description: "Pastikan kode sekolah yang Anda masukkan sudah didaftarkan oleh Guru sebelumnya.", 
                 variant: 'destructive' 
             });
             setSaving(false);
@@ -71,24 +84,36 @@ export default function WelcomePage() {
         }
     }
 
+    // Update profil (UPSERT untuk menangani pendaftar Google yang row-nya mungkin belum terbuat sempurna)
     const { error } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+            id: user.id,
+            email: user.email,
             school_name: role === 'ADMIN' ? schoolName : 'Outlet Kantin',
             school_code: sanitizedCode,
-            role: role
-        })
-        .eq('id', user.id);
+            role: role,
+            plan: 'TRIAL'
+        });
     
     setSaving(false);
 
     if (error) {
-        toast({ title: "Pendaftaran Gagal", description: "Terjadi kesalahan saat menyimpan profil Anda.", variant: 'destructive' });
+        console.error("Welcome save error:", error);
+        toast({ 
+            title: "Pendaftaran Gagal", 
+            description: error.message.includes('unique') ? "Kode sekolah ini sudah digunakan guru lain." : "Terjadi kesalahan saat menyimpan profil.", 
+            variant: 'destructive' 
+        });
     } else {
         toast({ title: "Berhasil!", description: "Profil Anda telah dikonfigurasi." });
-        const destination = role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
-        router.push(destination);
+        
+        // Paksa refresh agar middleware mendeteksi perubahan data
         router.refresh();
+        setTimeout(() => {
+            const destination = role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
+            router.push(destination);
+        }, 500);
     }
   }
 

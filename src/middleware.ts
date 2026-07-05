@@ -1,3 +1,4 @@
+
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
@@ -60,26 +61,29 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Rute Publik
   const isAuthRoute = ['/login', '/signup', '/student-login', '/scan-login', '/kiosk'].includes(pathname);
-  const isStudentRoute = pathname.startsWith('/home');
-  const isCantineRoute = pathname.startsWith('/cantine');
-  const isPublicRoute = isAuthRoute || pathname === '/auth/callback';
+  const isPublicRoute = isAuthRoute || pathname === '/auth/callback' || pathname === '/';
 
+  // 1. Jika TIDAK login dan mencoba akses rute terproteksi
   if (!session && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
+  // 2. Jika LOGIN
   if (session) {
     const isStudent = session.user.email?.endsWith('.supabase.user');
 
     if (isStudent) {
-      if (isAuthRoute || pathname === '/') {
+      // Alur Siswa
+      if (pathname === '/login' || pathname === '/student-login' || pathname === '/') {
         return NextResponse.redirect(new URL('/home', request.url));
       }
-      if (!isStudentRoute && !pathname.startsWith('/_next') && pathname !== '/auth/callback') {
+      if (!pathname.startsWith('/home') && !pathname.startsWith('/_next') && pathname !== '/auth/callback') {
         return NextResponse.redirect(new URL('/home', request.url));
       }
     } else { 
+      // Alur Guru / Kantin
       if (!pathname.startsWith('/_next') && !pathname.includes('.')) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -88,27 +92,37 @@ export async function middleware(request: NextRequest) {
           .single();
         
         if (profile) {
+          // A. Jika belum atur profil (school_code kosong)
           if (!profile.school_code && pathname !== '/welcome') {
             return NextResponse.redirect(new URL('/welcome', request.url));
           }
 
+          // B. Jika sudah atur profil, cegah masuk ke /welcome lagi
           if (profile.school_code && pathname === '/welcome') {
             const destination = profile.role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
             return NextResponse.redirect(new URL(destination, request.url));
           }
 
-          if (profile.role === 'CANTINE' && !isCantineRoute && !pathname.startsWith('/_next') && pathname !== '/auth/callback') {
+          // C. Arahkan Kantin ke area kantin saja
+          if (profile.role === 'CANTINE' && !pathname.startsWith('/cantine') && !pathname.startsWith('/_next') && pathname !== '/auth/callback' && pathname !== '/settings') {
               return NextResponse.redirect(new URL('/cantine/outlet', request.url));
           }
           
-          if (profile.role === 'ADMIN' && isCantineRoute) {
+          // D. Arahkan Admin ke area dashboard (cegah masuk area kantin)
+          if (profile.role === 'ADMIN' && pathname.startsWith('/cantine')) {
               return NextResponse.redirect(new URL('/dashboard', request.url));
           }
 
+          // E. Jika di halaman login tapi sudah beres profil
           if (isAuthRoute) {
             const destination = profile.role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
             return NextResponse.redirect(new URL(destination, request.url));
           }
+        } else {
+            // F. Jika session ada tapi profil belum terbuat (jarang terjadi karena trigger)
+            if (pathname !== '/welcome' && !pathname.startsWith('/_next') && pathname !== '/auth/callback') {
+                return NextResponse.redirect(new URL('/welcome', request.url));
+            }
         }
       }
     }
