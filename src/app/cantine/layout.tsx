@@ -28,27 +28,28 @@ export default function CantineLayout({ children }: { children: React.ReactNode 
 
   return (
     <div className="min-h-screen bg-white">
+        {/* Modern Header */}
         <header className="sticky top-0 z-50 h-16 border-b bg-white/80 backdrop-blur-md flex items-center justify-between px-6">
             <h1 className="text-xl font-black tracking-tighter">
                 Tabung<span className="text-primary">.in</span> <span className="text-xs opacity-50 uppercase tracking-widest font-bold">Kantin</span>
             </h1>
-            <button onClick={handleLogout} className="text-rose-500 p-2 rounded-full hover:bg-rose-50">
+            <button onClick={handleLogout} className="text-rose-500 p-2 rounded-full hover:bg-rose-50 transition-colors">
                 <LogOut className="h-5 w-5" />
             </button>
         </header>
 
-        <main className="p-6 pb-32">
+        <main className="p-6 pb-32 max-w-lg mx-auto">
             {children}
         </main>
 
-        {/* Mobile Bottom Nav */}
-        <nav className="fixed bottom-0 inset-x-0 h-20 bg-white border-t flex items-center justify-around px-8 z-50 sm:hidden">
+        {/* Mobile Bottom POS Nav */}
+        <nav className="fixed bottom-0 inset-x-0 h-20 bg-white border-t flex items-center justify-around px-8 z-50 sm:hidden shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
             {CANTINE_NAV.map((item) => (
                 <Link 
                     key={item.href} 
                     href={item.href}
                     className={cn(
-                        "flex flex-col items-center gap-1 transition-all",
+                        "flex flex-col items-center gap-1 transition-all duration-300",
                         pathname === item.href ? "text-primary scale-110" : "text-gray-400"
                     )}
                 >
@@ -58,7 +59,7 @@ export default function CantineLayout({ children }: { children: React.ReactNode 
             ))}
             <Link 
                 href="/cantine/payment"
-                className="relative -top-6 h-16 w-16 bg-primary rounded-full shadow-xl flex items-center justify-center text-white border-4 border-white"
+                className="relative -top-6 h-16 w-16 bg-primary rounded-full shadow-2xl flex items-center justify-center text-white border-4 border-white transition-transform active:scale-90"
             >
                 <ScanLine className="h-8 w-8" />
             </Link>
