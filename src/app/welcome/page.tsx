@@ -65,8 +65,6 @@ export default function WelcomePage() {
     setSaving(true);
     
     const result = await registerUserRoleAction({
-        userId: user.id,
-        email: user.email,
         role: role,
         schoolName: schoolName,
         schoolCode: schoolCode
