@@ -93,7 +93,7 @@ export async function middleware(request: NextRequest) {
       // Alur Guru / Kantin / User Baru
       if (!pathname.startsWith('/_next') && !pathname.includes('.')) {
         if (profile) {
-          // A. Jika role masih 'USER' (atau belum pilih peran), wajib ke /welcome
+          // A. Jika role masih 'USER', wajib ke /welcome
           if (profile.role === 'USER' && pathname !== '/welcome') {
             return NextResponse.redirect(new URL('/welcome', request.url));
           }
@@ -106,14 +106,12 @@ export async function middleware(request: NextRequest) {
 
           // C. Filter Akses berdasarkan Role
           if (profile.role === 'CANTINE') {
-              // Kantin hanya boleh di area /cantine dan /settings
               if (!pathname.startsWith('/cantine') && pathname !== '/settings' && !isPublicRoute) {
                   return NextResponse.redirect(new URL('/cantine/outlet', request.url));
               }
           }
           
           if (profile.role === 'ADMIN') {
-              // Admin dilarang masuk area kantin
               if (pathname.startsWith('/cantine')) {
                   return NextResponse.redirect(new URL('/dashboard', request.url));
               }
@@ -125,7 +123,7 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL(destination, request.url));
           }
         } else {
-            // Jika profil belum ada di database, arahkan ke welcome untuk inisialisasi
+            // Jika profil belum ada, arahkan ke welcome
             if (pathname !== '/welcome' && !pathname.startsWith('/_next') && pathname !== '/auth/callback') {
                 return NextResponse.redirect(new URL('/welcome', request.url));
             }

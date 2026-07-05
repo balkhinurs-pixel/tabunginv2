@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { AuthUser } from '@supabase/supabase-js';
 import { AppLogo } from '@/components/AppLogo';
 import { cn } from '@/lib/utils';
+import { registerUserRoleAction } from './actions';
 
 export default function WelcomePage() {
   const supabase = createClient();
@@ -31,16 +32,16 @@ export default function WelcomePage() {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (authUser) {
             setUser(authUser);
-            // Cek apakah profil sudah ada (untuk user Google baru)
+            // Cek apakah profil sudah punya peran (mencegah akses berulang)
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('school_code')
+                .select('role, school_code')
                 .eq('id', authUser.id)
                 .maybeSingle();
             
-            // Jika sudah punya school_code, pindahkan ke dashboard yang sesuai
-            if (profile?.school_code) {
-                router.replace('/dashboard');
+            if (profile && profile.role !== 'USER') {
+                const destination = profile.role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
+                router.replace(destination);
             }
         } else {
             router.push('/login');
@@ -50,7 +51,7 @@ export default function WelcomePage() {
   }, [supabase, router]);
 
   const handleSaveSettings = async () => {
-    if (!user) return;
+    if (!user || !user.email) return;
     
     if (role === 'ADMIN' && !schoolName) {
         toast({ title: "Nama Sekolah Wajib Diisi", variant: 'destructive' });
@@ -62,58 +63,30 @@ export default function WelcomePage() {
     }
 
     setSaving(true);
-    const sanitizedCode = schoolCode.toLowerCase().trim().replace(/[^a-z0-9-]/g, '');
-
-    // Verifikasi kode sekolah jika peran adalah KANTIN
-    if (role === 'CANTINE') {
-        const { data: schoolCheck, error: checkError } = await supabase
-            .from('profiles')
-            .select('school_name')
-            .eq('school_code', sanitizedCode)
-            .eq('role', 'ADMIN')
-            .maybeSingle();
-        
-        if (checkError || !schoolCheck) {
-            toast({ 
-                title: "Sekolah Tidak Ditemukan", 
-                description: "Pastikan kode sekolah yang Anda masukkan sudah didaftarkan oleh Guru sebelumnya.", 
-                variant: 'destructive' 
-            });
-            setSaving(false);
-            return;
-        }
-    }
-
-    // Update profil (UPSERT untuk menangani pendaftar Google yang row-nya mungkin belum terbuat sempurna)
-    const { error } = await supabase
-        .from('profiles')
-        .upsert({
-            id: user.id,
-            email: user.email,
-            school_name: role === 'ADMIN' ? schoolName : 'Outlet Kantin',
-            school_code: sanitizedCode,
-            role: role,
-            plan: 'TRIAL'
-        });
+    
+    const result = await registerUserRoleAction({
+        userId: user.id,
+        email: user.email,
+        role: role,
+        schoolName: schoolName,
+        schoolCode: schoolCode
+    });
     
     setSaving(false);
 
-    if (error) {
-        console.error("Welcome save error:", error);
+    if (!result.success) {
         toast({ 
-            title: "Pendaftaran Gagal", 
-            description: error.message.includes('unique') ? "Kode sekolah ini sudah digunakan guru lain." : "Terjadi kesalahan saat menyimpan profil.", 
+            title: "Gagal", 
+            description: result.message, 
             variant: 'destructive' 
         });
     } else {
         toast({ title: "Berhasil!", description: "Profil Anda telah dikonfigurasi." });
         
-        // Paksa refresh agar middleware mendeteksi perubahan data
+        // Redirect ke dashboard yang sesuai
+        const destination = role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
+        router.push(destination);
         router.refresh();
-        setTimeout(() => {
-            const destination = role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
-            router.push(destination);
-        }, 500);
     }
   }
 
