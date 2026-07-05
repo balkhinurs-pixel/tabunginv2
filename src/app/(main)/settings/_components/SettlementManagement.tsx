@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,9 +8,11 @@ import {
   Store,
   CheckCircle2,
   AlertTriangle,
-  Info
+  Info,
+  FileText,
+  Printer
 } from 'lucide-react';
-import { getMerchantSettlementStatsAction, settleMerchantTransactionsAction } from '../actions';
+import { getMerchantSettlementStatsAction, settleMerchantTransactionsAction, getUnsettledTransactionDetailsAction } from '../actions';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -26,10 +27,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 export default function SettlementManagement() {
   const [stats, setStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [printingId, setPrintingId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -48,6 +54,67 @@ export default function SettlementManagement() {
   useEffect(() => {
     fetchStats();
   }, []);
+
+  const handlePrintReceipt = async (merchantId: string, merchantName: string, amount: number) => {
+    setPrintingId(merchantId);
+    try {
+        const details = await getUnsettledTransactionDetailsAction(merchantId);
+        
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // Header
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('BUKTI SERAH TERIMA OMZET KANTIN', pageWidth / 2, 20, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Tanggal Cetak: ${format(new Date(), 'dd MMMM yyyy HH:mm', { locale: id })}`, pageWidth / 2, 27, { align: 'center' });
+        doc.line(14, 32, pageWidth - 14, 32);
+
+        // Merchant Info
+        doc.setFontSize(11);
+        doc.text(`Nama Outlet: ${merchantName}`, 14, 42);
+        doc.text(`Status: BELUM DIBAYARKAN (MENUNGGU PENCAIRAN)`, 14, 48);
+
+        // Table
+        autoTable(doc, {
+            startY: 55,
+            head: [['TANGGAL', 'NIS', 'NAMA SISWA', 'KELAS', 'NOMINAL (RP)']],
+            body: details.map((tx: any) => [
+                format(new Date(tx.created_at), 'dd/MM/yy HH:mm'),
+                tx.students?.nis,
+                tx.students?.name,
+                tx.students?.class,
+                { content: tx.amount.toLocaleString('id-ID'), styles: { halign: 'right' } }
+            ]),
+            foot: [
+                [{ content: 'TOTAL YANG HARUS DIBAYARKAN', colSpan: 4, styles: { fontStyle: 'bold', halign: 'right' } }, 
+                 { content: amount.toLocaleString('id-ID'), styles: { fontStyle: 'bold', halign: 'right' } }]
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [59, 130, 246] },
+            footStyles: { fillColor: [241, 245, 249] }
+        });
+
+        const finalY = (doc as any).lastAutoTable.finalY + 20;
+
+        // Signatures
+        doc.text('Pihak Sekolah (Guru)', 40, finalY, { align: 'center' });
+        doc.text('____________________', 40, finalY + 25, { align: 'center' });
+        
+        doc.text('Pengelola Kantin', pageWidth - 40, finalY, { align: 'center' });
+        doc.text('____________________', pageWidth - 40, finalY + 25, { align: 'center' });
+
+        doc.save(`settlement-${merchantName.toLowerCase()}-${format(new Date(), 'yyyyMMdd')}.pdf`);
+        toast({ title: "PDF Berhasil Dibuat" });
+    } catch (error) {
+        toast({ title: "Gagal membuat PDF", variant: "destructive" });
+    } finally {
+        setPrintingId(null);
+    }
+  };
 
   const handleSettle = async (merchantId: string) => {
     setProcessingId(merchantId);
@@ -95,41 +162,55 @@ export default function SettlementManagement() {
                     {item.unsettledAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                   </p>
                   
-                  {item.unsettledAmount > 0 ? (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" className="h-8 rounded-full bg-emerald-600 hover:bg-emerald-700 text-[10px] font-bold">
-                          <Banknote className="mr-1 h-3 w-3" /> SERAH TERIMA UANG
+                  <div className="flex gap-2">
+                    {item.unsettledAmount > 0 && (
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 rounded-full text-[10px] font-bold border-blue-200 text-blue-600 hover:bg-blue-50"
+                            onClick={() => handlePrintReceipt(item.merchantId, item.merchantName, item.unsettledAmount)}
+                            disabled={printingId === item.merchantId}
+                        >
+                            {printingId === item.merchantId ? <Loader2 className="h-3 w-3 animate-spin" /> : <Printer className="mr-1 h-3 w-3" />} CETAK RINCIAN
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <div className="flex items-center gap-2 text-emerald-600 mb-2">
-                            <CheckCircle2 className="h-6 w-6" />
-                            <AlertDialogTitle>Konfirmasi Pembayaran</AlertDialogTitle>
-                          </div>
-                          <AlertDialogDescription>
-                            Apakah Anda sudah menyerahkan uang tunai sebesar <strong>{item.unsettledAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</strong> kepada <strong>{item.merchantName}</strong>? 
-                            <br/><br/>
-                            Status omzet di dashboard kantin akan kembali ke nol setelah konfirmasi ini.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Belum</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => handleSettle(item.merchantId)}
-                            className="bg-emerald-600 hover:bg-emerald-700"
-                          >
-                            Ya, Sudah Saya Bayar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  ) : (
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Lunas
-                    </span>
-                  )}
+                    )}
+
+                    {item.unsettledAmount > 0 ? (
+                        <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button size="sm" className="h-8 rounded-full bg-emerald-600 hover:bg-emerald-700 text-[10px] font-bold">
+                            <Banknote className="mr-1 h-3 w-3" /> CAIRKAN
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <div className="flex items-center gap-2 text-emerald-600 mb-2">
+                                <CheckCircle2 className="h-6 w-6" />
+                                <AlertDialogTitle>Konfirmasi Pembayaran</AlertDialogTitle>
+                            </div>
+                            <AlertDialogDescription>
+                                Apakah Anda sudah menyerahkan uang tunai sebesar <strong>{item.unsettledAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</strong> kepada <strong>{item.merchantName}</strong>? 
+                                <br/><br/>
+                                Status omzet di dashboard kantin akan kembali ke nol setelah konfirmasi ini.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Belum</AlertDialogCancel>
+                            <AlertDialogAction 
+                                onClick={() => handleSettle(item.merchantId)}
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                            >
+                                Ya, Sudah Saya Bayar
+                            </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                        </AlertDialog>
+                    ) : (
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Lunas
+                        </span>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -7,7 +7,9 @@ import {
   TrendingUp, 
   ArrowLeft,
   Calendar,
-  ChevronRight
+  ChevronRight,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,17 +18,25 @@ import { createClient } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Link from 'next/link';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CantineHistoryPage() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
+  const [printing, setPrinting] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [merchantName, setMerchantName] = useState('');
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchHistory = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+
+        setMerchantName(user.email?.split('@')[0].toUpperCase() || 'KANTIN');
 
         const { data } = await supabase
             .from('transactions')
@@ -41,6 +51,56 @@ export default function CantineHistoryPage() {
     fetchHistory();
   }, [supabase]);
 
+  const handlePrintReport = () => {
+    if (transactions.length === 0) return;
+    setPrinting(true);
+    
+    try {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // Header
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('LAPORAN PENJUALAN MERCHANT', pageWidth / 2, 20, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Outlet: ${merchantName}`, 14, 30);
+        doc.text(`Dicetak: ${format(new Date(), 'dd MMMM yyyy HH:mm', { locale: id })}`, 14, 35);
+
+        const totalOmzet = transactions.reduce((acc, curr) => acc + curr.amount, 0);
+        const totalUnsettled = transactions.filter(tx => !tx.is_settled).reduce((acc, curr) => acc + curr.amount, 0);
+
+        autoTable(doc, {
+            startY: 45,
+            head: [['TANGGAL', 'NAMA SISWA', 'KELAS', 'STATUS', 'NOMINAL (RP)']],
+            body: transactions.map(tx => [
+                format(new Date(tx.created_at), 'dd/MM/yy HH:mm'),
+                tx.students?.name,
+                tx.students?.class,
+                tx.is_settled ? 'LUNAS' : 'BELUM CAIR',
+                { content: tx.amount.toLocaleString('id-ID'), styles: { halign: 'right' } }
+            ]),
+            foot: [
+                [{ content: 'RINGKASAN TOTAL', colSpan: 4, styles: { fontStyle: 'bold', halign: 'right' } }, 
+                 { content: totalOmzet.toLocaleString('id-ID'), styles: { fontStyle: 'bold', halign: 'right' } }],
+                [{ content: 'TOTAL BELUM CAIR (PIUTANG)', colSpan: 4, styles: { fontStyle: 'bold', halign: 'right', textColor: [180, 0, 0] } }, 
+                 { content: totalUnsettled.toLocaleString('id-ID'), styles: { fontStyle: 'bold', halign: 'right', textColor: [180, 0, 0] } }]
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: [249, 115, 22] }
+        });
+
+        doc.save(`laporan-penjualan-${merchantName.toLowerCase()}.pdf`);
+        toast({ title: "Laporan PDF Berhasil Diunduh" });
+    } catch (error) {
+        toast({ title: "Gagal membuat laporan", variant: "destructive" });
+    } finally {
+        setPrinting(false);
+    }
+  };
+
   const filteredTransactions = transactions.filter(tx => 
     tx.students?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     tx.students?.nis.includes(searchTerm)
@@ -48,11 +108,22 @@ export default function CantineHistoryPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="rounded-full bg-gray-50" asChild>
-            <Link href="/cantine/outlet"><ArrowLeft className="h-5 w-5" /></Link>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" className="rounded-full bg-gray-50" asChild>
+                <Link href="/cantine/outlet"><ArrowLeft className="h-5 w-5" /></Link>
+            </Button>
+            <h2 className="text-xl font-black tracking-tight">Riwayat Penjualan</h2>
+        </div>
+        <Button 
+            variant="outline" 
+            size="sm" 
+            className="rounded-full border-orange-200 text-orange-600 font-bold text-xs h-9"
+            onClick={handlePrintReport}
+            disabled={loading || transactions.length === 0 || printing}
+        >
+            {printing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />} CETAK PDF
         </Button>
-        <h2 className="text-xl font-black tracking-tight">Riwayat Penjualan</h2>
       </div>
 
       <div className="relative group">
@@ -92,7 +163,12 @@ export default function CantineHistoryPage() {
                             <p className="font-black text-emerald-600 text-lg">
                                 +{tx.amount.toLocaleString('id-ID')}
                             </p>
-                            <p className="text-[8px] font-black text-emerald-500/50 uppercase tracking-[0.2em]">Berhasil</p>
+                            <p className={cn(
+                                "text-[8px] font-black uppercase tracking-[0.2em]",
+                                tx.is_settled ? "text-blue-500" : "text-amber-500"
+                            )}>
+                                {tx.is_settled ? 'Lunas' : 'Belum Cair'}
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
