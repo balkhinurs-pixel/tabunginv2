@@ -17,7 +17,7 @@ import { SubmitButton } from '@/components/SubmitButton';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, User, MonitorSmartphone } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, User, MonitorSmartphone, UtensilsCrossed } from 'lucide-react';
 import { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { MorphingSpinner } from '@/components/ui/morphing-spinner';
@@ -151,13 +151,18 @@ function LoginContent() {
       <Separator className="my-8" />
       
       <div className="space-y-4 text-center">
-         <div className="grid grid-cols-2 gap-3">
-            <Button variant="secondary" className="h-12" asChild>
+         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Button variant="secondary" className="h-12 w-full" asChild>
                 <Link href="/student-login">
                     <User className="mr-2 h-4 w-4" /> Login Siswa
                 </Link>
             </Button>
-            <Button variant="outline" className="h-12 border-primary/20 hover:bg-primary/5" asChild>
+            <Button variant="secondary" className="h-12 w-full bg-orange-50 text-orange-700 hover:bg-orange-100 border-none" asChild>
+                <Link href="/cantine-login">
+                    <UtensilsCrossed className="mr-2 h-4 w-4" /> Login Kantin
+                </Link>
+            </Button>
+            <Button variant="outline" className="h-12 w-full border-primary/20 hover:bg-primary/5" asChild>
                 <Link href="/kiosk">
                     <MonitorSmartphone className="mr-2 h-4 w-4 text-primary" /> Mode Kios
                 </Link>
@@ -198,7 +203,7 @@ export default function LoginPage() {
               Selamat Datang
             </CardTitle>
             <CardDescription className="text-gray-600 dark:text-gray-400 mt-2">
-              Masuk ke akun guru/admin Anda untuk melanjutkan.
+              Masuk ke akun Anda untuk melanjutkan.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-0">

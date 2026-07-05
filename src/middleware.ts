@@ -1,4 +1,3 @@
-
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
@@ -62,7 +61,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Rute Publik
-  const isAuthRoute = ['/login', '/signup', '/student-login', '/scan-login', '/kiosk'].includes(pathname);
+  const isAuthRoute = ['/login', '/signup', '/student-login', '/cantine-login', '/scan-login', '/kiosk'].includes(pathname);
   const isPublicRoute = isAuthRoute || pathname === '/auth/callback' || pathname === '/';
 
   // 1. Jika TIDAK login dan mencoba akses rute terproteksi
@@ -72,39 +71,45 @@ export async function middleware(request: NextRequest) {
 
   // 2. Jika LOGIN
   if (session) {
-    // Ambil data profil dari database untuk mengecek role asli
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, school_code')
       .eq('id', session.user.id)
       .single();
 
-    const isStudent = profile?.role === 'STUDENT' || session.user.email?.endsWith('.supabase.user');
+    // A. Akun Siswa (Email bayangan)
+    const isStudentEmail = session.user.email?.endsWith('.supabase.user');
+    const isCantineEmail = session.user.email?.endsWith('.kantin.user');
 
-    if (isStudent) {
-      // Alur Siswa: Hanya boleh di /home
-      if (pathname === '/login' || pathname === '/student-login' || pathname === '/' || pathname === '/welcome') {
-        return NextResponse.redirect(new URL('/home', request.url));
-      }
+    if (isStudentEmail) {
       if (!pathname.startsWith('/home') && !pathname.startsWith('/_next') && pathname !== '/auth/callback') {
         return NextResponse.redirect(new URL('/home', request.url));
       }
-    } else { 
-      // Alur Guru / Kantin / User Baru
-      if (!pathname.startsWith('/_next') && !pathname.includes('.')) {
+      return response;
+    }
+
+    if (isCantineEmail) {
+      if (!pathname.startsWith('/cantine') && pathname !== '/settings' && !pathname.startsWith('/_next')) {
+        return NextResponse.redirect(new URL('/cantine/outlet', request.url));
+      }
+      return response;
+    }
+
+    // B. Alur Guru / Admin / Akun Google Baru
+    if (!pathname.startsWith('/_next') && !pathname.includes('.')) {
         if (profile) {
-          // A. Jika role masih 'USER', wajib ke /welcome
+          // Jika role masih 'USER', wajib ke /welcome
           if (profile.role === 'USER' && pathname !== '/welcome') {
             return NextResponse.redirect(new URL('/welcome', request.url));
           }
 
-          // B. Jika sudah punya peran, cegah masuk ke /welcome lagi
+          // Jika sudah punya peran, cegah masuk ke /welcome lagi
           if (profile.role !== 'USER' && pathname === '/welcome') {
             const destination = profile.role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
             return NextResponse.redirect(new URL(destination, request.url));
           }
 
-          // C. Filter Akses berdasarkan Role
+          // Filter Akses Role
           if (profile.role === 'CANTINE') {
               if (!pathname.startsWith('/cantine') && pathname !== '/settings' && !isPublicRoute) {
                   return NextResponse.redirect(new URL('/cantine/outlet', request.url));
@@ -117,18 +122,16 @@ export async function middleware(request: NextRequest) {
               }
           }
 
-          // D. Jika sudah login dan mencoba ke halaman auth
+          // Redirect rute login jika sudah ada sesi
           if (isAuthRoute) {
             const destination = profile.role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
             return NextResponse.redirect(new URL(destination, request.url));
           }
         } else {
-            // Jika profil belum ada, arahkan ke welcome
-            if (pathname !== '/welcome' && !pathname.startsWith('/_next') && pathname !== '/auth/callback') {
+            if (pathname !== '/welcome' && pathname !== '/auth/callback') {
                 return NextResponse.redirect(new URL('/welcome', request.url));
             }
         }
-      }
     }
   }
 

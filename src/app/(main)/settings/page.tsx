@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,13 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, DatabaseZap, Loader2 } from 'lucide-react';
+import { Save, DatabaseZap, Loader2, UtensilsCrossed } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import type { Profile } from '@/types';
 import type { AuthUser } from '@supabase/supabase-js';
 import { cn } from "@/lib/utils";
 import BackupRestore from './_components/BackupRestore';
+import CantineManagement from './_components/CantineManagement';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function SettingsPage() {
   const supabase = createClient();
@@ -63,7 +64,7 @@ export default function SettingsPage() {
         .from('profiles')
         .update({
             school_name: schoolName,
-            school_code: schoolCode.toLowerCase().replace(/\s+/g, '-'), // Sanitize code
+            school_code: schoolCode.toLowerCase().replace(/[^a-z0-9-]/g, ''), 
         })
         .eq('id', user.id);
     
@@ -77,53 +78,79 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold tracking-tight">Pengaturan Aplikasi & Akun</h2>
+      <h2 className="text-2xl font-bold tracking-tight">Pengaturan Aplikasi</h2>
 
-      <Card className="shadow-sm border-primary/10">
-        <CardHeader>
-          <CardTitle>Informasi Sekolah</CardTitle>
-          <CardDescription>Atur nama dan kode unik sekolah Anda. Kode ini akan digunakan oleh siswa saat mereka login.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-        {loading ? (
-            <div className="space-y-4">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-        ) : (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor="schoolName">Nama Sekolah/Instansi Anda</Label>
-              <Input id="schoolName" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} placeholder="Contoh: SDIT Al-Ikhlas" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="schoolCode">Kode Unik Sekolah (untuk Login Siswa)</Label>
-              <Input id="schoolCode" value={schoolCode} onChange={(e) => setSchoolCode(e.target.value)} placeholder="Contoh: al-ikhlas (tanpa spasi)" />
-              <p className="text-xs text-muted-foreground">Gunakan huruf kecil, angka, dan tanda hubung (-). Kode ini harus unik.</p>
-            </div>
-            <Button onClick={handleSaveSettings} disabled={saving} className="w-full">
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Simpan Pengaturan Sekolah
-            </Button>
-          </>
-        )}
-        </CardContent>
-      </Card>
-      
-      <Card className="shadow-sm border-primary/10 overflow-hidden">
-        <CardHeader className="bg-muted/30 border-b">
-          <div className="flex items-center gap-2">
-            <DatabaseZap className="h-5 w-5 text-primary" />
-            <CardTitle>Manajemen Data (Backup & Restore)</CardTitle>
-          </div>
-          <CardDescription>Amankan data Anda secara mandiri untuk menghindari kehilangan data yang tidak disengaja.</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <BackupRestore />
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="school" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-4 rounded-xl bg-muted/50 p-1">
+          <TabsTrigger value="school" className="rounded-lg">Umum</TabsTrigger>
+          <TabsTrigger value="cantine" className="rounded-lg">Kantin</TabsTrigger>
+          <TabsTrigger value="data" className="rounded-lg">Backup</TabsTrigger>
+        </TabsList>
 
+        <TabsContent value="school" className="space-y-4">
+            <Card className="shadow-sm border-primary/10">
+                <CardHeader>
+                <CardTitle>Informasi Sekolah</CardTitle>
+                <CardDescription>Atur nama dan kode unik sekolah Anda. Kode ini akan digunakan oleh siswa & kantin saat mereka login.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                {loading ? (
+                    <div className="space-y-4">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                ) : (
+                <>
+                    <div className="space-y-2">
+                    <Label htmlFor="schoolName">Nama Sekolah/Instansi Anda</Label>
+                    <Input id="schoolName" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} placeholder="Contoh: SDIT Al-Ikhlas" />
+                    </div>
+                    <div className="space-y-2">
+                    <Label htmlFor="schoolCode">Kode Unik Sekolah (untuk Login)</Label>
+                    <Input id="schoolCode" value={schoolCode} onChange={(e) => setSchoolCode(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} placeholder="Contoh: alikhlas" />
+                    <p className="text-[10px] text-muted-foreground italic">Gunakan huruf kecil dan angka saja. Tanpa spasi.</p>
+                    </div>
+                    <Button onClick={handleSaveSettings} disabled={saving} className="w-full">
+                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Simpan Pengaturan
+                    </Button>
+                </>
+                )}
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent value="cantine" className="space-y-4">
+            <Card className="shadow-sm border-orange-100">
+                <CardHeader className="bg-orange-50/50 border-b border-orange-100">
+                    <div className="flex items-center gap-2">
+                        <UtensilsCrossed className="h-5 w-5 text-orange-600" />
+                        <CardTitle>Sistem Kantin Digital</CardTitle>
+                    </div>
+                    <CardDescription>Buat dan kelola akses untuk petugas kantin sekolah Anda.</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                    <CantineManagement />
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent value="data" className="space-y-4">
+            <Card className="shadow-sm border-primary/10 overflow-hidden">
+                <CardHeader className="bg-muted/30 border-b">
+                <div className="flex items-center gap-2">
+                    <DatabaseZap className="h-5 w-5 text-primary" />
+                    <CardTitle>Backup & Restore</CardTitle>
+                </div>
+                <CardDescription>Amankan data Anda secara mandiri untuk menghindari kehilangan data yang tidak disengaja.</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                <BackupRestore />
+                </CardContent>
+            </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

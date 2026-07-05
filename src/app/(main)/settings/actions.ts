@@ -1,17 +1,85 @@
-
 'use server';
 
 import { createClient } from '@/lib/utils/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { revalidatePath } from 'next/cache';
-import type { Student, Transaction } from '@/types';
 
-interface BackupData {
-  version: string;
-  exportDate: string;
-  school_code: string;
-  students: any[];
-  transactions: any[];
+interface ActionResult {
+  success: boolean;
+  message: string;
+}
+
+export async function addCantineAction(params: {
+  cantineId: string;
+  pin: string;
+}): Promise<ActionResult> {
+  const supabase = createClient();
+  const supabaseAdmin = getSupabaseAdmin();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, message: 'Unauthorized' };
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('school_code')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile?.school_code) {
+    return { success: false, message: 'Atur kode sekolah Anda terlebih dahulu.' };
+  }
+
+  const sanitizedId = params.cantineId.toLowerCase().trim().replace(/[^a-z0-9-]/g, '');
+  const shadowEmail = `${sanitizedId}@${profile.school_code.toLowerCase()}.kantin.user`;
+
+  try {
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: shadowEmail,
+      password: params.pin,
+      email_confirm: true,
+    });
+
+    if (authError) {
+      if (authError.message.includes('unique')) {
+        return { success: false, message: 'ID Kantin ini sudah digunakan.' };
+      }
+      throw authError;
+    }
+
+    if (authData.user) {
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          email: shadowEmail,
+          school_name: 'Outlet Kantin',
+          school_code: profile.school_code.toLowerCase(),
+          role: 'CANTINE',
+          plan: 'TRIAL'
+        });
+
+      if (profileError) {
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+        throw profileError;
+      }
+    }
+
+    revalidatePath('/settings');
+    return { success: true, message: `Akun outlet ${sanitizedId} berhasil dibuat.` };
+  } catch (error: any) {
+    console.error('Error creating cantine account:', error);
+    return { success: false, message: error.message || 'Terjadi kesalahan sistem.' };
+  }
+}
+
+export async function deleteCantineAction(cantineUserId: string): Promise<ActionResult> {
+  const supabaseAdmin = getSupabaseAdmin();
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(cantineUserId);
+  
+  if (error) return { success: false, message: error.message };
+  
+  revalidatePath('/settings');
+  return { success: true, message: 'Akun outlet berhasil dihapus.' };
 }
 
 export async function exportUserData() {
@@ -34,54 +102,39 @@ export async function exportUserData() {
     supabase.from('transactions').select('*').eq('user_id', user.id)
   ]);
 
-  const backup: BackupData = {
+  return {
     version: '1.0',
     exportDate: new Date().toISOString(),
     school_code: profile?.school_code || 'unknown',
     students: students || [],
     transactions: transactions || []
   };
-
-  return backup;
 }
 
-export async function importUserData(backup: BackupData) {
+export async function importUserData(backup: any) {
   const supabase = createClient();
   const supabaseAdmin = getSupabaseAdmin();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) return { success: false, message: 'Sesi berakhir, silakan login kembali.' };
+  if (!user) return { success: false, message: 'Sesi berakhir.' };
+  if (!backup.students || !backup.transactions) return { success: false, message: 'Format tidak valid.' };
 
-  // Basic Validation
-  if (!backup.students || !backup.transactions || backup.version !== '1.0') {
-    return { success: false, message: 'Format file cadangan tidak valid atau versi tidak didukung.' };
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('school_code')
-    .eq('id', user.id)
-    .single();
+  const { data: profile } = await supabase.from('profiles').select('school_code').eq('id', user.id).single();
 
   try {
-    // 1. Restore Students & their Auth accounts if missing
     for (const student of backup.students) {
       const shadowEmail = `${student.nis}@${profile?.school_code}.supabase.user`;
-      
-      // Check if auth user exists
       const { data: existingUser } = await supabaseAdmin.auth.admin.getUserById(student.id);
       
       if (!existingUser.user) {
-        // Recreate auth user if it was deleted
         await supabaseAdmin.auth.admin.createUser({
           id: student.id,
           email: shadowEmail,
-          password: '123456', // Default PIN for restored accounts
+          password: '123456',
           email_confirm: true,
         });
       }
 
-      // Upsert student profile
       await supabase.from('students').upsert({
         id: student.id,
         nis: student.nis,
@@ -93,9 +146,7 @@ export async function importUserData(backup: BackupData) {
       });
     }
 
-    // 2. Restore Transactions
-    // We do this in chunks to avoid payload limits
-    const transactionsToInsert = backup.transactions.map(tx => ({
+    const transactionsToInsert = backup.transactions.map((tx: any) => ({
       id: tx.id,
       student_id: tx.student_id,
       user_id: user.id,
@@ -106,21 +157,12 @@ export async function importUserData(backup: BackupData) {
     }));
 
     if (transactionsToInsert.length > 0) {
-      const { error: txError } = await supabase.from('transactions').upsert(transactionsToInsert);
-      if (txError) throw txError;
+      await supabase.from('transactions').upsert(transactionsToInsert);
     }
 
     revalidatePath('/dashboard');
-    revalidatePath('/profiles');
-    revalidatePath('/reports');
-
-    return { 
-      success: true, 
-      message: `Berhasil memulihkan ${backup.students.length} siswa dan ${backup.transactions.length} transaksi.` 
-    };
-
+    return { success: true, message: 'Data berhasil dipulihkan.' };
   } catch (error: any) {
-    console.error('Restore Error:', error);
-    return { success: false, message: `Gagal memulihkan data: ${error.message}` };
+    return { success: false, message: error.message };
   }
 }
