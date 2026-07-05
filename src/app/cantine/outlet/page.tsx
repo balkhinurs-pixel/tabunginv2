@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -57,7 +56,7 @@ export default function CantineOutletPage() {
                 todaySales: totalToday,
                 unsettledBalance: unsettled,
                 customerCount: customers,
-                recentTransactions: transactions.slice(0, 5)
+                recentTransactions: transactions.slice(0, 10)
             });
         }
         setLoading(false);
@@ -138,9 +137,11 @@ export default function CantineOutletPage() {
                                   <TrendingUp className="h-6 w-6 text-emerald-500" />
                               </div>
                               <div className="flex flex-col">
-                                  <p className="font-black text-sm text-gray-900 leading-tight">{tx.students?.name}</p>
+                                  <p className="font-black text-sm text-gray-900 leading-tight">
+                                      {tx.students?.name || 'Siswa'}
+                                  </p>
                                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                                      {format(new Date(tx.created_at), 'HH:mm', { locale: id })} • Kelas {tx.students?.class}
+                                      {format(new Date(tx.created_at), 'HH:mm', { locale: id })} • Kelas {tx.students?.class || '-'}
                                   </p>
                               </div>
                           </div>

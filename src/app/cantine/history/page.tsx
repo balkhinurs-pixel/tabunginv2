@@ -21,6 +21,7 @@ import Link from 'next/link';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 export default function CantineHistoryPage() {
   const supabase = createClient();
@@ -77,8 +78,8 @@ export default function CantineHistoryPage() {
             head: [['TANGGAL', 'NAMA SISWA', 'KELAS', 'STATUS', 'NOMINAL (RP)']],
             body: transactions.map(tx => [
                 format(new Date(tx.created_at), 'dd/MM/yy HH:mm'),
-                tx.students?.name,
-                tx.students?.class,
+                tx.students?.name || 'Siswa',
+                tx.students?.class || '-',
                 tx.is_settled ? 'LUNAS' : 'BELUM CAIR',
                 { content: tx.amount.toLocaleString('id-ID'), styles: { halign: 'right' } }
             ]),
@@ -102,8 +103,8 @@ export default function CantineHistoryPage() {
   };
 
   const filteredTransactions = transactions.filter(tx => 
-    tx.students?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tx.students?.nis.includes(searchTerm)
+    tx.students?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    tx.students?.nis?.includes(searchTerm)
   );
 
   return (
@@ -152,7 +153,9 @@ export default function CantineHistoryPage() {
                                 <TrendingUp className="h-6 w-6 text-emerald-500" />
                             </div>
                             <div className="flex flex-col">
-                                <p className="font-black text-gray-900 leading-tight">{tx.students?.name}</p>
+                                <p className="font-black text-gray-900 leading-tight">
+                                    {tx.students?.name || 'Siswa'}
+                                </p>
                                 <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
                                     <Calendar className="h-3 w-3" />
                                     <span>{format(new Date(tx.created_at), 'dd MMM yyyy • HH:mm', { locale: id })}</span>
