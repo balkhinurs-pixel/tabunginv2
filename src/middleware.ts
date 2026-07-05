@@ -92,13 +92,13 @@ export async function middleware(request: NextRequest) {
           .single();
         
         if (profile) {
-          // A. Jika belum atur profil (school_code kosong)
-          if (!profile.school_code && pathname !== '/welcome') {
+          // A. Jika role masih 'USER' atau belum punya school_code
+          if ((profile.role === 'USER' || !profile.school_code) && pathname !== '/welcome') {
             return NextResponse.redirect(new URL('/welcome', request.url));
           }
 
-          // B. Jika sudah atur profil, cegah masuk ke /welcome lagi
-          if (profile.school_code && pathname === '/welcome') {
+          // B. Jika sudah beres di /welcome, cegah masuk ke sana lagi
+          if (profile.role !== 'USER' && profile.school_code && pathname === '/welcome') {
             const destination = profile.role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
             return NextResponse.redirect(new URL(destination, request.url));
           }

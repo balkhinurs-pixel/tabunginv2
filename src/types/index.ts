@@ -1,3 +1,4 @@
+
 export interface Transaction {
   id: string;
   created_at?: string;
@@ -31,7 +32,7 @@ export interface Profile {
   id: string;
   email?: string;
   plan: 'TRIAL' | 'PRO';
-  role: 'ADMIN' | 'CANTINE';
+  role: 'ADMIN' | 'CANTINE' | 'USER';
   school_name?: string | null;
   school_code?: string | null;
   custom_quota?: number | null;
