@@ -72,54 +72,60 @@ export async function middleware(request: NextRequest) {
 
   // 2. Jika LOGIN
   if (session) {
-    const isStudent = session.user.email?.endsWith('.supabase.user');
+    // Ambil data profil dari database untuk mengecek role asli
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, school_code')
+      .eq('id', session.user.id)
+      .single();
+
+    const isStudent = profile?.role === 'STUDENT' || session.user.email?.endsWith('.supabase.user');
 
     if (isStudent) {
-      // Alur Siswa
-      if (pathname === '/login' || pathname === '/student-login' || pathname === '/') {
+      // Alur Siswa: Hanya boleh di /home
+      if (pathname === '/login' || pathname === '/student-login' || pathname === '/' || pathname === '/welcome') {
         return NextResponse.redirect(new URL('/home', request.url));
       }
       if (!pathname.startsWith('/home') && !pathname.startsWith('/_next') && pathname !== '/auth/callback') {
         return NextResponse.redirect(new URL('/home', request.url));
       }
     } else { 
-      // Alur Guru / Kantin
+      // Alur Guru / Kantin / User Baru
       if (!pathname.startsWith('/_next') && !pathname.includes('.')) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, school_code')
-          .eq('id', session.user.id)
-          .single();
-        
         if (profile) {
-          // A. Jika role masih 'USER' atau belum punya school_code
-          if ((profile.role === 'USER' || !profile.school_code) && pathname !== '/welcome') {
+          // A. Jika role masih 'USER' (atau belum pilih peran), wajib ke /welcome
+          if (profile.role === 'USER' && pathname !== '/welcome') {
             return NextResponse.redirect(new URL('/welcome', request.url));
           }
 
-          // B. Jika sudah beres di /welcome, cegah masuk ke sana lagi
-          if (profile.role !== 'USER' && profile.school_code && pathname === '/welcome') {
+          // B. Jika sudah punya peran, cegah masuk ke /welcome lagi
+          if (profile.role !== 'USER' && pathname === '/welcome') {
             const destination = profile.role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
             return NextResponse.redirect(new URL(destination, request.url));
           }
 
-          // C. Arahkan Kantin ke area kantin saja
-          if (profile.role === 'CANTINE' && !pathname.startsWith('/cantine') && !pathname.startsWith('/_next') && pathname !== '/auth/callback' && pathname !== '/settings') {
-              return NextResponse.redirect(new URL('/cantine/outlet', request.url));
+          // C. Filter Akses berdasarkan Role
+          if (profile.role === 'CANTINE') {
+              // Kantin hanya boleh di area /cantine dan /settings
+              if (!pathname.startsWith('/cantine') && pathname !== '/settings' && !isPublicRoute) {
+                  return NextResponse.redirect(new URL('/cantine/outlet', request.url));
+              }
           }
           
-          // D. Arahkan Admin ke area dashboard (cegah masuk area kantin)
-          if (profile.role === 'ADMIN' && pathname.startsWith('/cantine')) {
-              return NextResponse.redirect(new URL('/dashboard', request.url));
+          if (profile.role === 'ADMIN') {
+              // Admin dilarang masuk area kantin
+              if (pathname.startsWith('/cantine')) {
+                  return NextResponse.redirect(new URL('/dashboard', request.url));
+              }
           }
 
-          // E. Jika di halaman login tapi sudah beres profil
+          // D. Jika sudah login dan mencoba ke halaman auth
           if (isAuthRoute) {
             const destination = profile.role === 'CANTINE' ? '/cantine/outlet' : '/dashboard';
             return NextResponse.redirect(new URL(destination, request.url));
           }
         } else {
-            // F. Jika session ada tapi profil belum terbuat (jarang terjadi karena trigger)
+            // Jika profil belum ada di database, arahkan ke welcome untuk inisialisasi
             if (pathname !== '/welcome' && !pathname.startsWith('/_next') && pathname !== '/auth/callback') {
                 return NextResponse.redirect(new URL('/welcome', request.url));
             }
