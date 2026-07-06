@@ -12,65 +12,75 @@ import {
   Wallet,
   UtensilsCrossed,
   MonitorSmartphone,
-  Info
+  Info,
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { createClient } from '@/lib/supabase';
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfDay, endOfDay, addDays, subDays } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import type { Transaction } from '@/types';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 export default function TodayTransactionsPage() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totals, setTotals] = useState({ income: 0, expense: 0 });
 
+  const fetchTransactions = async (date: Date) => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const dayStart = startOfDay(date).toISOString();
+    const dayEnd = endOfDay(date).toISOString();
+
+    // Ambil transaksi milik siswa yang dikelola guru ini pada tanggal terpilih
+    const { data, error } = await supabase
+        .from('transactions')
+        .select(`
+            *,
+            students!inner (
+                id, name, class, nis, user_id
+            )
+        `)
+        .eq('students.user_id', user.id)
+        .gte('created_at', dayStart)
+        .lte('created_at', dayEnd)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching transactions:', error);
+    } else {
+        const txs = data as Transaction[];
+        setTransactions(txs);
+        
+        const stats = txs.reduce((acc, curr) => {
+            if (curr.type === 'Pemasukan') acc.income += curr.amount;
+            else acc.expense += curr.amount;
+            return acc;
+        }, { income: 0, expense: 0 });
+        
+        setTotals(stats);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchTodayTransactions = async () => {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+    fetchTransactions(selectedDate);
+  }, [selectedDate]);
 
-        const todayStart = startOfDay(new Date()).toISOString();
-        const todayEnd = endOfDay(new Date()).toISOString();
-
-        // Ambil transaksi milik siswa yang dikelola guru ini
-        const { data, error } = await supabase
-            .from('transactions')
-            .select(`
-                *,
-                students!inner (
-                    id, name, class, nis, user_id
-                )
-            `)
-            .eq('students.user_id', user.id)
-            .gte('created_at', todayStart)
-            .lte('created_at', todayEnd)
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('Error fetching today transactions:', error);
-        } else {
-            const txs = data as Transaction[];
-            setTransactions(txs);
-            
-            const stats = txs.reduce((acc, curr) => {
-                if (curr.type === 'Pemasukan') acc.income += curr.amount;
-                else acc.expense += curr.amount;
-                return acc;
-            }, { income: 0, expense: 0 });
-            
-            setTotals(stats);
-        }
-        setLoading(false);
-    };
-
-    fetchTodayTransactions();
-  }, [supabase]);
+  const handlePrevDay = () => setSelectedDate(prev => subDays(prev, 1));
+  const handleNextDay = () => setSelectedDate(prev => addDays(prev, 1));
+  const handleGoToToday = () => setSelectedDate(new Date());
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -90,22 +100,62 @@ export default function TodayTransactionsPage() {
 
   return (
     <div className="space-y-6 pb-24">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
-          <Link href="/dashboard">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <div>
-            <h2 className="text-xl font-bold tracking-tight">Transaksi Hari Ini</h2>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
-                {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: id })}
-            </p>
+      {/* Header & Date Picker */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-4">
+            <Button variant="outline" size="icon" asChild className="rounded-full">
+                <Link href="/dashboard">
+                    <ArrowLeft className="h-4 w-4" />
+                </Link>
+            </Button>
+            <div>
+                <h2 className="text-xl font-bold tracking-tight">Jurnal Transaksi</h2>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Riwayat Harian Siswa</p>
+            </div>
+        </div>
+
+        <div className="flex items-center justify-between bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+            <Button variant="ghost" size="icon" onClick={handlePrevDay} className="rounded-xl h-10 w-10">
+                <ChevronLeft className="h-5 w-5" />
+            </Button>
+            
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="ghost" className="flex-1 h-10 gap-2 font-bold text-sm">
+                        <CalendarIcon className="h-4 w-4 text-primary" />
+                        {format(selectedDate, 'EEEE, dd MMMM yyyy', { locale: id })}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center">
+                    <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => date && setSelectedDate(date)}
+                        initialFocus
+                        locale={id}
+                    />
+                    <div className="p-3 border-t bg-gray-50">
+                        <Button variant="outline" size="sm" className="w-full font-bold text-xs h-8" onClick={handleGoToToday}>
+                            Kembali ke Hari Ini
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleNextDay} 
+                className="rounded-xl h-10 w-10"
+                disabled={format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')}
+            >
+                <ChevronRight className="h-5 w-5" />
+            </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-emerald-50 border-emerald-100 shadow-none">
+          <Card className="bg-emerald-50 border-emerald-100 shadow-none rounded-2xl">
               <CardContent className="p-4">
                   <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest mb-1">Total Setoran</p>
                   <p className="text-xl font-black text-emerald-600">
@@ -113,7 +163,7 @@ export default function TodayTransactionsPage() {
                   </p>
               </CardContent>
           </Card>
-          <Card className="bg-rose-50 border-rose-100 shadow-none">
+          <Card className="bg-rose-50 border-rose-100 shadow-none rounded-2xl">
               <CardContent className="p-4">
                   <p className="text-[9px] font-black text-rose-700 uppercase tracking-widest mb-1">Total Penarikan</p>
                   <p className="text-xl font-black text-rose-600">
@@ -123,12 +173,12 @@ export default function TodayTransactionsPage() {
           </Card>
       </div>
 
-      <Card className="border-none shadow-sm rounded-2xl overflow-hidden">
+      <Card className="border-none shadow-sm rounded-[2rem] overflow-hidden">
           <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <History className="h-4 w-4 text-primary" /> Aliran Dana Real-time
+                  <History className="h-4 w-4 text-primary" /> Rincian Aktivitas
               </CardTitle>
-              <CardDescription className="text-[10px]">Menampilkan semua aktivitas siswa di sekolah hari ini.</CardDescription>
+              <CardDescription className="text-[10px]">Menampilkan data pada tanggal yang dipilih.</CardDescription>
           </CardHeader>
           <CardContent className="px-2">
               {loading ? (
@@ -180,7 +230,7 @@ export default function TodayTransactionsPage() {
                       <div className="h-16 w-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto">
                           <History className="h-8 w-8 text-gray-200" />
                       </div>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Belum ada transaksi hari ini</p>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tidak ada transaksi pada tanggal ini</p>
                   </div>
               )}
           </CardContent>
@@ -189,7 +239,7 @@ export default function TodayTransactionsPage() {
       <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex gap-3">
           <Info className="h-5 w-5 text-blue-500 shrink-0" />
           <p className="text-[10px] text-blue-700 leading-relaxed font-medium">
-              Data ini disinkronkan secara otomatis. Transaksi dari <strong>Kantin</strong> dan <strong>ATM Kios</strong> akan langsung muncul di sini segera setelah siswa menempelkan kartu dan memasukkan PIN.
+              Data ini mencakup semua aktivitas dari <strong>Kantin</strong>, <strong>ATM Kios</strong>, dan setoran langsung. Gunakan pemilih tanggal di atas untuk memeriksa laporan hari sebelumnya.
           </p>
       </div>
     </div>
