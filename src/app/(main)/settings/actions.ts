@@ -86,6 +86,47 @@ export async function getMerchantSettlementStatsAction() {
 }
 
 /**
+ * Mengambil Riwayat Pencairan yang sudah LUNAS untuk Guru
+ */
+export async function getSettledHistoryAction() {
+    const supabase = createClient();
+    const supabaseAdmin = getSupabaseAdmin();
+    
+    const { data: { user: teacher } } = await supabase.auth.getUser();
+    if (!teacher) return [];
+
+    const { data: teacherProfile } = await supabase.from('profiles').select('school_code').eq('id', teacher.id).single();
+    if (!teacherProfile) return [];
+
+    const { data, error } = await supabaseAdmin
+        .from('transactions')
+        .select(`
+            id, created_at, amount, description,
+            profiles!inner (school_name, school_code),
+            students (name, class)
+        `)
+        .eq('category', 'BELANJA_KANTIN')
+        .eq('is_settled', true)
+        .eq('profiles.school_code', teacherProfile.school_code)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    if (error) {
+        console.error('[GET_SETTLED_HISTORY_ERROR]', error);
+        return [];
+    }
+
+    return data.map(tx => ({
+        id: tx.id,
+        date: tx.created_at,
+        amount: tx.amount,
+        merchantName: tx.profiles?.school_name || 'OUTLET',
+        studentName: tx.students?.name || 'Siswa',
+        studentClass: tx.students?.class || '-'
+    }));
+}
+
+/**
  * Mengambil rincian transaksi belum cair untuk PDF
  */
 export async function getUnsettledTransactionDetailsAction(merchantId: string) {
