@@ -11,23 +11,7 @@ import { parseISO, format } from 'date-fns';
 import type { Student, Transaction, Profile } from '@/types';
 import { createClient } from '@/lib/utils/supabase/server';
 import SearchStudent from './_components/SearchStudent';
-
-const ActionButton = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href?: string }) => {
-  const content = (
-    <div className="flex flex-col items-center gap-2">
-      <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-secondary hover:bg-primary/10 border-0">
-        <Icon className="h-6 w-6 text-primary" />
-      </Button>
-      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter text-center leading-tight">{label}</span>
-    </div>
-  );
-
-  if (href) {
-    return <Link href={href}>{content}</Link>;
-  }
-
-  return content;
-};
+import QuickMenu from './_components/QuickMenu';
 
 async function DashboardData() {
   const supabase = createClient();
@@ -131,21 +115,19 @@ async function DashboardData() {
 
       <SearchStudent />
       
-      <Card className="border-none shadow-sm">
-        <CardContent className="p-4 grid grid-cols-5 gap-2">
-            <ActionButton icon={Users} label="Siswa" href="/profiles" />
-            <ActionButton icon={History} label="Transaksi" href="/today-transactions" />
-            <ActionButton icon={Banknote} label="Keuangan" href="/settlement"/>
-            <ActionButton icon={QrCode} label="Kartu" href="/print-cards"/>
-            <ActionButton icon={ShieldCheck} label="Aktivasi" href="/activation" />
+      <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm rounded-[2rem] overflow-hidden">
+        <CardContent className="p-4">
+            <QuickMenu />
         </CardContent>
       </Card>
 
-      <Card className="border-none shadow-sm">
+      <Card className="border-none shadow-sm rounded-3xl overflow-hidden">
           <CardContent className="p-4">
-            <div className="flex justify-between items-center mb-2">
-                <h3 className="font-bold text-sm">Transaksi Terkini (Semua)</h3>
-                <Button variant="link" className="text-primary h-auto p-0 text-xs font-semibold" asChild>
+            <div className="flex justify-between items-center mb-4 px-2">
+                <h3 className="font-black text-sm uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                   <History className="h-4 w-4" /> Transaksi Terkini
+                </h3>
+                <Button variant="link" className="text-primary h-auto p-0 text-xs font-bold" asChild>
                     <Link href="/reports">
                       Laporan <ArrowRight className="ml-1 h-3 w-3" />
                     </Link>
@@ -155,27 +137,27 @@ async function DashboardData() {
                 <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow>
-                                <TableHead className="text-[10px] uppercase font-bold tracking-wider">SISWA</TableHead>
-                                <TableHead className="text-[10px] uppercase font-bold tracking-wider">JENIS</TableHead>
-                                <TableHead className="text-right text-[10px] uppercase font-bold tracking-wider">JUMLAH</TableHead>
+                            <TableRow className="hover:bg-transparent border-none">
+                                <TableHead className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">SISWA</TableHead>
+                                <TableHead className="text-[10px] uppercase font-black tracking-widest text-muted-foreground text-center">JENIS</TableHead>
+                                <TableHead className="text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground">JUMLAH</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {recentTransactions.map((tx) => (
-                                <TableRow key={tx.id}>
+                                <TableRow key={tx.id} className="group hover:bg-gray-50/50 border-gray-50">
                                     <TableCell>
-                                        <Link href={`/profiles/${tx.studentId}`} className="hover:underline">
-                                            <div className="font-semibold text-sm">{tx.studentName}</div>
-                                            <div className="text-[10px] text-muted-foreground">{tx.date}</div>
+                                        <Link href={`/profiles/${tx.studentId}`} className="hover:underline block">
+                                            <div className="font-bold text-sm text-gray-800">{tx.studentName}</div>
+                                            <div className="text-[10px] font-medium text-muted-foreground">{tx.date}</div>
                                         </Link>
                                     </TableCell>
-                                    <TableCell>
-                                        <Badge variant={tx.type === 'Pemasukan' ? 'default' : 'destructive'} className={cn("text-[10px] px-2 py-0 border-none font-bold", tx.type === 'Pemasukan' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700')}>
-                                            {tx.type}
+                                    <TableCell className="text-center">
+                                        <Badge variant={tx.type === 'Pemasukan' ? 'default' : 'destructive'} className={cn("text-[9px] px-2 py-0 border-none font-black", tx.type === 'Pemasukan' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700')}>
+                                            {tx.type.toUpperCase()}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className={cn("text-right font-bold text-sm", tx.type === 'Pemasukan' ? 'text-emerald-600' : 'text-rose-600')}>
+                                    <TableCell className={cn("text-right font-black text-sm", tx.type === 'Pemasukan' ? 'text-emerald-600' : 'text-rose-600')}>
                                         {tx.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
                                     </TableCell>
                                 </TableRow>
@@ -184,8 +166,9 @@ async function DashboardData() {
                     </Table>
                 </div>
             ) : (
-                <div className="text-center py-8">
-                    <p className="text-muted-foreground text-xs font-medium">Belum ada transaksi terbaru.</p>
+                <div className="text-center py-12">
+                    <History className="h-12 w-12 mx-auto text-gray-100 mb-2" />
+                    <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Belum ada transaksi.</p>
                 </div>
             )}
           </CardContent>
@@ -197,18 +180,19 @@ async function DashboardData() {
 function DashboardLoading() {
   return (
     <div className="space-y-6">
-      <Card className="bg-primary/10 border-none">
-        <CardContent className="p-6 h-[160px] animate-pulse" />
+      <Card className="bg-primary/10 border-none rounded-3xl">
+        <CardContent className="p-6 h-[240px] animate-pulse" />
       </Card>
-      <div className="h-20 bg-muted animate-pulse rounded-lg" />
-      <div className="h-40 bg-muted animate-pulse rounded-lg" />
+      <div className="h-14 bg-muted animate-pulse rounded-2xl" />
+      <div className="h-24 bg-muted animate-pulse rounded-3xl" />
+      <div className="h-64 bg-muted animate-pulse rounded-3xl" />
     </div>
   );
 }
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       <Suspense fallback={<DashboardLoading />}>
         <DashboardData />
       </Suspense>
