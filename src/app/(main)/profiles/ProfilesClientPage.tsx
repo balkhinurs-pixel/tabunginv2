@@ -23,7 +23,7 @@ import {
   } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2, Save, Loader2, Info, ArrowRight, RotateCcw } from 'lucide-react';
+import { PlusCircle, Download, Upload, Filter, Search, ShieldCheck, User, KeyRound, Pencil, Trash2, Save, Loader2, Info, ArrowRight, RotateCcw, SortAsc } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -247,6 +247,7 @@ export default function ProfilesClientPage({
   const [importing, setImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
+  const [sortBy, setSortBy] = useState<'name' | 'nis'>('name');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
@@ -298,7 +299,7 @@ export default function ProfilesClientPage({
             description: result.message,
         });
         if (result.student) {
-             setStudents(prev => [...prev, result.student!].sort((a,b) => a.name.localeCompare(b.name)));
+             setStudents(prev => [...prev, result.student!]);
         }
         formRef.current?.reset();
         setAddPin('123456');
@@ -313,7 +314,7 @@ export default function ProfilesClientPage({
   }
 
 
-  const uniqueClasses = useMemo(() => [...new Set(initialStudents.map(s => s.class))], [initialStudents]);
+  const uniqueClasses = useMemo(() => [...new Set(students.map(s => s.class))].sort(), [students]);
 
   const filteredStudents = useMemo(() => {
     return students
@@ -327,8 +328,16 @@ export default function ProfilesClientPage({
           student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           student.nis.includes(searchTerm)
         );
+      })
+      .sort((a, b) => {
+        if (sortBy === 'name') {
+            return a.name.localeCompare(b.name);
+        } else {
+            // NIS typically numeric comparison
+            return a.nis.localeCompare(b.nis, undefined, { numeric: true });
+        }
       });
-  }, [students, searchTerm, selectedClass]);
+  }, [students, searchTerm, selectedClass, sortBy]);
 
 
   const handleDownloadTemplate = () => {
@@ -366,7 +375,7 @@ export default function ProfilesClientPage({
                 description: result.message,
             });
             // Add new students to the local state to update UI
-            setStudents(prev => [...prev, ...result.newStudents].sort((a,b) => a.name.localeCompare(b.name)));
+            setStudents(prev => [...prev, ...result.newStudents]);
         } else {
             toast({
                 title: 'Impor Gagal',
@@ -386,7 +395,7 @@ export default function ProfilesClientPage({
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pb-20">
       <div className='flex items-center justify-between'>
         <h2 className="text-2xl font-bold tracking-tight">Data Siswa</h2>
       </div>
@@ -464,6 +473,57 @@ export default function ProfilesClientPage({
         onChange={handleFileImport}
       />
 
+      {/* Filter & Search Bar */}
+      <Card className="bg-white border-none shadow-sm overflow-hidden">
+        <CardContent className="p-4 space-y-4">
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Cari Nama atau NIS..." 
+                    className="pl-9 h-11"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Filter Kelas</Label>
+                    <Select value={selectedClass} onValueChange={setSelectedClass}>
+                        <SelectTrigger className="h-10 bg-muted/50 border-none">
+                            <div className="flex items-center gap-2">
+                                <Filter className="h-3 w-3 text-muted-foreground" />
+                                <SelectValue placeholder="Semua Kelas" />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua Kelas</SelectItem>
+                            {uniqueClasses.map(c => (
+                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                
+                <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Urutkan</Label>
+                    <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+                        <SelectTrigger className="h-10 bg-muted/50 border-none">
+                            <div className="flex items-center gap-2">
+                                <SortAsc className="h-3 w-3 text-muted-foreground" />
+                                <SelectValue />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="name">Nama (A-Z)</SelectItem>
+                            <SelectItem value="nis">NIS (Nomor)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+        </CardContent>
+      </Card>
+
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="p-3 text-center">
             <p className="text-sm text-blue-800 font-medium">Kuota Siswa Digunakan: {students.length} / {studentQuota}</p>
@@ -492,16 +552,18 @@ export default function ProfilesClientPage({
       )}
 
       <div>
-        <p className="text-sm text-muted-foreground mb-2">Menampilkan {filteredStudents.length} dari {students.length} data</p>
-        <div className="rounded-lg border">
+        <div className="flex justify-between items-end mb-2">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Daftar Siswa ({filteredStudents.length})</p>
+        </div>
+        <div className="rounded-lg border bg-white">
             <Table>
             <TableHeader>
                 <TableRow>
-                <TableHead>PROFIL</TableHead>
+                <TableHead className="w-[60px]">PROFIL</TableHead>
                 <TableHead>NIS</TableHead>
                 <TableHead>NAMA</TableHead>
                 <TableHead>KELAS</TableHead>
-                <TableHead>AKSI</TableHead>
+                <TableHead className="text-right">AKSI</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -515,17 +577,17 @@ export default function ProfilesClientPage({
                     filteredStudents.map((student) => (
                     <TableRow key={student.id}>
                         <TableCell>
-                            <Button variant="outline" size="icon" className='h-8 w-8' asChild>
+                            <Button variant="outline" size="icon" className='h-8 w-8 rounded-full bg-secondary/50' asChild>
                                 <Link href={`/profiles/${student.id}`}>
-                                    <User className="h-4 w-4" />
+                                    <User className="h-4 w-4 text-primary" />
                                 </Link>
                             </Button>
                         </TableCell>
-                        <TableCell className="font-medium">{student.nis}</TableCell>
-                        <TableCell>{student.name}</TableCell>
-                        <TableCell>{student.class}</TableCell>
+                        <TableCell className="font-mono text-xs">{student.nis}</TableCell>
+                        <TableCell className="font-bold text-sm">{student.name}</TableCell>
+                        <TableCell><span className="text-[10px] font-black uppercase px-2 py-0.5 bg-muted rounded-md">{student.class}</span></TableCell>
                         <TableCell>
-                            <div className='flex items-center gap-2'>
+                            <div className='flex items-center justify-end gap-2'>
                                 <EditStudentDialog student={student} onStudentUpdated={handleUpdateStudent} updateStudentAction={updateStudentAction} />
                                 <DeleteStudentDialog studentId={student.id} studentName={student.name} onStudentDeleted={handleDeleteStudent} deleteStudentAction={deleteStudentAction} />
                             </div>
@@ -534,8 +596,11 @@ export default function ProfilesClientPage({
                     ))
                 ) : (
                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                           {searchTerm || selectedClass !== 'all' ? 'Tidak ada siswa yang cocok dengan filter Anda.' : 'Belum ada siswa yang ditambahkan.'}
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
+                           <div className="flex flex-col items-center gap-2 opacity-40">
+                               <Search className="h-10 w-10" />
+                               <p className="text-xs font-bold uppercase tracking-widest">Siswa tidak ditemukan</p>
+                           </div>
                         </TableCell>
                     </TableRow>
                 )}
