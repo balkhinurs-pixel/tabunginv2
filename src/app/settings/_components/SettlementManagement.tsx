@@ -29,6 +29,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 export default function SettlementManagement() {
   const [stats, setStats] = useState<any[]>([]);
