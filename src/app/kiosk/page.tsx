@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -85,12 +84,14 @@ export default function KioskPage() {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           
-          // Auto-recovery jika stream mati mendadak
-          stream.oninactive = () => {
-             if (kioskState === 'SCANNING') {
-                setCameraRetryCount(prev => prev + 1);
-             }
-          };
+          // Auto-recovery jika stream mati mendadak (Modern approach using track events)
+          stream.getTracks().forEach(track => {
+            track.onended = () => {
+                if (kioskState === 'SCANNING') {
+                    setCameraRetryCount(prev => prev + 1);
+                }
+            };
+          });
         }
       } catch (error: any) {
         console.error('Error kamera:', error);
