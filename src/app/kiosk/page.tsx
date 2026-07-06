@@ -16,7 +16,8 @@ import {
   Delete,
   ArrowRight,
   XCircle,
-  ReceiptText
+  ReceiptText,
+  Info
 } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +34,7 @@ export default function KioskPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const processingRef = useRef(false); 
+  const streamRef = useRef<MediaStream | null>(null);
   
   // States
   const [kioskState, setKioskState] = useState<KioskState>('SCANNING');
@@ -43,6 +45,7 @@ export default function KioskPage() {
   const [amount, setAmount] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [lastWithdrawal, setLastWithdrawal] = useState<number | null>(null);
+  const [cameraRetryCount, setCameraRetryCount] = useState(0);
 
   const { toast } = useToast();
 
@@ -59,26 +62,44 @@ export default function KioskPage() {
   useEffect(() => {
     const getCameraPermission = async () => {
       try {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
+        // Stop any existing stream
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-              facingMode: facingMode,
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            } 
-        });
+        // Constraints yang lebih fleksibel untuk laptop (Ideal, bukan strict)
+        const constraints = {
+            video: {
+                facingMode: facingMode,
+                width: { ideal: 1280, min: 640 },
+                height: { ideal: 720, min: 480 },
+                frameRate: { ideal: 30, max: 60 }
+            },
+            audio: false
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        streamRef.current = stream;
         setHasCameraPermission(true);
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          
+          // Auto-recovery jika stream mati mendadak
+          stream.oninactive = () => {
+             if (kioskState === 'SCANNING') {
+                setCameraRetryCount(prev => prev + 1);
+             }
+          };
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error kamera:', error);
         setHasCameraPermission(false);
+        toast({
+            title: "Kamera Tidak Terdeteksi",
+            description: "Pastikan kamera tidak digunakan aplikasi lain dan izin telah diberikan.",
+            variant: "destructive"
+        });
       }
     };
 
@@ -87,17 +108,25 @@ export default function KioskPage() {
     }
 
     return () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
         }
     }
-  }, [facingMode, kioskState]);
+  }, [facingMode, kioskState, cameraRetryCount, toast]);
 
   useEffect(() => {
     let animationFrameId: number;
+    let lastScanTime = 0;
 
-    const tick = () => {
+    const tick = (time: number) => {
+      // Throttle scanning agar tidak membebani prosesor laptop (maks 10x per detik)
+      if (time - lastScanTime < 100) {
+          animationFrameId = requestAnimationFrame(tick);
+          return;
+      }
+      lastScanTime = time;
+
       if (kioskState === 'SCANNING' && !processingRef.current && videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
@@ -143,6 +172,12 @@ export default function KioskPage() {
   }, [hasCameraPermission, facingMode, kioskState]);
 
   const handleScanResult = async (data: string) => {
+    // Validasi dasar format data
+    if (!data.includes(',')) {
+        setTimeout(() => { processingRef.current = false; }, 1500);
+        return;
+    }
+
     const [nis, schoolCode] = data.split(',');
     
     if (!nis || !schoolCode) {
@@ -162,7 +197,8 @@ export default function KioskPage() {
             description: result.message || "Siswa tidak ditemukan.",
             variant: "destructive"
         });
-        setTimeout(() => { processingRef.current = false; }, 2000);
+        // Jeda sebelum scan lagi agar tidak looping error
+        setTimeout(() => { processingRef.current = false; }, 3000);
     }
   };
 
@@ -290,7 +326,7 @@ export default function KioskPage() {
             {kioskState === 'SCANNING' && (
                 <div className="flex gap-2">
                     <Button variant="ghost" className="text-white/60 text-[10px] rounded-full h-8 px-3 bg-white/5" onClick={() => setFacingMode(f => f === 'user' ? 'environment' : 'user')}>
-                        <RefreshCw className="mr-2 h-3 w-3" /> Kamera
+                        <RefreshCw className="mr-2 h-3 w-3" /> Ganti Kamera
                     </Button>
                     <Button variant="ghost" className="text-white/60 text-[10px] rounded-full h-8 px-3 bg-white/5" asChild>
                         <Link href="/login"><ArrowLeft className="mr-2 h-3 w-3" /> Keluar</Link>
@@ -305,7 +341,7 @@ export default function KioskPage() {
             {/* 1. STATE: SCANNING */}
             {kioskState === 'SCANNING' && (
                 <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-700">
-                    <div className="relative w-64 h-64 sm:w-80 sm:h-80 border border-white/20 rounded-[3rem] flex items-center justify-center overflow-hidden">
+                    <div className="relative w-64 h-64 sm:w-80 sm:h-80 border border-white/20 rounded-[3rem] flex items-center justify-center overflow-hidden bg-black/20 backdrop-blur-sm">
                         <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-primary rounded-tl-[3rem]" />
                         <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-primary rounded-tr-[3rem]" />
                         <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-primary rounded-bl-[3rem]" />
@@ -317,10 +353,18 @@ export default function KioskPage() {
                             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-center px-8">Scan Kartu</p>
                         </div>
                     </div>
-                    <div className="mt-8 text-center space-y-3">
+                    
+                    <div className="mt-8 text-center space-y-4">
                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full">
                             <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                            <p className="text-primary font-bold text-[9px] uppercase tracking-widest">Sistem Siap</p>
+                            <p className="text-primary font-bold text-[9px] uppercase tracking-widest">Sistem Siap Pindai</p>
+                        </div>
+                        
+                        <div className="flex flex-col items-center gap-2 px-6 py-3 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md animate-pulse">
+                            <Info className="h-4 w-4 text-white/40" />
+                            <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest leading-relaxed">
+                                Tip: Jauhkan kartu sedikit <br/> jika gambar terlihat buram
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -553,13 +597,18 @@ export default function KioskPage() {
                  <div className="bg-rose-100 p-6 rounded-full mb-6">
                     <AlertCircle className="h-12 w-12 text-rose-600" />
                 </div>
-                <h2 className="text-xl font-bold mb-3">Izin Kamera Diperlukan</h2>
+                <h2 className="text-xl font-bold mb-3">Kamera Bermasalah</h2>
                 <p className="text-muted-foreground mb-8 max-sm:px-4 max-w-xs text-sm leading-relaxed">
-                    Mohon berikan akses kamera pada browser Anda untuk dapat melakukan pengecekan saldo dan penarikan mandiri.
+                    Mohon pastikan izin kamera aktif dan tidak sedang digunakan aplikasi lain (seperti Zoom/Meet).
                 </p>
-                <Button onClick={() => window.location.reload()} size="lg" className="rounded-xl h-14 px-8 text-base font-bold">
-                    Buka Kamera Sekarang
-                </Button>
+                <div className="flex gap-3">
+                    <Button variant="outline" onClick={() => setFacingMode(f => f === 'user' ? 'environment' : 'user')} className="rounded-xl h-14">
+                        Coba Kamera Lain
+                    </Button>
+                    <Button onClick={() => window.location.reload()} className="rounded-xl h-14 px-8 text-base font-bold">
+                        Muat Ulang
+                    </Button>
+                </div>
             </div>
         )}
     </div>
