@@ -7,9 +7,7 @@ import {
   Loader2, 
   Store,
   CheckCircle2,
-  AlertTriangle,
   Info,
-  FileText,
   Printer
 } from 'lucide-react';
 import { getMerchantSettlementStatsAction, settleMerchantTransactionsAction, getUnsettledTransactionDetailsAction } from '../actions';
@@ -130,14 +128,19 @@ export default function SettlementManagement() {
   };
 
   if (loading) {
-    return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return (
+      <div className="flex flex-col items-center justify-center p-12 gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary opacity-20" />
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Sinkronisasi Data...</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <Alert className="bg-blue-50 border-blue-200 text-blue-800">
-        <Info className="h-4 w-4 text-blue-700" />
-        <AlertDescription className="text-xs">
+      <Alert className="bg-blue-50 border-blue-100 text-blue-800 rounded-2xl">
+        <Info className="h-5 w-5 text-blue-500" />
+        <AlertDescription className="text-[11px] leading-relaxed font-medium">
             Halaman ini menampilkan total penjualan kantin yang <strong>uang fisiknya masih ada di tangan Anda (Guru)</strong>. Tekan tombol cairkan setelah Anda memberikan uang tunai kepada pengelola kantin.
         </AlertDescription>
       </Alert>
@@ -145,81 +148,91 @@ export default function SettlementManagement() {
       {stats.length > 0 ? (
         <div className="grid grid-cols-1 gap-4">
           {stats.map((item) => (
-            <Card key={item.merchantId} className="border-none shadow-sm bg-gray-50/50 rounded-2xl overflow-hidden">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center border border-gray-100 shadow-sm">
-                    <Store className="h-6 w-6 text-orange-500" />
+            <Card key={item.merchantId} className="border-none shadow-sm bg-white rounded-[2rem] overflow-hidden border border-gray-100">
+              <CardContent className="p-6 space-y-6">
+                {/* Top Section: Info & Amount */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-2xl bg-orange-50 flex items-center justify-center border border-orange-100 text-orange-500 shadow-inner">
+                      <Store className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-black text-base text-gray-900 leading-tight uppercase tracking-tight">{item.merchantName}</h4>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mt-1">Omzet Belum Cair</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-black text-sm text-gray-900">{item.merchantName}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Total Omzet Belum Cair</p>
+                  <div className="text-right">
+                    <p className="font-black text-xl text-primary tracking-tighter">
+                      {item.unsettledAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                    </p>
                   </div>
                 </div>
                 
-                <div className="flex flex-col items-end gap-2">
-                  <p className="font-black text-xl text-primary">
-                    {item.unsettledAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
-                  </p>
-                  
-                  <div className="flex gap-2">
-                    {item.unsettledAmount > 0 && (
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-8 rounded-full text-[10px] font-bold border-blue-200 text-blue-600 hover:bg-blue-50"
-                            onClick={() => handlePrintReceipt(item.merchantId, item.merchantName, item.unsettledAmount)}
-                            disabled={printingId === item.merchantId}
-                        >
-                            {printingId === item.merchantId ? <Loader2 className="h-3 w-3 animate-spin" /> : <Printer className="mr-1 h-3 w-3" />} CETAK RINCIAN
-                        </Button>
-                    )}
-
+                {/* Action Section */}
+                <div className="flex flex-col gap-3">
                     {item.unsettledAmount > 0 ? (
-                        <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button size="sm" className="h-8 rounded-full bg-emerald-600 hover:bg-emerald-700 text-[10px] font-bold">
-                            <Banknote className="mr-1 h-3 w-3" /> CAIRKAN
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                            <div className="flex items-center gap-2 text-emerald-600 mb-2">
-                                <CheckCircle2 className="h-6 w-6" />
-                                <AlertDialogTitle>Konfirmasi Pembayaran</AlertDialogTitle>
+                        <>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <Button 
+                                    variant="outline" 
+                                    className="h-12 rounded-2xl text-[11px] font-black border-blue-100 text-blue-600 hover:bg-blue-50"
+                                    onClick={() => handlePrintReceipt(item.merchantId, item.merchantName, item.unsettledAmount)}
+                                    disabled={printingId === item.merchantId}
+                                >
+                                    {printingId === item.merchantId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />} 
+                                    CETAK RINCIAN
+                                </Button>
+
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button className="h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-[11px] font-black shadow-lg shadow-emerald-100 border-b-4 border-emerald-800 active:border-b-0 active:translate-y-1 transition-all">
+                                            <Banknote className="mr-2 h-4 w-4" /> PROSES PENCAIRAN
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent className="rounded-3xl">
+                                        <AlertDialogHeader>
+                                        <div className="flex items-center gap-2 text-emerald-600 mb-2">
+                                            <CheckCircle2 className="h-6 w-6" />
+                                            <AlertDialogTitle>Konfirmasi Pembayaran</AlertDialogTitle>
+                                        </div>
+                                        <AlertDialogDescription className="text-sm font-medium">
+                                            Apakah Anda sudah menyerahkan uang tunai sebesar <span className="font-black text-gray-900">{item.unsettledAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</span> kepada <span className="font-black text-gray-900">{item.merchantName}</span>? 
+                                            <br/><br/>
+                                            Status omzet di dashboard kantin akan kembali ke nol setelah konfirmasi ini.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter className="gap-2">
+                                        <AlertDialogCancel className="rounded-xl font-bold">Belum</AlertDialogCancel>
+                                        <AlertDialogAction 
+                                            onClick={() => handleSettle(item.merchantId)}
+                                            className="bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold"
+                                        >
+                                            Ya, Sudah Bayar
+                                        </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </div>
-                            <AlertDialogDescription>
-                                Apakah Anda sudah menyerahkan uang tunai sebesar <strong>{item.unsettledAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</strong> kepada <strong>{item.merchantName}</strong>? 
-                                <br/><br/>
-                                Status omzet di dashboard kantin akan kembali ke nol setelah konfirmasi ini.
-                            </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                            <AlertDialogCancel>Belum</AlertDialogCancel>
-                            <AlertDialogAction 
-                                onClick={() => handleSettle(item.merchantId)}
-                                className="bg-emerald-600 hover:bg-emerald-700"
-                            >
-                                Ya, Sudah Saya Bayar
-                            </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                        </AlertDialog>
+                        </>
                     ) : (
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Lunas
-                        </span>
+                        <div className="w-full py-4 bg-gray-50 rounded-2xl text-center border border-dashed border-gray-200">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Semua Omzet Telah Cair
+                            </span>
+                        </div>
                     )}
-                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       ) : (
-        <div className="text-center py-20 border-2 border-dashed rounded-[2rem] border-gray-100">
-          <Banknote className="h-10 w-10 mx-auto text-gray-200 mb-2" />
-          <p className="text-xs text-muted-foreground font-medium">Belum ada data transaksi kantin untuk diproses.</p>
+        <div className="text-center py-20 border-2 border-dashed rounded-[3rem] border-gray-100 bg-gray-50/50">
+          <Banknote className="h-12 w-12 mx-auto text-gray-200 mb-4 opacity-30" />
+          <div className="space-y-1">
+            <p className="text-sm font-black text-gray-400 uppercase tracking-widest">Belum Ada Transaksi</p>
+            <p className="text-[10px] text-gray-400 font-medium">Data transaksi kantin akan muncul di sini.</p>
+          </div>
         </div>
       )}
     </div>
