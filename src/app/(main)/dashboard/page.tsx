@@ -199,6 +199,7 @@ function DashboardLoading() {
     <div className="space-y-6">
       <Card className="bg-primary/10 border-none">
         <CardContent className="p-6 h-[160px] animate-pulse" />
+      </Card>
       <div className="h-20 bg-muted animate-pulse rounded-lg" />
       <div className="h-40 bg-muted animate-pulse rounded-lg" />
     </div>
