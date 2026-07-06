@@ -110,14 +110,16 @@ export async function processCantinePayment(params: {
     const supabaseUser = createClient();
     
     try {
-        // 1. Verifikasi PIN
+        // 1. Verifikasi PIN menggunakan Client non-persisten
         const authVerifier = createSupabaseClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
             {
-                autoRefreshToken: false,
-                persistSession: false,
-                detectSessionInUrl: false
+                auth: {
+                    autoRefreshToken: false,
+                    persistSession: false,
+                    detectSessionInUrl: false
+                }
             }
         );
 
