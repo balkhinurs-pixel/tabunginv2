@@ -14,7 +14,7 @@ import {
   MonitorSmartphone,
   LayoutGrid,
   ChevronRight,
-  X
+  LucideIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,14 +27,23 @@ import {
   SheetClose
 } from "@/components/ui/sheet";
 
-const MAIN_MENUS = [
+interface MenuItem {
+  icon: LucideIcon;
+  label: string;
+  href: string;
+  color: string;
+  bg: string;
+  description?: string;
+}
+
+const MAIN_MENUS: MenuItem[] = [
   { icon: Users, label: 'Siswa', href: '/profiles', color: 'text-blue-600', bg: 'bg-blue-50' },
   { icon: History, label: 'Transaksi', href: '/today-transactions', color: 'text-purple-600', bg: 'bg-purple-50' },
   { icon: Banknote, label: 'Keuangan', href: '/settlement', color: 'text-emerald-600', bg: 'bg-emerald-50' },
   { icon: QrCode, label: 'Kartu', href: '/print-cards', color: 'text-orange-600', bg: 'bg-orange-50' },
 ];
 
-const MORE_MENUS = [
+const MORE_MENUS: MenuItem[] = [
   { icon: FileText, label: 'Laporan', description: 'Rekap tabungan & ekspor PDF', href: '/reports', color: 'text-blue-600', bg: 'bg-blue-50' },
   { icon: ShieldCheck, label: 'Aktivasi', description: 'Upgrade akun ke versi PRO', href: '/activation', color: 'text-emerald-600', bg: 'bg-emerald-50' },
   { icon: MonitorSmartphone, label: 'Mode Kiosk', description: 'Tampilan ATM untuk siswa', href: '/kiosk', color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -88,7 +97,7 @@ export default function QuickMenu() {
                     </div>
                     <div className="text-left">
                       <p className="font-bold text-sm text-gray-900 leading-tight">{menu.label}</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">{'description' in menu ? menu.description : 'Akses fitur utama'}</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">{menu.description || 'Akses fitur utama'}</p>
                     </div>
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-primary transition-colors" />
