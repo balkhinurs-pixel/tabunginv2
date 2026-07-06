@@ -1,0 +1,197 @@
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { 
+  History, 
+  ArrowLeft, 
+  ArrowUpCircle, 
+  ArrowDownCircle, 
+  Loader2, 
+  Wallet,
+  UtensilsCrossed,
+  MonitorSmartphone,
+  Info
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { createClient } from '@/lib/supabase';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { id } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import type { Transaction } from '@/types';
+
+export default function TodayTransactionsPage() {
+  const supabase = createClient();
+  const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [totals, setTotals] = useState({ income: 0, expense: 0 });
+
+  useEffect(() => {
+    const fetchTodayTransactions = async () => {
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const todayStart = startOfDay(new Date()).toISOString();
+        const todayEnd = endOfDay(new Date()).toISOString();
+
+        // Ambil transaksi milik siswa yang dikelola guru ini
+        const { data, error } = await supabase
+            .from('transactions')
+            .select(`
+                *,
+                students!inner (
+                    id, name, class, nis, user_id
+                )
+            `)
+            .eq('students.user_id', user.id)
+            .gte('created_at', todayStart)
+            .lte('created_at', todayEnd)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching today transactions:', error);
+        } else {
+            const txs = data as Transaction[];
+            setTransactions(txs);
+            
+            const stats = txs.reduce((acc, curr) => {
+                if (curr.type === 'Pemasukan') acc.income += curr.amount;
+                else acc.expense += curr.amount;
+                return acc;
+            }, { income: 0, expense: 0 });
+            
+            setTotals(stats);
+        }
+        setLoading(false);
+    };
+
+    fetchTodayTransactions();
+  }, [supabase]);
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+        case 'BELANJA_KANTIN': return <UtensilsCrossed className="h-3 w-3" />;
+        case 'TARIK_TUNAI': return <MonitorSmartphone className="h-3 w-3" />;
+        default: return <Wallet className="h-3 w-3" />;
+    }
+  };
+
+  const getCategoryLabel = (category: string) => {
+    switch (category) {
+        case 'BELANJA_KANTIN': return 'Kantin';
+        case 'TARIK_TUNAI': return 'ATM Kios';
+        default: return 'Tabungan';
+    }
+  };
+
+  return (
+    <div className="space-y-6 pb-24">
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" asChild>
+          <Link href="/dashboard">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div>
+            <h2 className="text-xl font-bold tracking-tight">Transaksi Hari Ini</h2>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
+                {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: id })}
+            </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+          <Card className="bg-emerald-50 border-emerald-100 shadow-none">
+              <CardContent className="p-4">
+                  <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest mb-1">Total Setoran</p>
+                  <p className="text-xl font-black text-emerald-600">
+                      {totals.income.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                  </p>
+              </CardContent>
+          </Card>
+          <Card className="bg-rose-50 border-rose-100 shadow-none">
+              <CardContent className="p-4">
+                  <p className="text-[9px] font-black text-rose-700 uppercase tracking-widest mb-1">Total Penarikan</p>
+                  <p className="text-xl font-black text-rose-600">
+                      {totals.expense.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                  </p>
+              </CardContent>
+          </Card>
+      </div>
+
+      <Card className="border-none shadow-sm rounded-2xl overflow-hidden">
+          <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <History className="h-4 w-4 text-primary" /> Aliran Dana Real-time
+              </CardTitle>
+              <CardDescription className="text-[10px]">Menampilkan semua aktivitas siswa di sekolah hari ini.</CardDescription>
+          </CardHeader>
+          <CardContent className="px-2">
+              {loading ? (
+                  <div className="flex flex-col items-center justify-center py-20 gap-3">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Sinkronisasi data...</p>
+                  </div>
+              ) : transactions.length > 0 ? (
+                  <div className="divide-y divide-gray-50">
+                      {transactions.map((tx) => (
+                          <div key={tx.id} className="flex items-center justify-between py-4 px-3 hover:bg-gray-50/50 transition-colors">
+                              <div className="flex items-center gap-3">
+                                  <div className={cn(
+                                      "h-10 w-10 rounded-full flex items-center justify-center shadow-sm",
+                                      tx.type === 'Pemasukan' ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
+                                  )}>
+                                      {tx.type === 'Pemasukan' ? <ArrowUpCircle className="h-5 w-5" /> : <ArrowDownCircle className="h-5 w-5" />}
+                                  </div>
+                                  <div className="flex flex-col">
+                                      <p className="font-bold text-sm text-gray-900 leading-none mb-1">
+                                          {tx.students?.name}
+                                      </p>
+                                      <div className="flex items-center gap-2">
+                                          <span className="text-[10px] font-black text-gray-400">{format(new Date(tx.created_at!), 'HH:mm')}</span>
+                                          <span className="h-1 w-1 rounded-full bg-gray-200" />
+                                          <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-primary/70 bg-primary/5 px-1.5 py-0.5 rounded">
+                                              {getCategoryIcon(tx.category)}
+                                              {getCategoryLabel(tx.category)}
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                              <div className="text-right">
+                                  <p className={cn(
+                                      "font-black text-sm",
+                                      tx.type === 'Pemasukan' ? "text-emerald-600" : "text-rose-600"
+                                  )}>
+                                      {tx.type === 'Pemasukan' ? '+' : '-'} {tx.amount.toLocaleString('id-ID')}
+                                  </p>
+                                  <p className="text-[8px] font-medium text-gray-400 truncate max-w-[80px]">
+                                      {tx.description}
+                                  </p>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              ) : (
+                  <div className="py-20 text-center space-y-3">
+                      <div className="h-16 w-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto">
+                          <History className="h-8 w-8 text-gray-200" />
+                      </div>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Belum ada transaksi hari ini</p>
+                  </div>
+              )}
+          </CardContent>
+      </Card>
+      
+      <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex gap-3">
+          <Info className="h-5 w-5 text-blue-500 shrink-0" />
+          <p className="text-[10px] text-blue-700 leading-relaxed font-medium">
+              Data ini disinkronkan secara otomatis. Transaksi dari <strong>Kantin</strong> dan <strong>ATM Kios</strong> akan langsung muncul di sini segera setelah siswa menempelkan kartu dan memasukkan PIN.
+          </p>
+      </div>
+    </div>
+  );
+}

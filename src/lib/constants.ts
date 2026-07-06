@@ -1,5 +1,6 @@
+
 import type { LucideIcon } from 'lucide-react';
-import { LayoutGrid, Users, FileText, Settings, Scan, Banknote } from 'lucide-react';
+import { LayoutGrid, Users, FileText, Settings, Scan, Banknote, History } from 'lucide-react';
 
 interface NavItem {
   href: string;
@@ -26,13 +27,13 @@ export const NAV_ITEMS: NavItem[] = [
     isCentral: true,
   },
   {
+    href: '/today-transactions',
+    title: 'Transaksi',
+    icon: History,
+  },
+  {
     href: '/settlement',
     title: 'Keuangan',
     icon: Banknote,
-  },
-  {
-    href: '/settings',
-    title: 'Pengaturan',
-    icon: Settings,
   },
 ];

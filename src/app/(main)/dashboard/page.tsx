@@ -1,7 +1,7 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { Users, QrCode, FileText, ShieldCheck, Search, ArrowRight, EyeOff, Loader2, Banknote, UtensilsCrossed } from 'lucide-react';
+import { Users, QrCode, FileText, ShieldCheck, Search, ArrowRight, EyeOff, Loader2, Banknote, History } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -132,10 +132,10 @@ async function DashboardData() {
       <SearchStudent />
       
       <Card className="border-none shadow-sm">
-        <CardContent className="p-4 flex justify-between gap-2">
-            <ActionButton icon={Users} label="Data Siswa" href="/profiles" />
-            <ActionButton icon={Banknote} label="Settlement" href="/settlement"/>
-            <ActionButton icon={FileText} label="Laporan" href="/reports"/>
+        <CardContent className="p-4 grid grid-cols-5 gap-2">
+            <ActionButton icon={Users} label="Siswa" href="/profiles" />
+            <ActionButton icon={History} label="Transaksi" href="/today-transactions" />
+            <ActionButton icon={Banknote} label="Keuangan" href="/settlement"/>
             <ActionButton icon={QrCode} label="Kartu" href="/print-cards"/>
             <ActionButton icon={ShieldCheck} label="Aktivasi" href="/activation" />
         </CardContent>
@@ -147,7 +147,7 @@ async function DashboardData() {
                 <h3 className="font-bold text-sm">Transaksi Terkini (Semua)</h3>
                 <Button variant="link" className="text-primary h-auto p-0 text-xs font-semibold" asChild>
                     <Link href="/reports">
-                      Lihat Semua <ArrowRight className="ml-1 h-3 w-3" />
+                      Laporan <ArrowRight className="ml-1 h-3 w-3" />
                     </Link>
                 </Button>
             </div>
@@ -199,7 +199,6 @@ function DashboardLoading() {
     <div className="space-y-6">
       <Card className="bg-primary/10 border-none">
         <CardContent className="p-6 h-[160px] animate-pulse" />
-      </Card>
       <div className="h-20 bg-muted animate-pulse rounded-lg" />
       <div className="h-40 bg-muted animate-pulse rounded-lg" />
     </div>
