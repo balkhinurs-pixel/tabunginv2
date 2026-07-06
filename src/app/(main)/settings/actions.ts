@@ -116,7 +116,7 @@ export async function getSettledHistoryAction() {
         return [];
     }
 
-    return data.map(tx => ({
+    return data.map((tx: any) => ({
         id: tx.id,
         date: tx.created_at,
         amount: tx.amount,
