@@ -1,3 +1,4 @@
+
 'use server';
 
 import { createClient } from '@/lib/utils/supabase/server';
@@ -42,7 +43,7 @@ export async function getCantineOutletsAction() {
 }
 
 /**
- * Mengambil statistik settlement untuk Guru
+ * Mengambil statistik settlement untuk Guru (Dana yang belum dicairkan)
  */
 export async function getMerchantSettlementStatsAction() {
     const supabase = createClient();
@@ -51,7 +52,6 @@ export async function getMerchantSettlementStatsAction() {
     const { data: { user: teacher } } = await supabase.auth.getUser();
     if (!teacher) return [];
 
-    // 1. Dapatkan daftar merchant di sekolah yang sama
     const { data: teacherProfile } = await supabase.from('profiles').select('school_code').eq('id', teacher.id).single();
     if (!teacherProfile) return [];
 
@@ -63,7 +63,6 @@ export async function getMerchantSettlementStatsAction() {
 
     if (!merchants || merchants.length === 0) return [];
 
-    // 2. Untuk setiap merchant, hitung total transaksi BELANJA_KANTIN yang belum settled (is_settled = false)
     const stats = await Promise.all(merchants.map(async (m) => {
         const { data: txs } = await supabaseAdmin
             .from('transactions')
@@ -85,8 +84,46 @@ export async function getMerchantSettlementStatsAction() {
 }
 
 /**
- * Mengambil rincian transaksi belum cair untuk PDF
+ * Mengambil Riwayat Pencairan yang sudah LUNAS untuk Guru
  */
+export async function getSettledHistoryAction() {
+    const supabase = createClient();
+    const supabaseAdmin = getSupabaseAdmin();
+    
+    const { data: { user: teacher } } = await supabase.auth.getUser();
+    if (!teacher) return [];
+
+    const { data: teacherProfile } = await supabase.from('profiles').select('school_code').eq('id', teacher.id).single();
+    if (!teacherProfile) return [];
+
+    const { data, error } = await supabaseAdmin
+        .from('transactions')
+        .select(`
+            id, created_at, amount, description,
+            profiles!inner (school_name, school_code),
+            students (name, class)
+        `)
+        .eq('category', 'BELANJA_KANTIN')
+        .eq('is_settled', true)
+        .eq('profiles.school_code', teacherProfile.school_code)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    if (error) {
+        console.error('[GET_SETTLED_HISTORY_ERROR]', error);
+        return [];
+    }
+
+    return data.map(tx => ({
+        id: tx.id,
+        date: tx.created_at,
+        amount: tx.amount,
+        merchantName: tx.profiles?.school_name || 'OUTLET',
+        studentName: tx.students?.name || 'Siswa',
+        studentClass: tx.students?.class || '-'
+    }));
+}
+
 export async function getUnsettledTransactionDetailsAction(merchantId: string) {
     const supabaseAdmin = getSupabaseAdmin();
     
@@ -108,9 +145,6 @@ export async function getUnsettledTransactionDetailsAction(merchantId: string) {
     return data;
 }
 
-/**
- * Guru melakukan pencairan dana ke merchant
- */
 export async function settleMerchantTransactionsAction(merchantId: string) {
     const supabaseAdmin = getSupabaseAdmin();
     
