@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -84,7 +85,7 @@ export default function KioskPage() {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           
-          // Auto-recovery jika stream mati mendadak (Modern approach using track events)
+          // Auto-recovery jika stream mati mendadak
           stream.getTracks().forEach(track => {
             track.onended = () => {
                 if (kioskState === 'SCANNING') {
