@@ -234,7 +234,7 @@ export default function CantineHistoryPage() {
                                     <p className="font-black text-gray-900 leading-tight">
                                         {tx.students?.name || 'Siswa'}
                                     </p>
-                                    <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
+                                    <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
                                         <span>{format(new Date(tx.created_at), 'dd MMM • HH:mm', { locale: id })}</span>
                                         <span className="h-1 w-1 rounded-full bg-gray-200" />
                                         <span>{tx.students?.class || '-'}</span>
@@ -242,7 +242,7 @@ export default function CantineHistoryPage() {
                                 </div>
                             </div>
                             <div className="text-right">
-                                <p className="font-black text-gray-900 text-lg">
+                                <p className="font-black text-emerald-600 text-lg">
                                     +{tx.amount.toLocaleString('id-ID')}
                                 </p>
                                 <div className={cn(

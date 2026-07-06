@@ -26,7 +26,7 @@ export async function getCantineOutletsAction() {
 
   const { data: outlets, error } = await supabaseAdmin
     .from('profiles')
-    .select('id, email')
+    .select('id, email, school_name')
     .eq('school_code', teacherProfile.school_code)
     .eq('role', 'CANTINE');
 
@@ -37,7 +37,7 @@ export async function getCantineOutletsAction() {
 
   return outlets.map(p => ({
     id: p.id,
-    displayId: p.email.split('@')[0]
+    displayId: p.school_name || p.email.split('@')[0].toUpperCase()
   })) || [];
 }
 
@@ -57,7 +57,7 @@ export async function getMerchantSettlementStatsAction() {
 
     const { data: merchants } = await supabaseAdmin
         .from('profiles')
-        .select('id, email')
+        .select('id, email, school_name')
         .eq('school_code', teacherProfile.school_code)
         .eq('role', 'CANTINE');
 
@@ -76,7 +76,7 @@ export async function getMerchantSettlementStatsAction() {
 
         return {
             merchantId: m.id,
-            merchantName: m.email.split('@')[0].toUpperCase(),
+            merchantName: m.school_name || m.email.split('@')[0].toUpperCase(),
             unsettledAmount: totalUnsettled
         };
     }));
@@ -126,6 +126,7 @@ export async function settleMerchantTransactionsAction(merchantId: string) {
 
         revalidatePath('/settings');
         revalidatePath('/cantine/outlet');
+        revalidatePath('/settlement');
         return { success: true, message: 'Settlement berhasil diproses.' };
     } catch (err: any) {
         return { success: false, message: err.message };
@@ -182,7 +183,7 @@ export async function addCantineAction(params: {
         .upsert({
           id: authData.user.id,
           email: shadowEmail,
-          school_name: 'Outlet Kantin',
+          school_name: sanitizedId.toUpperCase(),
           school_code: schoolCode,
           role: 'CANTINE',
           plan: 'TRIAL'
@@ -194,6 +195,7 @@ export async function addCantineAction(params: {
     }
 
     revalidatePath('/settings');
+    revalidatePath('/settlement');
     return { success: true, message: `Akun outlet "${sanitizedId}" berhasil dibuat.` };
   } catch (error: any) {
     return { success: false, message: error.message || 'Terjadi kesalahan sistem internal.' };
@@ -207,6 +209,7 @@ export async function deleteCantineAction(cantineUserId: string): Promise<Action
       if (error) throw error;
       
       revalidatePath('/settings');
+      revalidatePath('/settlement');
       return { success: true, message: 'Akun outlet berhasil dihapus.' };
   } catch (err: any) {
       return { success: false, message: err.message };
