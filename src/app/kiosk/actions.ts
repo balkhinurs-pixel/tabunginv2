@@ -95,7 +95,7 @@ export async function processKioskWithdrawal(params: {
             return { success: false, message: 'PIN yang Anda masukkan salah.' };
         }
 
-        // 2. Verifikasi Data Siswa & Limit Harian
+        // 2. Verifikasi Data Siswa & Limit Harian (Ambil data segar dari DB)
         const { data: student, error: studentError } = await supabaseAdmin
             .from('students')
             .select(`
@@ -118,19 +118,21 @@ export async function processKioskWithdrawal(params: {
             return { success: false, message: 'Saldo Anda tidak mencukupi.' };
         }
 
-        // Cek Limit Harian
+        // CEK LIMIT HARIAN (SECURITY CHECK)
         if (student.daily_limit && student.daily_limit > 0) {
             const todayStart = new Date();
             todayStart.setHours(0,0,0,0);
 
+            // Hitung pengeluaran hari ini (Kantin + ATM)
             const todaySpent = (student.transactions || [])
                 .filter((tx: any) => tx.type === 'Pengeluaran' && new Date(tx.created_at) >= todayStart)
                 .reduce((sum: number, tx: any) => sum + tx.amount, 0);
             
             if (todaySpent + amount > student.daily_limit) {
+                const remaining = student.daily_limit - todaySpent;
                 return { 
                     success: false, 
-                    message: `Limit harian terlampaui. Sisa limit Anda hari ini: Rp ${(student.daily_limit - todaySpent).toLocaleString('id-ID')}` 
+                    message: `TRANSAKSI DITOLAK. Limit harian Anda terlampaui. Sisa jatah tarik/belanja hari ini: Rp ${remaining > 0 ? remaining.toLocaleString('id-ID') : '0'}` 
                 };
             }
         }

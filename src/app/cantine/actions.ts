@@ -135,7 +135,7 @@ export async function processCantinePayment(params: {
             return { success: false, message: 'PIN Siswa Salah.' };
         }
 
-        // 2. Identitas Merchant & Cek Limit
+        // 2. Identitas Merchant & Cek Limit (Ambil data paling segar)
         const { data: { user: activeMerchant } } = await supabaseUser.auth.getUser();
         if (!activeMerchant) return { success: false, message: 'Sesi outlet berakhir.' };
 
@@ -145,26 +145,32 @@ export async function processCantinePayment(params: {
             .eq('id', studentId)
             .single();
 
-        if (studentError) return { success: false, message: 'Gagal verifikasi data siswa.' };
+        if (studentError || !student) return { success: false, message: 'Gagal verifikasi data siswa.' };
 
         const currentBalance = (student.transactions || []).reduce((acc: number, tx: any) => {
             return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
         }, 0);
 
         if (amount > currentBalance) {
-            return { success: false, message: 'Saldo Tidak Cukup.' };
+            return { success: false, message: 'Saldo Tabungan Tidak Cukup.' };
         }
 
-        // Cek Limit Harian
+        // CEK LIMIT HARIAN (SECURITY CHECK)
         if (student.daily_limit && student.daily_limit > 0) {
             const todayStart = new Date();
             todayStart.setHours(0,0,0,0);
+            
+            // Hitung total pengeluaran hari ini (Kantin + ATM)
             const todaySpent = (student.transactions || [])
                 .filter((tx: any) => tx.type === 'Pengeluaran' && new Date(tx.created_at) >= todayStart)
                 .reduce((sum: number, tx: any) => sum + tx.amount, 0);
 
             if (todaySpent + amount > student.daily_limit) {
-                return { success: false, message: `Limit Harian Terlampaui (Sisa: Rp ${(student.daily_limit - todaySpent).toLocaleString('id-ID')})` };
+                const remaining = student.daily_limit - todaySpent;
+                return { 
+                    success: false, 
+                    message: `PEMBAYARAN DITOLAK. Limit harian siswa terlampaui. Sisa limit hari ini: Rp ${remaining > 0 ? remaining.toLocaleString('id-ID') : '0'}` 
+                };
             }
         }
 
