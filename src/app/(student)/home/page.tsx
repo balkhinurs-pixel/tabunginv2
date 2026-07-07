@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useEffect } from 'react';
@@ -25,7 +24,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { changeStudentPinAction, updateDailyLimitAction } from './actions';
 import { Separator } from '@/components/ui/separator';
-
 
 const TransactionRow = ({ tx }: { tx: Transaction }) => {
     const isIncome = tx.type === 'Pemasukan';
@@ -70,6 +68,9 @@ export default function StudentDashboardPage() {
     const [dailyLimit, setDailyLimit] = useState<string>('');
     const [saving, setSaving] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
+
+    const formatCurrency = (val: number) => 
+        val.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
     useEffect(() => {
         const fetchStudentData = async () => {
@@ -245,7 +246,7 @@ export default function StudentDashboardPage() {
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button onClick={handleSaveChanges} disabled={saving} className="w-full h-14 rounded-2xl bg-primary text-white font-black shadow-xl shadow-primary/20">
+                            <Button onClick={handleSaveChanges} disabled={saving} className="w-full h-14 rounded-2xl bg-primary text-white font-black text-lg shadow-xl shadow-primary/20">
                                 {saving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
                                 SIMPAN PERUBAHAN
                             </Button>
@@ -342,4 +343,3 @@ export default function StudentDashboardPage() {
         </div>
     );
 }
-
