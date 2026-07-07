@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import type { Student, Transaction } from '@/types';
-import { Loader2, ArrowUpCircle, ArrowDownCircle, Wallet, EyeOff, Settings, ShieldCheck, Save, KeyRound, Ban } from 'lucide-react';
+import { Loader2, ArrowUpCircle, ArrowDownCircle, Wallet, EyeOff, Settings, ShieldCheck, Save, KeyRound, Ban, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -42,7 +42,7 @@ const TransactionRow = ({ tx }: { tx: Transaction }) => {
                 </div>
                 <div>
                     <p className="font-semibold text-foreground">{tx.description || tx.type}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{format(parseISO(tx.created_at!), 'd MMM yyyy, HH:mm', { locale: id })}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{tx.created_at ? format(parseISO(tx.created_at), 'd MMM yyyy, HH:mm', { locale: id }) : '-'}</p>
                 </div>
             </div>
             <p className={cn(
@@ -76,28 +76,38 @@ export default function StudentDashboardPage() {
         const fetchStudentData = async () => {
             setLoading(true);
             setError(null);
-            const { data: { user } } = await supabase.auth.getUser();
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
 
-            if (user) {
-                const { data, error: fetchError } = await supabase
-                    .from('students')
-                    .select('id, nis, name, class, daily_limit, transactions(*)')
-                    .eq('id', user.id)
-                    .single();
-                
-                if (fetchError) {
-                    console.error("Error fetching student data:", fetchError);
-                    setError("Gagal memuat data.");
-                } else if (data) {
-                    const typedStudent = data as Student;
-                    typedStudent.transactions = (typedStudent.transactions || []).sort((a,b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
-                    setStudent(typedStudent);
-                    setDailyLimit(typedStudent.daily_limit?.toString() || '');
+                if (user) {
+                    const { data, error: fetchError } = await supabase
+                        .from('students')
+                        .select('id, nis, name, class, daily_limit, transactions(*)')
+                        .eq('id', user.id)
+                        .single();
+                    
+                    if (fetchError) {
+                        console.error("Error fetching student data:", fetchError);
+                        // Jika error 42703 (kolom tidak ada), berikan instruksi SQL
+                        if (fetchError.code === '42703') {
+                            setError("Database perlu diperbarui. Hubungi Admin untuk menjalankan SQL: ALTER TABLE students ADD COLUMN daily_limit INTEGER;");
+                        } else {
+                            setError("Gagal memuat data akun Anda.");
+                        }
+                    } else if (data) {
+                        const typedStudent = data as Student;
+                        typedStudent.transactions = (typedStudent.transactions || []).sort((a,b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
+                        setStudent(typedStudent);
+                        setDailyLimit(typedStudent.daily_limit?.toString() || '');
+                    } else {
+                        setError("Profil siswa tidak ditemukan.");
+                    }
                 } else {
-                    setError("Profil siswa tidak ditemukan.");
+                    setError("Sesi pengguna tidak ditemukan. Silakan login kembali.");
                 }
-            } else {
-                setError("Sesi pengguna tidak ditemukan.");
+            } catch (err) {
+                console.error("Unexpected error:", err);
+                setError("Terjadi kesalahan sistem internal.");
             }
             setLoading(false);
         };
@@ -153,7 +163,20 @@ export default function StudentDashboardPage() {
     }
 
     if (error || !student) {
-        return <p className="text-center text-destructive bg-destructive/10 p-4 rounded-md">{error || "Terjadi kesalahan."}</p>
+        return (
+            <div className="flex flex-col items-center justify-center p-8 text-center space-y-4 max-w-md mx-auto">
+                <div className="p-4 bg-rose-50 rounded-full">
+                    <AlertCircle className="h-10 w-10 text-rose-500" />
+                </div>
+                <h3 className="font-bold text-lg text-gray-900">Oops! Terjadi Masalah</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                    {error || "Kami tidak dapat memuat data profil Anda saat ini."}
+                </p>
+                <Button variant="outline" onClick={() => window.location.reload()} className="rounded-xl">
+                    Coba Lagi
+                </Button>
+            </div>
+        );
     }
 
     const { income, expense, balance } = (student.transactions || []).reduce(
@@ -328,7 +351,7 @@ export default function StudentDashboardPage() {
                     <Wallet className="h-4 w-4 text-gray-200" />
                 </CardHeader>
                 <CardContent className="px-4 divide-y divide-gray-50">
-                    {student.transactions.length > 0 ? (
+                    {student.transactions && student.transactions.length > 0 ? (
                         student.transactions.slice(0, 10).map(tx => <TransactionRow key={tx.id} tx={tx} />)
                     ) : (
                         <div className="text-center py-20 text-gray-300">
