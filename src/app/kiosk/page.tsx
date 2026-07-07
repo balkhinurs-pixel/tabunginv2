@@ -62,18 +62,17 @@ export default function KioskPage() {
   useEffect(() => {
     const getCameraPermission = async () => {
       try {
-        // Stop any existing stream
+        // Hentikan stream yang ada sebelum memulai yang baru
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
         }
 
-        // Constraints yang lebih fleksibel untuk laptop (Ideal, bukan strict)
+        // Gunakan ideal constraints agar lebih stabil di berbagai hardware (termasuk laptop)
         const constraints = {
             video: {
-                facingMode: facingMode,
-                width: { ideal: 1280, min: 640 },
-                height: { ideal: 720, min: 480 },
-                frameRate: { ideal: 30, max: 60 }
+                facingMode: { ideal: facingMode },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
             },
             audio: false
         };
@@ -85,7 +84,7 @@ export default function KioskPage() {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           
-          // Auto-recovery jika stream mati mendadak
+          // Penanganan jika stream terputus di tengah jalan
           stream.getTracks().forEach(track => {
             track.onended = () => {
                 if (kioskState === 'SCANNING') {
@@ -95,13 +94,9 @@ export default function KioskPage() {
           });
         }
       } catch (error: any) {
-        console.error('Error kamera:', error);
+        console.error('Error inisialisasi kamera:', error);
         setHasCameraPermission(false);
-        toast({
-            title: "Kamera Tidak Terdeteksi",
-            description: "Pastikan kamera tidak digunakan aplikasi lain dan izin telah diberikan.",
-            variant: "destructive"
-        });
+        // Jangan tampilkan toast berulang kali jika user menolak secara sengaja
       }
     };
 
@@ -115,15 +110,15 @@ export default function KioskPage() {
             streamRef.current = null;
         }
     }
-  }, [facingMode, kioskState, cameraRetryCount, toast]);
+  }, [facingMode, kioskState, cameraRetryCount]);
 
   useEffect(() => {
     let animationFrameId: number;
     let lastScanTime = 0;
 
     const tick = (time: number) => {
-      // Throttle scanning agar tidak membebani prosesor laptop (maks 10x per detik)
-      if (time - lastScanTime < 100) {
+      // Throttle: Hanya lakukan pemindaian setiap 150ms untuk menghemat daya & mencegah kedipan
+      if (time - lastScanTime < 150) {
           animationFrameId = requestAnimationFrame(tick);
           return;
       }
@@ -135,14 +130,15 @@ export default function KioskPage() {
         const context = canvas.getContext('2d', { willReadFrequently: true });
         
         if (context) {
-            const processWidth = 640;
+            // Ukuran pemrosesan yang lebih kecil agar ringan di laptop
+            const processWidth = 480;
             const processHeight = Math.floor((video.videoHeight / video.videoWidth) * processWidth);
             
             canvas.width = processWidth;
             canvas.height = processHeight;
 
+            // Handle mirroring hanya untuk tampilan 'user' tanpa membebani render
             context.setTransform(1, 0, 0, 1, 0, 0);
-            
             if (facingMode === 'user') {
                 context.translate(processWidth, 0);
                 context.scale(-1, 1);
@@ -174,16 +170,14 @@ export default function KioskPage() {
   }, [hasCameraPermission, facingMode, kioskState]);
 
   const handleScanResult = async (data: string) => {
-    // Validasi dasar format data
     if (!data.includes(',')) {
-        setTimeout(() => { processingRef.current = false; }, 1500);
+        setTimeout(() => { processingRef.current = false; }, 1000);
         return;
     }
 
     const [nis, schoolCode] = data.split(',');
-    
     if (!nis || !schoolCode) {
-        setTimeout(() => { processingRef.current = false; }, 1500);
+        setTimeout(() => { processingRef.current = false; }, 1000);
         return;
     }
 
@@ -195,11 +189,10 @@ export default function KioskPage() {
         processingRef.current = false;
     } else {
         toast({
-            title: "Gagal Membaca Kartu",
-            description: result.message || "Siswa tidak ditemukan.",
+            title: "Kartu Tidak Terdaftar",
+            description: result.message || "Data siswa tidak ditemukan.",
             variant: "destructive"
         });
-        // Jeda sebelum scan lagi agar tidak looping error
         setTimeout(() => { processingRef.current = false; }, 3000);
     }
   };
@@ -225,9 +218,9 @@ export default function KioskPage() {
         setLastWithdrawal(withAmount);
         setStudent({ ...student, balance: result.newBalance });
         setKioskState('SUCCESS');
-        setTimeout(() => handleReset(), 8000);
+        setTimeout(() => handleReset(), 10000);
     } else {
-        setErrorMessage(result.message || 'Terjadi kesalahan.');
+        setErrorMessage(result.message || 'Gagal memproses transaksi.');
         setKioskState('ERROR');
     }
   };
@@ -245,23 +238,22 @@ export default function KioskPage() {
   const formatCurrency = (val: number) => 
     val.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
-  // ATM UI Parts
   const NumericKeypad = ({ onConfirm, confirmLabel = "Lanjutkan" }: { onConfirm: () => void, confirmLabel?: string }) => (
     <div className="flex flex-col items-center gap-4 w-full">
         <div className="flex gap-2 my-2 h-5">
             {[...Array(6)].map((_, i) => (
                 <div key={i} className={cn(
                     "w-4 h-4 rounded-full border-2 transition-all duration-200",
-                    i < pin.length ? "bg-white border-white shadow-[0_0_8px_white]" : "border-white/20"
+                    i < pin.length ? "bg-white border-white shadow-[0_0_10px_white]" : "border-white/20"
                 )} />
             ))}
         </div>
-        <div className="grid grid-cols-3 gap-3 w-full max-w-[300px]">
+        <div className="grid grid-cols-3 gap-3 w-full max-w-[320px]">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
                 <Button 
                     key={num} 
                     variant="outline" 
-                    className="h-14 text-xl font-black rounded-xl bg-white/10 border-white/10 text-white hover:bg-white/20 active:scale-95 transition-transform"
+                    className="h-16 text-2xl font-black rounded-2xl bg-white/5 border-white/10 text-white hover:bg-white/20 active:scale-90 transition-all"
                     onClick={() => handlePinPress(num.toString())}
                 >
                     {num}
@@ -269,103 +261,104 @@ export default function KioskPage() {
             ))}
             <Button 
                 variant="outline" 
-                className="h-14 rounded-xl bg-rose-500/10 border-rose-500/20 text-rose-300 hover:bg-rose-500/20"
+                className="h-16 rounded-2xl bg-rose-500/10 border-rose-500/20 text-rose-300"
                 onClick={() => setPin('')}
             >
-                <XCircle className="h-5 w-5" />
+                <XCircle className="h-6 w-6" />
             </Button>
             <Button 
                 variant="outline" 
-                className="h-14 text-xl font-black rounded-xl bg-white/10 border-white/10 text-white"
+                className="h-16 text-2xl font-black rounded-2xl bg-white/5 border-white/10 text-white"
                 onClick={() => handlePinPress('0')}
             >
                 0
             </Button>
             <Button 
                 variant="outline" 
-                className="h-14 rounded-xl bg-white/10 border-white/10 text-white"
+                className="h-16 rounded-2xl bg-white/5 border-white/10 text-white"
                 onClick={() => setPin(p => p.slice(0, -1))}
             >
-                <Delete className="h-5 w-5" />
+                <Delete className="h-6 w-6" />
             </Button>
         </div>
         <Button 
-            className="w-full max-w-[300px] h-14 rounded-xl bg-white text-primary font-black text-base shadow-lg mt-2"
+            className="w-full max-w-[320px] h-16 rounded-2xl bg-white text-primary font-black text-lg shadow-xl mt-4"
             disabled={pin.length < 6}
             onClick={onConfirm}
         >
-            {confirmLabel} <ArrowRight className="ml-2 h-4 w-4" />
+            {confirmLabel} <ArrowRight className="ml-2 h-5 w-5" />
         </Button>
     </div>
   );
 
   return (
     <div className="min-h-screen bg-black flex flex-col relative overflow-hidden font-sans">
-        {/* Background Video Layer */}
+        {/* Layer Video Latar Belakang */}
         <div className="absolute inset-0 z-0">
              <video 
                 ref={videoRef} 
                 className={cn(
-                    "w-full h-full object-cover opacity-60 grayscale-[0.2] transition-all duration-1000",
+                    "w-full h-full object-cover opacity-60 transition-all duration-1000",
                     facingMode === 'user' && "-scale-x-100",
-                    (kioskState !== 'SCANNING') && "blur-[80px] opacity-40 scale-110"
+                    (kioskState !== 'SCANNING') && "blur-[100px] opacity-30 scale-125"
                 )} 
                 autoPlay 
                 playsInline 
                 muted 
             />
             <canvas ref={canvasRef} className="hidden" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/60" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/70" />
         </div>
 
-        {/* Header UI */}
-        <div className="relative z-10 p-4 flex justify-between items-center">
+        {/* UI Kepala */}
+        <div className="relative z-10 p-6 flex justify-between items-center">
             <div className="flex flex-col">
-                <h1 className="text-xl font-black tracking-tighter text-white">
-                    Tabung<span className="text-primary">.in</span> <span className="opacity-50 text-xs">ATM</span>
+                <h1 className="text-2xl font-black tracking-tighter text-white">
+                    Tabung<span className="text-primary">.in</span> <span className="opacity-40 text-xs font-bold uppercase tracking-[0.2em]">ATM Kiosk</span>
                 </h1>
             </div>
             {kioskState === 'SCANNING' && (
                 <div className="flex gap-2">
-                    <Button variant="ghost" className="text-white/60 text-[10px] rounded-full h-8 px-3 bg-white/5" onClick={() => setFacingMode(f => f === 'user' ? 'environment' : 'user')}>
-                        <RefreshCw className="mr-2 h-3 w-3" /> Ganti Kamera
+                    <Button variant="ghost" className="text-white/60 text-[11px] font-bold rounded-full h-10 px-4 bg-white/10 border border-white/10" onClick={() => setFacingMode(f => f === 'user' ? 'environment' : 'user')}>
+                        <RefreshCw className="mr-2 h-4 w-4" /> Ganti Kamera
                     </Button>
-                    <Button variant="ghost" className="text-white/60 text-[10px] rounded-full h-8 px-3 bg-white/5" asChild>
-                        <Link href="/login"><ArrowLeft className="mr-2 h-3 w-3" /> Keluar</Link>
+                    <Button variant="ghost" className="text-white/60 text-[11px] font-bold rounded-full h-10 px-4 bg-white/10 border border-white/10" asChild>
+                        <Link href="/login"><ArrowLeft className="mr-2 h-4 w-4" /> Keluar</Link>
                     </Button>
                 </div>
             )}
         </div>
 
-        {/* CONTENT AREA */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4">
+        {/* AREA KONTEN UTAMA */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
             
             {/* 1. STATE: SCANNING */}
             {kioskState === 'SCANNING' && (
                 <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-700">
-                    <div className="relative w-64 h-64 sm:w-80 sm:h-80 border border-white/20 rounded-[3rem] flex items-center justify-center overflow-hidden bg-black/20 backdrop-blur-sm">
-                        <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-primary rounded-tl-[3rem]" />
-                        <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-primary rounded-tr-[3rem]" />
-                        <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-primary rounded-bl-[3rem]" />
-                        <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-primary rounded-br-[3rem]" />
+                    <div className="relative w-72 h-72 sm:w-96 sm:h-96 border border-white/10 rounded-[4rem] flex items-center justify-center overflow-hidden bg-black/40 backdrop-blur-md shadow-2xl">
+                        <div className="absolute top-0 left-0 w-16 h-16 border-t-4 border-l-4 border-primary rounded-tl-[4rem]" />
+                        <div className="absolute top-0 right-0 w-16 h-16 border-t-4 border-r-4 border-primary rounded-tr-[4rem]" />
+                        <div className="absolute bottom-0 left-0 w-16 h-16 border-b-4 border-l-4 border-primary rounded-bl-[4rem]" />
+                        <div className="absolute bottom-0 right-0 w-16 h-16 border-b-4 border-r-4 border-primary rounded-br-[4rem]" />
                         
-                        <ScanLine className="absolute w-full text-primary/80 h-1 animate-[bounce_2s_infinite] shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
-                        <div className="flex flex-col items-center gap-3 text-white/20">
-                            <Wallet className="h-12 w-12" />
-                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-center px-8">Scan Kartu</p>
+                        <div className="absolute w-full h-1.5 bg-primary/80 shadow-[0_0_25px_rgba(59,130,246,1)] animate-[bounce_2.5s_infinite]" />
+                        
+                        <div className="flex flex-col items-center gap-4 text-white/10">
+                            <Wallet className="h-16 w-16" />
+                            <p className="text-[12px] font-black text-center px-12 leading-relaxed uppercase tracking-[0.4em]">Tempelkan Kartu QR</p>
                         </div>
                     </div>
                     
-                    <div className="mt-8 text-center space-y-4">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full">
-                            <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                            <p className="text-primary font-bold text-[9px] uppercase tracking-widest">Sistem Siap Pindai</p>
+                    <div className="mt-12 text-center space-y-6">
+                        <div className="inline-flex items-center gap-3 px-6 py-2.5 bg-primary/10 border border-primary/20 rounded-full">
+                            <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                            <p className="text-primary font-black text-[11px] uppercase tracking-widest">Sistem Siap Digunakan</p>
                         </div>
                         
-                        <div className="flex flex-col items-center gap-2 px-6 py-3 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md animate-pulse">
-                            <Info className="h-4 w-4 text-white/40" />
-                            <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest leading-relaxed">
-                                Tip: Jauhkan kartu sedikit <br/> jika gambar terlihat buram
+                        <div className="flex items-center gap-4 px-8 py-4 bg-white/5 rounded-[2rem] border border-white/10 backdrop-blur-xl max-w-xs mx-auto">
+                            <Info className="h-6 w-6 text-primary shrink-0" />
+                            <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest leading-relaxed text-left">
+                                Arahkan Kode QR ke arah <br/> kamera dengan jarak ±15cm
                             </p>
                         </div>
                     </div>
@@ -374,32 +367,32 @@ export default function KioskPage() {
 
             {/* 2. STATE: MAIN MENU */}
             {kioskState === 'MAIN_MENU' && student && (
-                <div className="w-full max-w-sm space-y-6 animate-in slide-in-from-bottom-8 duration-500">
-                    <Card className="bg-gradient-to-br from-primary via-blue-600 to-blue-800 border-none shadow-2xl rounded-[2.5rem] overflow-hidden relative">
-                        <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-                        <CardContent className="p-8 flex flex-col items-center text-center relative z-10">
-                            <div className="bg-white/10 p-3 rounded-full mb-4 backdrop-blur-md border border-white/20">
-                                <CheckCircle2 className="h-6 w-6 text-white" />
+                <div className="w-full max-w-md space-y-8 animate-in slide-in-from-bottom-12 duration-500">
+                    <Card className="bg-gradient-to-br from-primary via-blue-600 to-blue-900 border-none shadow-2xl rounded-[3rem] overflow-hidden relative">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+                        <CardContent className="p-10 flex flex-col items-center text-center relative z-10">
+                            <div className="bg-white/20 p-4 rounded-full mb-6 backdrop-blur-md border border-white/20">
+                                <CheckCircle2 className="h-8 w-8 text-white" />
                             </div>
-                            <h2 className="text-2xl font-black text-white tracking-tight mb-1">{student.name}</h2>
-                            <p className="text-white/70 font-black uppercase tracking-[0.2em] text-[9px] mb-6">Kelas {student.class}</p>
+                            <h2 className="text-3xl font-black text-white tracking-tight mb-2 uppercase">{student.name}</h2>
+                            <p className="text-white/60 font-black uppercase tracking-[0.3em] text-[10px] mb-8">Informasi Akun Siswa</p>
                             
-                            <div className="w-full bg-white/10 backdrop-blur-2xl border border-white/20 p-6 rounded-[2rem]">
-                                <p className="text-white/50 text-[9px] font-bold uppercase tracking-[0.3em] mb-2">Saldo Anda</p>
-                                <p className="text-3xl font-black text-white tracking-tighter">{formatCurrency(student.balance)}</p>
+                            <div className="w-full bg-white/10 backdrop-blur-3xl border border-white/10 p-8 rounded-[2.5rem] shadow-inner">
+                                <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.4em] mb-4">Total Saldo Tersedia</p>
+                                <p className="text-5xl font-black text-white tracking-tighter">{formatCurrency(student.balance)}</p>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-4">
                         <Button 
-                            className="h-18 rounded-[1.5rem] bg-white/10 border border-white/20 text-white text-base font-black hover:bg-white/20 shadow-xl"
+                            className="h-20 rounded-[2rem] bg-white/10 border border-white/20 text-white text-lg font-black hover:bg-white/20 shadow-xl"
                             onClick={() => handleReset()}
                         >
                             Selesai
                         </Button>
                         <Button 
-                            className="h-18 rounded-[1.5rem] bg-white text-primary text-base font-black shadow-xl shadow-primary/20"
+                            className="h-20 rounded-[2rem] bg-white text-primary text-lg font-black shadow-2xl shadow-primary/30 border-b-4 border-blue-100"
                             onClick={() => setKioskState('PIN_INPUT')}
                         >
                             Tarik Tunai
@@ -410,16 +403,18 @@ export default function KioskPage() {
 
             {/* 3. STATE: PIN INPUT */}
             {kioskState === 'PIN_INPUT' && (
-                <div className="w-full max-w-sm flex flex-col items-center space-y-6 animate-in fade-in duration-300">
-                    <div className="text-center space-y-2">
-                        <div className="h-14 w-14 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                            <KeyRound className="h-6 w-6 text-primary" />
+                <div className="w-full max-w-md flex flex-col items-center space-y-8 animate-in fade-in duration-300">
+                    <div className="text-center space-y-3">
+                        <div className="h-16 w-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/20">
+                            <KeyRound className="h-8 w-8 text-primary" />
                         </div>
-                        <h2 className="text-xl font-black text-white tracking-tight uppercase">PIN ATM</h2>
-                        <p className="text-white/50 text-[10px] font-medium px-8">Masukkan 6 digit PIN akun Anda.</p>
+                        <h2 className="text-2xl font-black text-white tracking-tight uppercase">PIN KEAMANAN</h2>
+                        <p className="text-white/40 text-[11px] font-bold uppercase tracking-widest px-12 leading-relaxed">
+                            Masukkan 6 digit kode keamanan <br/> untuk melanjutkan penarikan.
+                        </p>
                     </div>
                     <NumericKeypad onConfirm={() => setKioskState('WITHDRAW_MENU')} />
-                    <Button variant="ghost" className="text-white/30 text-xs hover:text-white" onClick={() => setKioskState('MAIN_MENU')}>
+                    <Button variant="ghost" className="text-white/20 text-xs font-bold hover:text-white uppercase tracking-widest h-12" onClick={() => setKioskState('MAIN_MENU')}>
                         Batal
                     </Button>
                 </div>
@@ -427,33 +422,33 @@ export default function KioskPage() {
 
             {/* 4. STATE: WITHDRAW MENU */}
             {kioskState === 'WITHDRAW_MENU' && (
-                <div className="w-full max-w-sm flex flex-col items-center space-y-6 animate-in slide-in-from-right-8 duration-500">
+                <div className="w-full max-w-md flex flex-col items-center space-y-8 animate-in slide-in-from-right-12 duration-500">
                     <div className="text-center">
-                        <h2 className="text-xl font-black text-white tracking-tight mb-1 uppercase">Pilih Nominal</h2>
-                        <p className="text-white/40 text-[10px] font-bold tracking-widest uppercase">Tersedia: {formatCurrency(student.balance)}</p>
+                        <h2 className="text-2xl font-black text-white tracking-tight mb-2 uppercase">Pilih Nominal</h2>
+                        <p className="text-white/30 text-[11px] font-black tracking-[0.2em] uppercase">Maksimal: {formatCurrency(student.balance)}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4 w-full">
                         {QUICK_AMOUNTS.map(amt => (
                             <Button 
                                 key={amt}
                                 disabled={amt > student.balance}
-                                className="h-24 rounded-[2rem] bg-white/10 border border-white/20 text-white text-lg font-black hover:bg-white shadow-xl hover:text-primary transition-all active:scale-95 disabled:opacity-30"
+                                className="h-28 rounded-[2.5rem] bg-white/10 border border-white/20 text-white text-2xl font-black hover:bg-white shadow-2xl hover:text-primary transition-all active:scale-90 disabled:opacity-20"
                                 onClick={() => handleWithdraw(amt)}
                             >
                                 {amt.toLocaleString('id-ID')}
                             </Button>
                         ))}
                     </div>
-                    <div className="flex gap-3 w-full">
+                    <div className="flex gap-4 w-full">
                         <Button 
                             variant="outline" 
-                            className="flex-1 h-16 rounded-[1.5rem] bg-white/5 border-white/10 text-white font-bold text-sm"
+                            className="flex-1 h-20 rounded-[2rem] bg-white/5 border-white/10 text-white font-black text-base uppercase"
                             onClick={() => setKioskState('PIN_INPUT')}
                         >
                             Kembali
                         </Button>
                         <Button 
-                            className="flex-1 h-16 rounded-[1.5rem] bg-primary text-white font-bold text-sm"
+                            className="flex-1 h-20 rounded-[2rem] bg-primary text-white font-black text-base uppercase shadow-xl"
                             onClick={() => setKioskState('CUSTOM_AMOUNT')}
                         >
                             Nominal Lain
@@ -464,21 +459,21 @@ export default function KioskPage() {
 
             {/* 5. STATE: CUSTOM AMOUNT */}
             {kioskState === 'CUSTOM_AMOUNT' && (
-                <div className="w-full max-w-sm flex flex-col items-center space-y-6">
+                <div className="w-full max-w-md flex flex-col items-center space-y-8">
                      <div className="text-center w-full">
-                        <h2 className="text-xl font-black text-white tracking-tight mb-2 uppercase">Input Nominal</h2>
-                        <div className="bg-white/10 p-5 rounded-[1.5rem] border border-white/20 w-full text-center">
-                            <p className="text-primary-foreground/50 text-[9px] font-bold uppercase tracking-widest mb-1">Jumlah Tarik</p>
-                            <p className="text-3xl font-black text-white">{formatCurrency(amount)}</p>
+                        <h2 className="text-2xl font-black text-white tracking-tight mb-4 uppercase">Input Manual</h2>
+                        <div className="bg-white/10 p-8 rounded-[2.5rem] border border-white/20 w-full text-center shadow-inner">
+                            <p className="text-primary-foreground/30 text-[10px] font-black uppercase tracking-[0.3em] mb-4">Jumlah Yang Akan Ditarik</p>
+                            <p className="text-4xl font-black text-white tracking-tighter">{formatCurrency(amount)}</p>
                         </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-3 w-full max-w-[300px]">
+                    <div className="grid grid-cols-3 gap-3 w-full max-w-[340px]">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(num => (
                             <Button 
                                 key={num}
                                 variant="outline" 
                                 className={cn(
-                                    "h-14 text-xl font-black rounded-xl bg-white/10 border-white/10 text-white",
+                                    "h-16 text-2xl font-black rounded-2xl bg-white/5 border-white/10 text-white",
                                     num === 0 && "col-span-2"
                                 )}
                                 onClick={() => setAmount(prev => parseInt(`${prev}${num}`))}
@@ -488,26 +483,26 @@ export default function KioskPage() {
                         ))}
                          <Button 
                             variant="outline" 
-                            className="h-14 rounded-xl bg-white/10 border-white/10 text-white"
+                            className="h-16 rounded-2xl bg-white/5 border-white/10 text-white"
                             onClick={() => setAmount(0)}
                         >
-                            <Delete className="h-5 w-5" />
+                            <Delete className="h-7 w-7" />
                         </Button>
                     </div>
-                    <div className="flex gap-3 w-full">
+                    <div className="flex gap-4 w-full">
                          <Button 
                             variant="ghost" 
-                            className="flex-1 h-14 rounded-xl text-white/50 text-xs"
+                            className="flex-1 h-16 rounded-[2rem] text-white/30 font-bold uppercase tracking-widest"
                             onClick={() => { setAmount(0); setKioskState('WITHDRAW_MENU'); }}
                         >
                             Batal
                         </Button>
                         <Button 
-                            className="flex-1 h-14 rounded-xl bg-white text-primary font-black"
+                            className="flex-1 h-16 rounded-[2rem] bg-white text-primary font-black text-lg shadow-2xl"
                             disabled={amount <= 0 || amount > student.balance}
                             onClick={() => handleWithdraw(amount)}
                         >
-                            Tarik
+                            TARIK DANA
                         </Button>
                     </div>
                 </div>
@@ -515,44 +510,48 @@ export default function KioskPage() {
 
             {/* 6. STATE: PROCESSING */}
             {kioskState === 'PROCESSING' && (
-                <div className="flex flex-col items-center gap-6 animate-pulse">
-                    <div className="h-20 w-24 border-8 border-primary border-t-transparent rounded-full animate-spin" />
-                    <div className="text-center space-y-1">
-                        <h2 className="text-2xl font-black text-white tracking-widest uppercase italic">Memproses</h2>
-                        <p className="text-white/40 font-bold uppercase tracking-[0.3em] text-[10px]">Mohon Tunggu</p>
+                <div className="flex flex-col items-center gap-8">
+                    <div className="relative">
+                        <div className="h-24 w-24 border-8 border-white/10 rounded-full" />
+                        <div className="h-24 w-24 border-8 border-primary border-t-transparent rounded-full animate-spin absolute inset-0" />
+                    </div>
+                    <div className="text-center space-y-2">
+                        <h2 className="text-3xl font-black text-white tracking-[0.3em] uppercase animate-pulse italic">Memproses</h2>
+                        <p className="text-white/30 font-bold uppercase tracking-[0.4em] text-[11px]">Verifikasi Transaksi Aman</p>
                     </div>
                 </div>
             )}
 
             {/* 7. STATE: SUCCESS */}
             {kioskState === 'SUCCESS' && (
-                <div className="w-full max-w-sm animate-in zoom-in-95 duration-500">
-                    <Card className="bg-white border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
+                <div className="w-full max-w-md animate-in zoom-in-95 duration-500">
+                    <Card className="bg-white border-none shadow-2xl rounded-[3.5rem] overflow-hidden">
                         <CardContent className="p-0">
-                            <div className="bg-emerald-500 p-8 flex flex-col items-center text-white text-center">
-                                <div className="bg-white/20 p-4 rounded-full mb-4">
-                                    <CheckCircle2 className="h-8 w-8 text-white" />
+                            <div className="bg-emerald-500 p-12 flex flex-col items-center text-white text-center">
+                                <div className="bg-white/20 p-5 rounded-full mb-6 shadow-lg">
+                                    <CheckCircle2 className="h-10 w-10 text-white" />
                                 </div>
-                                <h2 className="text-2xl font-black tracking-tight mb-1">Berhasil!</h2>
+                                <h2 className="text-3xl font-black tracking-tight mb-2 uppercase">BERHASIL!</h2>
+                                <p className="text-emerald-100 text-xs font-bold uppercase tracking-widest opacity-80">Ambil Struk & Dana Anda</p>
                             </div>
-                            <div className="p-8 space-y-4">
-                                <div className="flex flex-col items-center py-4 border-b border-dashed border-gray-200">
-                                    <ReceiptText className="h-5 w-5 text-gray-300 mb-2" />
-                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Uang Ditarik</p>
-                                    <p className="text-3xl font-black text-gray-900">{formatCurrency(lastWithdrawal || 0)}</p>
+                            <div className="p-10 space-y-6">
+                                <div className="flex flex-col items-center py-6 border-b-2 border-dashed border-gray-100">
+                                    <ReceiptText className="h-6 w-6 text-gray-300 mb-3" />
+                                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] mb-2">Dana Yang Ditarik</p>
+                                    <p className="text-4xl font-black text-gray-900 tracking-tight">{formatCurrency(lastWithdrawal || 0)}</p>
                                 </div>
-                                <div className="space-y-3 pt-2">
-                                    <div className="flex justify-between items-center text-xs font-bold text-gray-500">
-                                        <span className="uppercase tracking-widest text-[9px]">Sisa Saldo</span>
-                                        <span className="text-emerald-600">{formatCurrency(student.balance)}</span>
+                                <div className="space-y-4 pt-2">
+                                    <div className="flex justify-between items-center text-sm font-bold text-gray-500">
+                                        <span className="uppercase tracking-[0.2em] text-[10px] text-gray-400">Sisa Saldo</span>
+                                        <span className="text-emerald-600 font-black text-lg">{formatCurrency(student.balance)}</span>
                                     </div>
-                                    <div className="flex justify-between items-center text-xs font-bold text-gray-500">
-                                        <span className="uppercase tracking-widest text-[9px]">Nama Siswa</span>
-                                        <span className="text-gray-900 truncate max-w-[150px]">{student.name}</span>
+                                    <div className="flex justify-between items-center text-sm font-bold text-gray-500">
+                                        <span className="uppercase tracking-[0.2em] text-[10px] text-gray-400">Nama Siswa</span>
+                                        <span className="text-gray-900 font-black truncate max-w-[180px] uppercase">{student.name}</span>
                                     </div>
                                 </div>
                                 <Button 
-                                    className="w-full h-14 rounded-[1.5rem] bg-gray-900 text-white font-black mt-4"
+                                    className="w-full h-18 rounded-[2.5rem] bg-gray-900 text-white font-black text-lg shadow-2xl mt-6 transition-transform active:scale-95"
                                     onClick={() => handleReset()}
                                 >
                                     Selesai
@@ -565,23 +564,23 @@ export default function KioskPage() {
 
             {/* 8. STATE: ERROR */}
             {kioskState === 'ERROR' && (
-                <div className="w-full max-w-sm animate-in shake-in duration-500">
-                    <Card className="bg-rose-600 border-none shadow-2xl rounded-[2.5rem] overflow-hidden text-center text-white">
-                        <CardContent className="p-8 flex flex-col items-center">
-                            <div className="bg-white/20 p-4 rounded-full mb-6">
-                                <AlertCircle className="h-8 w-8 text-white" />
+                <div className="w-full max-w-md animate-in shake-in duration-500">
+                    <Card className="bg-rose-600 border-none shadow-2xl rounded-[3rem] overflow-hidden text-center text-white">
+                        <CardContent className="p-10 flex flex-col items-center">
+                            <div className="bg-white/20 p-5 rounded-full mb-8 shadow-inner">
+                                <AlertCircle className="h-10 w-10 text-white" />
                             </div>
-                            <h2 className="text-2xl font-black tracking-tight mb-2 uppercase">Gagal</h2>
-                            <p className="text-rose-100 font-medium mb-8 text-sm leading-relaxed px-4">{errorMessage}</p>
+                            <h2 className="text-3xl font-black tracking-tight mb-4 uppercase">GAGAL!</h2>
+                            <p className="text-rose-100 font-bold mb-10 text-sm leading-relaxed px-6 uppercase tracking-wider">{errorMessage}</p>
                             <Button 
-                                className="w-full h-16 rounded-[1.5rem] bg-white text-rose-600 font-black shadow-xl"
+                                className="w-full h-20 rounded-[2rem] bg-white text-rose-600 font-black text-lg shadow-2xl active:scale-95 transition-all"
                                 onClick={() => setKioskState('PIN_INPUT')}
                             >
-                                Coba Lagi
+                                COBA LAGI
                             </Button>
                             <Button 
                                 variant="ghost" 
-                                className="w-full h-12 mt-2 text-white/50 text-xs"
+                                className="w-full h-14 mt-4 text-white/40 text-[11px] font-black uppercase tracking-widest hover:text-white"
                                 onClick={() => handleReset()}
                             >
                                 Kembali ke Awal
@@ -593,22 +592,22 @@ export default function KioskPage() {
 
         </div>
 
-        {/* Camera Access Error UI */}
+        {/* UI Galat Akses Kamera */}
         {hasCameraPermission === false && (
-            <div className="absolute inset-0 z-[100] bg-background flex flex-col items-center justify-center p-8 text-center">
-                 <div className="bg-rose-100 p-6 rounded-full mb-6">
-                    <AlertCircle className="h-12 w-12 text-rose-600" />
+            <div className="absolute inset-0 z-[100] bg-black flex flex-col items-center justify-center p-10 text-center">
+                 <div className="bg-rose-500/10 p-8 rounded-full mb-8 border border-rose-500/20 shadow-[0_0_50px_rgba(244,63,94,0.1)]">
+                    <AlertCircle className="h-16 w-16 text-rose-500" />
                 </div>
-                <h2 className="text-xl font-bold mb-3">Kamera Bermasalah</h2>
-                <p className="text-muted-foreground mb-8 max-sm:px-4 max-w-xs text-sm leading-relaxed">
-                    Mohon pastikan izin kamera aktif dan tidak sedang digunakan aplikasi lain (seperti Zoom/Meet).
+                <h2 className="text-2xl font-black text-white mb-4 uppercase tracking-tight">Kamera Bermasalah</h2>
+                <p className="text-white/40 mb-12 max-sm:px-4 max-w-xs text-sm leading-relaxed font-medium">
+                    Kami tidak dapat mengakses kamera. Pastikan izin kamera aktif dan perangkat tidak sedang digunakan aplikasi lain.
                 </p>
-                <div className="flex gap-3">
-                    <Button variant="outline" onClick={() => setFacingMode(f => f === 'user' ? 'environment' : 'user')} className="rounded-xl h-14">
+                <div className="flex flex-col gap-4 w-full max-w-xs">
+                    <Button variant="outline" onClick={() => setFacingMode(f => f === 'user' ? 'environment' : 'user')} className="rounded-2xl h-16 bg-white/5 border-white/10 text-white font-bold">
                         Coba Kamera Lain
                     </Button>
-                    <Button onClick={() => window.location.reload()} className="rounded-xl h-14 px-8 text-base font-bold">
-                        Muat Ulang
+                    <Button onClick={() => window.location.reload()} className="rounded-2xl h-16 px-10 text-lg font-black bg-white text-black shadow-2xl">
+                        Segarkan Halaman
                     </Button>
                 </div>
             </div>
