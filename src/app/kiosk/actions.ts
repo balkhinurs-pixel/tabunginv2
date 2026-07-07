@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
@@ -15,9 +16,11 @@ export async function getStudentKioskData(nis: string, schoolCode: string) {
         id,
         name,
         class,
+        daily_limit,
         transactions (
           amount,
-          type
+          type,
+          created_at
         ),
         profiles:user_id!inner (
           school_code
@@ -47,6 +50,7 @@ export async function getStudentKioskData(nis: string, schoolCode: string) {
         name: data.name,
         class: data.class,
         balance: balance,
+        dailyLimit: data.daily_limit,
         nis: nis.trim(),
         schoolCode: schoolCode.trim().toLowerCase()
       }
@@ -68,7 +72,7 @@ export async function processKioskWithdrawal(params: {
     const supabaseAdmin = getSupabaseAdmin();
     
     try {
-        // 1. Verifikasi PIN menggunakan Non-Persisting Client (Tanpa merusak cookie)
+        // 1. Verifikasi PIN menggunakan Non-Persisting Client
         const authVerifier = createSupabaseClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -91,12 +95,13 @@ export async function processKioskWithdrawal(params: {
             return { success: false, message: 'PIN yang Anda masukkan salah.' };
         }
 
-        // 2. Cek Saldo Terkini via Admin (Bypass RLS)
+        // 2. Verifikasi Data Siswa & Limit Harian
         const { data: student, error: studentError } = await supabaseAdmin
             .from('students')
             .select(`
                 user_id,
-                transactions (amount, type)
+                daily_limit,
+                transactions (amount, type, created_at)
             `)
             .eq('id', studentId)
             .single();
@@ -110,28 +115,41 @@ export async function processKioskWithdrawal(params: {
         }, 0);
 
         if (amount > currentBalance) {
-            return { success: false, message: 'Saldo Anda tidak mencukupi untuk penarikan ini.' };
+            return { success: false, message: 'Saldo Anda tidak mencukupi.' };
+        }
+
+        // Cek Limit Harian
+        if (student.daily_limit && student.daily_limit > 0) {
+            const todayStart = new Date();
+            todayStart.setHours(0,0,0,0);
+
+            const todaySpent = (student.transactions || [])
+                .filter((tx: any) => tx.type === 'Pengeluaran' && new Date(tx.created_at) >= todayStart)
+                .reduce((sum: number, tx: any) => sum + tx.amount, 0);
+            
+            if (todaySpent + amount > student.daily_limit) {
+                return { 
+                    success: false, 
+                    message: `Limit harian terlampaui. Sisa limit Anda hari ini: Rp ${(student.daily_limit - todaySpent).toLocaleString('id-ID')}` 
+                };
+            }
         }
 
         // 3. Catat Transaksi Penarikan
         const { error: txError } = await supabaseAdmin.from('transactions').insert({
             student_id: studentId,
-            user_id: student.user_id, // Terikat ke Guru yang bersangkutan
+            user_id: student.user_id,
             amount: amount,
             type: 'Pengeluaran',
             category: 'TARIK_TUNAI',
             description: 'Tarik Tunai via Kios ATM'
         });
 
-        if (txError) {
-            console.error('[KIOS_INSERT_TX_ERROR]', txError);
-            return { success: false, message: 'Gagal memproses penarikan di database.' };
-        }
+        if (txError) throw txError;
 
-        // 4. Sinkronisasi Global (Hapus Cache di semua dashboard terkait)
-        revalidatePath('/dashboard'); // Dashboard Guru
-        revalidatePath(`/profiles/${studentId}`); // Profil Siswa di sisi Guru
-        revalidatePath('/home'); // Dashboard Siswa
+        revalidatePath('/dashboard');
+        revalidatePath(`/profiles/${studentId}`);
+        revalidatePath('/home');
 
         return { 
             success: true, 

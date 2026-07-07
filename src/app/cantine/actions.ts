@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
@@ -65,8 +66,8 @@ export async function getStudentDataForPayment(nis: string, schoolCode: string) 
         const { data, error } = await supabaseAdmin
             .from('students')
             .select(`
-                id, name, class, nis,
-                transactions (amount, type),
+                id, name, class, nis, daily_limit,
+                transactions (amount, type, created_at),
                 profiles:user_id!inner (school_code)
             `)
             .eq('nis', nis.trim())
@@ -87,6 +88,7 @@ export async function getStudentDataForPayment(nis: string, schoolCode: string) 
                 class: data.class,
                 nis: data.nis,
                 balance: balance,
+                dailyLimit: data.daily_limit,
                 schoolCode: schoolCode.trim().toLowerCase()
             }
         };
@@ -110,7 +112,7 @@ export async function processCantinePayment(params: {
     const supabaseUser = createClient();
     
     try {
-        // 1. Verifikasi PIN menggunakan Client non-persisten
+        // 1. Verifikasi PIN
         const authVerifier = createSupabaseClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -133,9 +135,38 @@ export async function processCantinePayment(params: {
             return { success: false, message: 'PIN Siswa Salah.' };
         }
 
-        // 2. Identitas Merchant
+        // 2. Identitas Merchant & Cek Limit
         const { data: { user: activeMerchant } } = await supabaseUser.auth.getUser();
         if (!activeMerchant) return { success: false, message: 'Sesi outlet berakhir.' };
+
+        const { data: student, error: studentError } = await supabaseAdmin
+            .from('students')
+            .select('daily_limit, transactions(amount, type, created_at)')
+            .eq('id', studentId)
+            .single();
+
+        if (studentError) return { success: false, message: 'Gagal verifikasi data siswa.' };
+
+        const currentBalance = (student.transactions || []).reduce((acc: number, tx: any) => {
+            return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
+        }, 0);
+
+        if (amount > currentBalance) {
+            return { success: false, message: 'Saldo Tidak Cukup.' };
+        }
+
+        // Cek Limit Harian
+        if (student.daily_limit && student.daily_limit > 0) {
+            const todayStart = new Date();
+            todayStart.setHours(0,0,0,0);
+            const todaySpent = (student.transactions || [])
+                .filter((tx: any) => tx.type === 'Pengeluaran' && new Date(tx.created_at) >= todayStart)
+                .reduce((sum: number, tx: any) => sum + tx.amount, 0);
+
+            if (todaySpent + amount > student.daily_limit) {
+                return { success: false, message: `Limit Harian Terlampaui (Sisa: Rp ${(student.daily_limit - todaySpent).toLocaleString('id-ID')})` };
+            }
+        }
 
         const { data: merchantProfile } = await supabaseAdmin
             .from('profiles')
@@ -144,22 +175,6 @@ export async function processCantinePayment(params: {
             .single();
 
         const merchantDisplayName = merchantProfile?.school_name || activeMerchant.email?.split('@')[0].toUpperCase() || 'KANTIN';
-
-        const { data: student, error: studentError } = await supabaseAdmin
-            .from('students')
-            .select('transactions(amount, type)')
-            .eq('id', studentId)
-            .single();
-
-        if (studentError) return { success: false, message: 'Gagal verifikasi saldo.' };
-
-        const currentBalance = (student.transactions || []).reduce((acc: number, tx: any) => {
-            return acc + (tx.type === 'Pemasukan' ? tx.amount : -tx.amount);
-        }, 0);
-
-        if (amount > currentBalance) {
-            return { success: false, message: `Saldo Tidak Cukup (Sisa: Rp ${currentBalance.toLocaleString('id-ID')})` };
-        }
 
         // 3. Insert Transaksi
         const { error: txError } = await supabaseAdmin.from('transactions').insert({

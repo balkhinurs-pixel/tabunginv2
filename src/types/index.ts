@@ -24,6 +24,7 @@ export interface Student {
   name: string;
   class: string;
   whatsapp_number?: string | null;
+  daily_limit?: number | null;
   created_at?: string;
   user_id?: string;
   transactions: Transaction[];
