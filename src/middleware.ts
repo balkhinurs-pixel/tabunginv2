@@ -1,4 +1,3 @@
-
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
@@ -37,7 +36,7 @@ export async function middleware(request: NextRequest) {
         remove(name: string, options: CookieOptions) {
           request.cookies.set({
             name,
-            value: '',
+            value,
             ...options,
           })
           response = NextResponse.next({
@@ -47,7 +46,7 @@ export async function middleware(request: NextRequest) {
           })
           response.cookies.set({
             name,
-            value: '',
+            value,
             ...options,
           })
         },
@@ -113,7 +112,7 @@ export async function middleware(request: NextRequest) {
 
           if (isActuallyTeacher) {
               if (isAuthRoute || pathname === '/welcome' || pathname.startsWith('/admin')) {
-                  return NextResponse.redirect(new URLURL('/dashboard', request.url));
+                  return NextResponse.redirect(new URL('/dashboard', request.url));
               }
               return response;
           }

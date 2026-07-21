@@ -1,4 +1,3 @@
-
 'use server';
 
 import { createClient } from '@/lib/utils/supabase/server';
@@ -175,22 +174,32 @@ export async function processBatchAdminFeeAction(monthName: string) {
     const supabaseAdmin = getSupabaseAdmin();
     
     // VALIDASI USER SECURE DENGAN getUser()
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, message: 'Sesi tidak valid atau telah berakhir. Silakan login kembali.' };
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+        return { success: false, message: 'Sesi tidak valid atau telah berakhir. Silakan login kembali.' };
+    }
 
     const { data: profile } = await supabase.from('profiles').select('admin_fee').eq('id', user.id).single();
     const fee = profile?.admin_fee || 0;
 
-    if (fee <= 0) return { success: false, message: 'Atur nominal biaya admin terlebih dahulu.' };
+    if (fee <= 0) {
+        return { success: false, message: 'Atur nominal biaya admin terlebih dahulu.' };
+    }
 
     // AMBIL SISWA MENGGUNAKAN ADMIN CLIENT UNTUK BYPASS RLS TAPI TETAP FILTER ID GURU
+    // Kita gunakan hak akses admin untuk memastikan seluruh daftar siswa terbaca
     const { data: students, error: studentError } = await supabaseAdmin
         .from('students')
         .select('id, name')
         .eq('user_id', user.id);
 
-    if (studentError || !students || students.length === 0) {
-        return { success: false, message: 'Tidak ada data siswa yang ditemukan untuk ID Guru ini.' };
+    if (studentError) {
+        return { success: false, message: 'Gagal mengambil data siswa: ' + studentError.message };
+    }
+
+    if (!students || students.length === 0) {
+        return { success: false, message: 'Tidak ada data siswa ditemukan untuk akun Anda.' };
     }
 
     let successCount = 0;
@@ -199,6 +208,8 @@ export async function processBatchAdminFeeAction(monthName: string) {
     for (const student of students) {
         try {
             const description = `Biaya Admin: ${monthName}`;
+            
+            // Cek apakah siswa ini sudah ditarik di bulan yang sama
             const { data: existing } = await supabaseAdmin
                 .from('transactions')
                 .select('id')
@@ -210,7 +221,7 @@ export async function processBatchAdminFeeAction(monthName: string) {
 
             const { error: txError } = await supabaseAdmin.from('transactions').insert({
                 student_id: student.id,
-                user_id: user.id,
+                user_id: user.id, // Referensi ke guru pengelola
                 amount: fee,
                 type: 'Pengeluaran',
                 category: 'BIAYA_ADMIN',
