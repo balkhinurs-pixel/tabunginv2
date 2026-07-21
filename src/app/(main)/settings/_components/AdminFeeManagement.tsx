@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,9 +11,9 @@ import {
   Settings2,
   Building2,
   Zap,
-  CheckCircle2,
+  History,
   AlertTriangle,
-  History
+  CheckCircle2
 } from 'lucide-react';
 import { 
   updateAdminFeeConfigAction, 
@@ -35,38 +35,66 @@ export default function AdminFeeManagement() {
   const [loadingStats, setLoadingStats] = useState(true);
   
   const { toast } = useToast();
-  const supabase = createClient();
+  
+  // Memoize supabase client to prevent unnecessary re-renders and effect triggers
+  const supabase = useMemo(() => createClient(), []);
 
   const fetchConfig = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-        const { data } = await supabase.from('profiles').select('admin_fee').eq('id', user.id).single();
-        if (data) setFee(data.admin_fee?.toString() || '0');
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('admin_fee')
+                .eq('id', user.id)
+                .maybeSingle();
+            
+            if (error) throw error;
+            if (data) setFee(data.admin_fee?.toString() || '0');
+        }
+    } catch (err: any) {
+        console.error('[FETCH_CONFIG_ERROR]', err.message);
+    } finally {
+        setLoading(false);
     }
-    setLoading(false);
   }
 
   const fetchStats = async () => {
     setLoadingStats(true);
-    const data = await getAdminFeeStatsAction();
-    setStats(data);
-    setLoadingStats(false);
+    try {
+        const data = await getAdminFeeStatsAction();
+        setStats(data || []);
+    } catch (err) {
+        console.error('[FETCH_STATS_ERROR]', err);
+    } finally {
+        setLoadingStats(false);
+    }
   }
 
   useEffect(() => {
     fetchConfig();
     fetchStats();
-  }, [supabase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount
 
   const handleSaveConfig = async () => {
+    if (!fee || isNaN(parseInt(fee))) {
+        toast({ title: "Input Tidak Valid", description: "Masukkan nominal angka yang benar.", variant: "destructive" });
+        return;
+    }
+
     setSaving(true);
-    const result = await updateAdminFeeConfigAction(parseInt(fee || '0'));
-    setSaving(false);
-    
-    if (result.success) {
-        toast({ title: "Berhasil", description: result.message });
-    } else {
-        toast({ title: "Gagal", description: result.message, variant: "destructive" });
+    try {
+        const result = await updateAdminFeeConfigAction(parseInt(fee));
+        if (result.success) {
+            toast({ title: "Berhasil", description: result.message });
+        } else {
+            toast({ title: "Gagal", description: result.message, variant: "destructive" });
+        }
+    } catch (err: any) {
+        toast({ title: "Kesalahan Sistem", description: err.message, variant: "destructive" });
+    } finally {
+        setSaving(false);
     }
   };
 
@@ -74,18 +102,27 @@ export default function AdminFeeManagement() {
     const currentMonth = format(new Date(), 'MMMM yyyy', { locale: id });
     setProcessing(true);
     
-    const result = await processBatchAdminFeeAction(currentMonth);
-    setProcessing(false);
-
-    if (result.success) {
-        toast({ title: "Selesai", description: result.message });
-        fetchStats(); // Refresh stats after processing
-    } else {
-        toast({ title: "Gagal", description: result.message, variant: "destructive" });
+    try {
+        const result = await processBatchAdminFeeAction(currentMonth);
+        if (result.success) {
+            toast({ title: "Selesai", description: result.message });
+            fetchStats(); // Refresh stats after processing
+        } else {
+            toast({ title: "Gagal", description: result.message, variant: "destructive" });
+        }
+    } catch (err: any) {
+        toast({ title: "Terjadi Kesalahan", description: err.message, variant: "destructive" });
+    } finally {
+        setProcessing(false);
     }
   };
 
-  if (loading) return <div className="p-8 text-center animate-pulse">Menyiapkan konfigurasi...</div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center p-12 gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary opacity-20" />
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest animate-pulse">Menyiapkan konfigurasi...</p>
+    </div>
+  );
 
   return (
     <div className="space-y-8">
