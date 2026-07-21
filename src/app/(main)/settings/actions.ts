@@ -4,6 +4,8 @@
 import { createClient } from '@/lib/utils/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { revalidatePath } from 'next/cache';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 interface ActionResult {
   success: boolean;
@@ -132,6 +134,41 @@ export async function updateAdminFeeConfigAction(amount: number) {
     
     revalidatePath('/settlement');
     return { success: true, message: 'Konfigurasi biaya admin diperbarui.' };
+}
+
+export async function getAdminFeeStatsAction() {
+    const supabase = createClient();
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabaseAdmin
+        .from('transactions')
+        .select('amount, description, created_at')
+        .eq('category', 'BIAYA_ADMIN')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('[GET_ADMIN_FEE_STATS_ERROR]', error);
+        return [];
+    }
+
+    const stats: Record<string, { month: string, total: number, count: number }> = {};
+    
+    data.forEach(tx => {
+        // Ekstrak nama bulan dari deskripsi "Biaya Admin: Bulan Tahun"
+        const monthMatch = tx.description.match(/Biaya Admin: (.*)/);
+        const monthKey = monthMatch ? monthMatch[1] : format(new Date(tx.created_at), 'MMMM yyyy', { locale: id });
+        
+        if (!stats[monthKey]) {
+            stats[monthKey] = { month: monthKey, total: 0, count: 0 };
+        }
+        stats[monthKey].total += tx.amount;
+        stats[monthKey].count += 1;
+    });
+
+    return Object.values(stats);
 }
 
 export async function processBatchAdminFeeAction(monthName: string) {
