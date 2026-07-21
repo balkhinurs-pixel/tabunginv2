@@ -1,3 +1,4 @@
+
 'use server';
 
 import { createClient } from '@/lib/utils/supabase/server';
@@ -139,26 +140,29 @@ export async function processBatchAdminFeeAction(monthName: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, message: 'Sesi berakhir.' };
 
-    // 1. Get Fee Config
+    // 1. Ambil Pengaturan Biaya
     const { data: profile } = await supabase.from('profiles').select('admin_fee').eq('id', user.id).single();
     const fee = profile?.admin_fee || 0;
 
     if (fee <= 0) return { success: false, message: 'Atur nominal biaya admin terlebih dahulu.' };
 
-    // 2. Get All Students for this teacher
-    const { data: students, error: studentError } = await supabase
+    // 2. Ambil Daftar Siswa (Gunakan Admin Client untuk bypass RLS, tapi filter by user_id)
+    const { data: students, error: studentError } = await supabaseAdmin
         .from('students')
-        .select('id, name');
+        .select('id, name')
+        .eq('user_id', user.id);
 
-    if (studentError || !students) return { success: false, message: 'Gagal mengambil data siswa.' };
+    if (studentError || !students || students.length === 0) {
+        return { success: false, message: 'Tidak ada data siswa ditemukan untuk diproses.' };
+    }
 
     let successCount = 0;
     const errors = [];
 
-    // 3. Process each student
+    // 3. Proses penarikan per siswa
     for (const student of students) {
         try {
-            // Check if already paid this month (to prevent double charging)
+            // Cek apakah sudah ditarik di bulan ini (cegah penarikan ganda)
             const description = `Biaya Admin: ${monthName}`;
             const { data: existing } = await supabaseAdmin
                 .from('transactions')
@@ -187,6 +191,8 @@ export async function processBatchAdminFeeAction(monthName: string) {
 
     revalidatePath('/dashboard');
     revalidatePath('/profiles');
+    revalidatePath('/settlement');
+    revalidatePath('/today-transactions');
     
     return { 
         success: true, 
