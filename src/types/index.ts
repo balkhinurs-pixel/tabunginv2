@@ -7,7 +7,7 @@ export interface Transaction {
   amount: number;
   student_id: string; 
   user_id?: string;
-  category: 'TABUNGAN' | 'BELANJA_KANTIN' | 'TARIK_TUNAI';
+  category: 'TABUNGAN' | 'BELANJA_KANTIN' | 'TARIK_TUNAI' | 'BIAYA_ADMIN';
   is_settled: boolean;
   // Joined properties
   students?: {
@@ -38,4 +38,5 @@ export interface Profile {
   school_name?: string | null;
   school_code?: string | null;
   custom_quota?: number | null;
+  admin_fee?: number | null;
 }

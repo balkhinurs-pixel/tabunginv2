@@ -42,9 +42,6 @@ export async function getCantineOutletsAction() {
   })) || [];
 }
 
-/**
- * Mengambil statistik settlement untuk Guru
- */
 export async function getMerchantSettlementStatsAction() {
     const supabase = createClient();
     const supabaseAdmin = getSupabaseAdmin();
@@ -52,7 +49,6 @@ export async function getMerchantSettlementStatsAction() {
     const { data: { user: teacher } } = await supabase.auth.getUser();
     if (!teacher) return [];
 
-    // 1. Dapatkan daftar merchant di sekolah yang sama
     const { data: teacherProfile } = await supabase.from('profiles').select('school_code').eq('id', teacher.id).single();
     if (!teacherProfile) return [];
 
@@ -64,7 +60,6 @@ export async function getMerchantSettlementStatsAction() {
 
     if (!merchants || merchants.length === 0) return [];
 
-    // 2. Untuk setiap merchant, hitung total transaksi BELANJA_KANTIN yang belum settled (is_settled = false)
     const stats = await Promise.all(merchants.map(async (m) => {
         const { data: txs } = await supabaseAdmin
             .from('transactions')
@@ -85,9 +80,6 @@ export async function getMerchantSettlementStatsAction() {
     return stats;
 }
 
-/**
- * Mengambil Riwayat Pencairan yang sudah LUNAS untuk Guru
- */
 export async function getSettledHistoryAction() {
     const supabase = createClient();
     const supabaseAdmin = getSupabaseAdmin();
@@ -120,15 +112,89 @@ export async function getSettledHistoryAction() {
         id: tx.id,
         date: tx.created_at,
         amount: tx.amount,
-        merchantName: tx.profiles?.school_name || 'OUTLET',
+        merchantName: (tx.profiles as any)?.school_name || 'OUTLET',
         studentName: tx.students?.name || 'Siswa',
         studentClass: tx.students?.class || '-'
     }));
 }
 
-/**
- * Mengambil rincian transaksi belum cair untuk PDF
- */
+export async function updateAdminFeeConfigAction(amount: number) {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, message: 'Sesi berakhir.' };
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({ admin_fee: amount })
+        .eq('id', user.id);
+
+    if (error) return { success: false, message: error.message };
+    
+    revalidatePath('/settlement');
+    return { success: true, message: 'Konfigurasi biaya admin diperbarui.' };
+}
+
+export async function processBatchAdminFeeAction(monthName: string) {
+    const supabase = createClient();
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, message: 'Sesi berakhir.' };
+
+    // 1. Get Fee Config
+    const { data: profile } = await supabase.from('profiles').select('admin_fee').eq('id', user.id).single();
+    const fee = profile?.admin_fee || 0;
+
+    if (fee <= 0) return { success: false, message: 'Atur nominal biaya admin terlebih dahulu.' };
+
+    // 2. Get All Students for this teacher
+    const { data: students, error: studentError } = await supabase
+        .from('students')
+        .select('id, name');
+
+    if (studentError || !students) return { success: false, message: 'Gagal mengambil data siswa.' };
+
+    let successCount = 0;
+    const errors = [];
+
+    // 3. Process each student
+    for (const student of students) {
+        try {
+            // Check if already paid this month (to prevent double charging)
+            const description = `Biaya Admin: ${monthName}`;
+            const { data: existing } = await supabaseAdmin
+                .from('transactions')
+                .select('id')
+                .eq('student_id', student.id)
+                .eq('description', description)
+                .maybeSingle();
+
+            if (existing) continue;
+
+            const { error: txError } = await supabaseAdmin.from('transactions').insert({
+                student_id: student.id,
+                user_id: user.id,
+                amount: fee,
+                type: 'Pengeluaran',
+                category: 'BIAYA_ADMIN',
+                description: description,
+                is_settled: true
+            });
+
+            if (!txError) successCount++;
+        } catch (e) {
+            errors.push(student.name);
+        }
+    }
+
+    revalidatePath('/dashboard');
+    revalidatePath('/profiles');
+    
+    return { 
+        success: true, 
+        message: `Berhasil memproses potongan untuk ${successCount} siswa bulan ${monthName}.` 
+    };
+}
+
 export async function getUnsettledTransactionDetailsAction(merchantId: string) {
     const supabaseAdmin = getSupabaseAdmin();
     
@@ -150,9 +216,6 @@ export async function getUnsettledTransactionDetailsAction(merchantId: string) {
     return data;
 }
 
-/**
- * Guru melakukan pencairan dana ke merchant
- */
 export async function settleMerchantTransactionsAction(merchantId: string) {
     const supabaseAdmin = getSupabaseAdmin();
     

@@ -1,0 +1,154 @@
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { 
+  ShieldCheck, 
+  Loader2, 
+  Settings2,
+  Building2,
+  CalendarDays,
+  Zap,
+  CheckCircle2,
+  AlertTriangle
+} from 'lucide-react';
+import { updateAdminFeeConfigAction, processBatchAdminFeeAction } from '../actions';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { createClient } from '@/lib/supabase';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
+
+export default function AdminFeeManagement() {
+  const [fee, setFee] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const { toast } = useToast();
+  const supabase = createClient();
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            const { data } = await supabase.from('profiles').select('admin_fee').eq('id', user.id).single();
+            if (data) setFee(data.admin_fee?.toString() || '0');
+        }
+        setLoading(false);
+    }
+    fetchConfig();
+  }, [supabase]);
+
+  const handleSaveConfig = async () => {
+    setSaving(true);
+    const result = await updateAdminFeeConfigAction(parseInt(fee || '0'));
+    setSaving(false);
+    
+    if (result.success) {
+        toast({ title: "Berhasil", description: result.message });
+    } else {
+        toast({ title: "Gagal", description: result.message, variant: "destructive" });
+    }
+  };
+
+  const handleProcessFees = async () => {
+    const currentMonth = format(new Date(), 'MMMM yyyy', { locale: id });
+    setProcessing(true);
+    
+    const result = await processBatchAdminFeeAction(currentMonth);
+    setProcessing(false);
+
+    if (result.success) {
+        toast({ title: "Selesai", description: result.message });
+    } else {
+        toast({ title: "Gagal", description: result.message, variant: "destructive" });
+    }
+  };
+
+  if (loading) return <div className="p-8 text-center animate-pulse">Menyiapkan konfigurasi...</div>;
+
+  return (
+    <div className="space-y-8">
+      {/* 1. Configuration Section */}
+      <Card className="rounded-[2rem] border-none bg-gray-50/50 overflow-hidden">
+        <CardContent className="p-6 space-y-6">
+            <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+                    <Settings2 className="h-5 w-5" />
+                </div>
+                <div>
+                    <h4 className="font-black text-sm uppercase tracking-tight">Pengaturan Biaya</h4>
+                    <p className="text-[10px] text-muted-foreground font-medium uppercase">Atur nominal bulanan</p>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Nominal Potongan (Rp)</Label>
+                    <div className="relative">
+                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+                        <Input 
+                            value={fee}
+                            onChange={(e) => setFee(e.target.value.replace(/\D/g, ''))}
+                            placeholder="Contoh: 2000"
+                            className="pl-12 h-14 rounded-2xl border-gray-100 bg-white text-lg font-black tracking-tight focus:ring-indigo-500"
+                        />
+                    </div>
+                </div>
+                <Button 
+                    onClick={handleSaveConfig} 
+                    disabled={saving}
+                    className="w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 font-bold"
+                >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                    SIMPAN KONFIGURASI
+                </Button>
+            </div>
+        </CardContent>
+      </Card>
+
+      {/* 2. Execution Section */}
+      <Card className="rounded-[2rem] border-2 border-dashed border-indigo-100 bg-white">
+        <CardContent className="p-8 text-center space-y-6">
+            <div className="bg-indigo-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-2 border border-indigo-100">
+                <Zap className="h-10 w-10 text-indigo-600 fill-indigo-600" />
+            </div>
+            
+            <div className="space-y-1">
+                <h3 className="font-black text-xl tracking-tight text-gray-900">Eksekusi Bulanan</h3>
+                <p className="text-xs text-gray-500 font-medium px-4">
+                    Tombol ini akan memotong saldo seluruh siswa secara otomatis untuk biaya admin bulan <span className="text-indigo-600 font-bold">{format(new Date(), 'MMMM yyyy', { locale: id })}</span>.
+                </p>
+            </div>
+
+            <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex gap-3 text-left">
+                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                <p className="text-[10px] text-amber-800 leading-relaxed font-medium">
+                    Sistem memiliki proteksi otomatis. Siswa yang sudah ditarik biaya admin di bulan yang sama tidak akan terpotong dua kali.
+                </p>
+            </div>
+
+            <Button 
+                onClick={handleProcessFees}
+                disabled={processing || parseInt(fee || '0') <= 0}
+                className="w-full h-16 rounded-2xl bg-gray-900 hover:bg-black text-white font-black text-base shadow-xl active:scale-95 transition-all"
+            >
+                {processing ? (
+                    <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> SEDANG MEMPROSES...</>
+                ) : (
+                    <><Zap className="mr-2 h-5 w-5" /> TARIK BIAYA ADMIN MASSAL</>
+                )}
+            </Button>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center gap-2 justify-center py-4">
+        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sistem Perbankan Terverifikasi</span>
+      </div>
+    </div>
+  );
+}

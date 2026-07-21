@@ -15,7 +15,8 @@ import {
   Info,
   Calendar as CalendarIcon,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ShieldEllipsis
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,6 @@ export default function TodayTransactionsPage() {
     const dayStart = startOfDay(date).toISOString();
     const dayEnd = endOfDay(date).toISOString();
 
-    // Ambil transaksi milik siswa yang dikelola guru ini pada tanggal terpilih
     const { data, error } = await supabase
         .from('transactions')
         .select(`
@@ -86,6 +86,7 @@ export default function TodayTransactionsPage() {
     switch (category) {
         case 'BELANJA_KANTIN': return <UtensilsCrossed className="h-3 w-3" />;
         case 'TARIK_TUNAI': return <MonitorSmartphone className="h-3 w-3" />;
+        case 'BIAYA_ADMIN': return <ShieldEllipsis className="h-3 w-3" />;
         default: return <Wallet className="h-3 w-3" />;
     }
   };
@@ -94,6 +95,7 @@ export default function TodayTransactionsPage() {
     switch (category) {
         case 'BELANJA_KANTIN': return 'Kantin';
         case 'TARIK_TUNAI': return 'ATM Kios';
+        case 'BIAYA_ADMIN': return 'Admin';
         default: return 'Tabungan';
     }
   };

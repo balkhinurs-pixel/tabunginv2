@@ -6,11 +6,12 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Banknote, UtensilsCrossed, AlertTriangle, History } from 'lucide-react';
+import { ArrowLeft, Banknote, UtensilsCrossed, AlertTriangle, History, ShieldEllipsis } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import CantineManagement from '../settings/_components/CantineManagement';
 import SettlementManagement from '../settings/_components/SettlementManagement';
 import SettlementHistory from '../settings/_components/SettlementHistory';
+import AdminFeeManagement from '../settings/_components/AdminFeeManagement';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function TeacherSettlementPage() {
@@ -45,19 +46,22 @@ export default function TeacherSettlementPage() {
         </Button>
         <div>
             <h2 className="text-xl font-bold tracking-tight text-primary">Manajemen Keuangan</h2>
-            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Kantin & Settlement</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Kantin & Biaya Admin</p>
         </div>
       </div>
 
       <Tabs defaultValue="settle" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6 rounded-2xl bg-muted/50 p-1.5 h-14">
-          <TabsTrigger value="settle" className="rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center gap-1">
+        <TabsList className="grid w-full grid-cols-4 mb-6 rounded-2xl bg-muted/50 p-1.5 h-14">
+          <TabsTrigger value="settle" className="rounded-xl font-bold text-[9px] uppercase tracking-wider flex items-center gap-1">
              <Banknote className="h-3.5 w-3.5" /> Tagihan
           </TabsTrigger>
-          <TabsTrigger value="history" className="rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center gap-1">
-             <History className="h-3.5 w-3.5" /> Riwayat
+          <TabsTrigger value="history" className="rounded-xl font-bold text-[9px] uppercase tracking-wider flex items-center gap-1">
+             <History className="h-3.5 w-3.5" /> Jurnal
           </TabsTrigger>
-          <TabsTrigger value="outlets" className="rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center gap-1">
+          <TabsTrigger value="admin" className="rounded-xl font-bold text-[9px] uppercase tracking-wider flex items-center gap-1">
+             <ShieldEllipsis className="h-3.5 w-3.5" /> Admin
+          </TabsTrigger>
+          <TabsTrigger value="outlets" className="rounded-xl font-bold text-[9px] uppercase tracking-wider flex items-center gap-1">
              <UtensilsCrossed className="h-3.5 w-3.5" /> Outlet
           </TabsTrigger>
         </TabsList>
@@ -88,6 +92,21 @@ export default function TeacherSettlementPage() {
                 </CardHeader>
                 <CardContent className="pt-6">
                     <SettlementHistory />
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent value="admin" className="space-y-4">
+            <Card className="shadow-sm border-indigo-100 overflow-hidden rounded-[2.5rem]">
+                <CardHeader className="bg-indigo-50/50 border-b border-indigo-100">
+                    <div className="flex items-center gap-2">
+                        <ShieldEllipsis className="h-5 w-5 text-indigo-600" />
+                        <CardTitle className="text-sm font-black uppercase tracking-tight">Potongan Administrasi</CardTitle>
+                    </div>
+                    <CardDescription className="text-xs font-medium">Manajemen biaya admin bulanan untuk seluruh siswa.</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                    <AdminFeeManagement />
                 </CardContent>
             </Card>
         </TabsContent>
