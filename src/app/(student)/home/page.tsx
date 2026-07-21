@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useEffect } from 'react';
@@ -18,7 +17,8 @@ import {
     Building2,
     UtensilsCrossed,
     MonitorSmartphone,
-    ShieldEllipsis
+    ShieldEllipsis,
+    History
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';

@@ -1,4 +1,3 @@
-
 'use server';
 
 import { createClient } from '@/lib/utils/supabase/server';
@@ -118,7 +117,7 @@ export async function getSettledHistoryAction() {
         id: tx.id,
         date: tx.created_at,
         amount: tx.amount,
-        merchantName: tx.profiles?.school_name || 'OUTLET',
+        merchantName: (tx.profiles as any)?.school_name || 'OUTLET',
         studentName: tx.students?.name || 'Siswa',
         studentClass: tx.students?.class || '-'
     }));
