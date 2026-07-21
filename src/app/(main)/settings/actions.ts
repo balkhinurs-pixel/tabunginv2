@@ -157,7 +157,6 @@ export async function getAdminFeeStatsAction() {
     const stats: Record<string, { month: string, total: number, count: number }> = {};
     
     data.forEach(tx => {
-        // Ekstrak nama bulan dari deskripsi "Biaya Admin: Bulan Tahun"
         const monthMatch = tx.description.match(/Biaya Admin: (.*)/);
         const monthKey = monthMatch ? monthMatch[1] : format(new Date(tx.created_at), 'MMMM yyyy', { locale: id });
         
@@ -174,32 +173,31 @@ export async function getAdminFeeStatsAction() {
 export async function processBatchAdminFeeAction(monthName: string) {
     const supabase = createClient();
     const supabaseAdmin = getSupabaseAdmin();
+    
+    // VALIDASI USER SECURE DENGAN getUser()
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, message: 'Sesi berakhir.' };
+    if (!user) return { success: false, message: 'Sesi tidak valid atau telah berakhir. Silakan login kembali.' };
 
-    // 1. Ambil Pengaturan Biaya
     const { data: profile } = await supabase.from('profiles').select('admin_fee').eq('id', user.id).single();
     const fee = profile?.admin_fee || 0;
 
     if (fee <= 0) return { success: false, message: 'Atur nominal biaya admin terlebih dahulu.' };
 
-    // 2. Ambil Daftar Siswa (Gunakan Admin Client untuk bypass RLS, tapi filter by user_id)
+    // AMBIL SISWA MENGGUNAKAN ADMIN CLIENT UNTUK BYPASS RLS TAPI TETAP FILTER ID GURU
     const { data: students, error: studentError } = await supabaseAdmin
         .from('students')
         .select('id, name')
         .eq('user_id', user.id);
 
     if (studentError || !students || students.length === 0) {
-        return { success: false, message: 'Tidak ada data siswa ditemukan untuk diproses.' };
+        return { success: false, message: 'Tidak ada data siswa yang ditemukan untuk ID Guru ini.' };
     }
 
     let successCount = 0;
     const errors = [];
 
-    // 3. Proses penarikan per siswa
     for (const student of students) {
         try {
-            // Cek apakah sudah ditarik di bulan ini (cegah penarikan ganda)
             const description = `Biaya Admin: ${monthName}`;
             const { data: existing } = await supabaseAdmin
                 .from('transactions')

@@ -55,9 +55,10 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // MENGGUNAKAN getUser() UNTUK KEAMANAN DAN STABILITAS SESI
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
 
@@ -66,20 +67,20 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute = isAuthRoute || pathname === '/auth/callback' || pathname === '/';
 
   // 1. Jika TIDAK login dan mencoba akses rute terproteksi
-  if (!session && !isPublicRoute) {
+  if (!user && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
   // 2. Jika LOGIN
-  if (session) {
+  if (user) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, school_code, school_name')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single();
 
-    const isStudentEmail = session.user.email?.endsWith('.supabase.user');
-    const isCantineEmail = session.user.email?.endsWith('.kantin.user');
+    const isStudentEmail = user.email?.endsWith('.supabase.user');
+    const isCantineEmail = user.email?.endsWith('.kantin.user');
 
     // A. Role SISWA
     if (isStudentEmail || (profile && profile.role === 'STUDENT')) {
@@ -100,11 +101,9 @@ export async function middleware(request: NextRequest) {
     // C. Alur Guru (TEACHER) & Admin Pusat (ADMIN)
     if (!pathname.startsWith('/_next') && !pathname.includes('.')) {
         if (profile) {
-          // LOGIKA TRANSISI: Jika role ADMIN/USER tapi punya school_code, perlakukan sebagai TEACHER
           const isActuallyTeacher = profile.role === 'TEACHER' || (profile.school_code && profile.role !== 'CANTINE' && profile.role !== 'STUDENT' && profile.role !== 'ADMIN');
           const isActuallyAdmin = profile.role === 'ADMIN' && !profile.school_code;
 
-          // Super Admin (ADMIN) ke panel khusus
           if (isActuallyAdmin) {
               if (isAuthRoute || pathname === '/dashboard') {
                   return NextResponse.redirect(new URL('/admin/dashboard', request.url));
@@ -112,20 +111,17 @@ export async function middleware(request: NextRequest) {
               return response;
           }
 
-          // Guru (TEACHER)
           if (isActuallyTeacher) {
               if (isAuthRoute || pathname === '/welcome' || pathname.startsWith('/admin')) {
-                  return NextResponse.redirect(new URL('/dashboard', request.url));
+                  return NextResponse.redirect(new URLURL('/dashboard', request.url));
               }
               return response;
           }
           
-          // Jika belum ada data sekolah sama sekali, wajib ke /welcome
           if (!profile.school_code && pathname !== '/welcome' && pathname !== '/auth/callback') {
             return NextResponse.redirect(new URL('/welcome', request.url));
           }
         } else {
-            // Jika belum ada profile sama sekali
             if (pathname !== '/welcome' && pathname !== '/auth/callback') {
                 return NextResponse.redirect(new URL('/welcome', request.url));
             }
